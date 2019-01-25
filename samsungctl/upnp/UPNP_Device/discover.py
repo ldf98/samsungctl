@@ -41,6 +41,9 @@ Content-Length: 0\r
 
 
 def discover(timeout=5, log_level=None, search_ips=[], dump=''):
+    if dump and not os.path.exists(dump):
+        os.makedirs(dump)
+
     if log_level is not None:
         logging.basicConfig(format="%(message)s", level=log_level)
         if log_level is not None:
@@ -53,7 +56,7 @@ def discover(timeout=5, log_level=None, search_ips=[], dump=''):
 
     for adapter in ifaddr.get_adapters():
         for adapter_ip in adapter.ips:
-            if isinstance(adapter_ip.ip, tuple):
+            if isinstance(adapter_ip.ip, tuple) or adapter_ip.nice_name == 'lo0':
                 # adapter_ips += [adapter_ip.ip[0]]
                 continue
             else:

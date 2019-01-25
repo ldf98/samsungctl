@@ -183,9 +183,6 @@ class EncryptedUPNPTest(unittest.TestCase):
         self.ssdp_thread = threading.Thread(target=ssdp_do, name='ssdp_listen')
         self.ssdp_thread.start()
 
-
-
-
     def tearDown(self):
         self.ssdp_event.set()
         self.sock.shutdown(socket.SHUT_RDWR)

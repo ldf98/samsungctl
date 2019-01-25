@@ -5,6 +5,12 @@ import requests
 import os
 from lxml import etree
 try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
+
+
+try:
     from .xmlns import strip_xmlns
     from .service import Service
     from .embedded_device import EmbeddedDevice
@@ -21,18 +27,15 @@ class UPNPObject(object):
 
     def __init__(self, ip, locations, dump=''):
         self.ip_address = ip
-        url_template = 'http://'
+
         cls_name = None
         self.__devices = {}
         self.__services = {}
-
         for location in locations:
-            url = url_template + (
-                location.replace('http://', '').split('/')[0]
-            )
+            parsed_url = urlparse(location)
 
-            location = location.replace(url, '')
-            response = requests.get(url + location)
+            url = parsed_url.scheme + '//' + parsed_url.netloc
+            response = requests.get(location)
 
             if dump:
                 path = location
@@ -52,8 +55,13 @@ class UPNPObject(object):
                 if not file_name.endswith('.xml'):
                     file_name += '.xml'
 
+                if isinstance(response.content, bytes):
+                    content = response.content.decode('utf-8')
+                else:
+                    content = response.content
+
                 with open(os.path.join(path, file_name), 'w') as f:
-                    f.write(response.content)
+                    f.write(content)
 
             root = etree.fromstring(response.content)
             root = strip_xmlns(root)

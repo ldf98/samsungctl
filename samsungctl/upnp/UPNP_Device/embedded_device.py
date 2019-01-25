@@ -153,7 +153,7 @@ class EmbeddedDevice(object):
 
         if self.__node is not None:
             for node in self.__node:
-                if node.text:
+                if node.text.strip() and node.text != '/':
                     res[node.tag] = node.text
         return res
 

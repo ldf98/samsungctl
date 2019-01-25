@@ -47,6 +47,7 @@ class Service(object):
 
         self.service = service
 
+        location = location.replace(url, '')
         location = location.replace('//', '/')
         response = requests.get(url + location)
         if dump:
@@ -66,8 +67,13 @@ class Service(object):
             if not file_name.endswith('.xml'):
                 file_name += '.xml'
 
+            if isinstance(response.content, bytes):
+                content = response.content.decode('utf-8')
+            else:
+                content = response.content
+
             with open(os.path.join(path, file_name), 'w') as f:
-                f.write(response.content)
+                f.write(content)
 
         try:
             root = etree.fromstring(response.content)
@@ -142,14 +148,14 @@ class Service(object):
 
         if self.__node is not None:
             for node in self.__node:
-                if node.text:
+                if node.text.strip() and node.text != '/':
                     res[node.tag] = node.text
         return res
 
     def __str__(self, indent=''):
         actions = ''
 
-        for action in self.actions.values():
+        for action in self.__actions.values():
             actions += action.__str__(indent + '    ')
 
         if not actions:
