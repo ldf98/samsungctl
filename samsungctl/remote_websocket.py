@@ -103,7 +103,17 @@ class RemoteWebsocket(object):
                         )
 
         elif not value and self.sock is not None:
-            self.control('KEY_POWER')
+            with self.receive_lock:
+                params = dict(
+                    Cmd='Click',
+                    DataOfCmd='KEY_POWER',
+                    Option="false",
+                    TypeOfRemote="SendRemoteKey"
+                )
+
+                logger.info("Sending control command: " + str(params))
+                self.send("ms.remote.control", **params)
+
             self._power_event.wait(2.0)
 
             if not self._power_event.isSet():
