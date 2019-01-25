@@ -61,7 +61,7 @@ def key_wrapper(func):
 
     def wrapper(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         event = threading.Event()
 
@@ -82,11 +82,10 @@ def key_wrapper(func):
 
         self.remote.control(key)
         event.wait(1)
+        self.client.on_message = None
 
         if not event.isSet():
-            self.skipTest('timed out')
-
-        self.client.on_message = None
+            self.fail('TIMED_OUT')
 
     return wrapper
 
@@ -103,6 +102,7 @@ class FakeWebsocketClient(object):
         self.on_connect = None
         self.on_message = None
         self.on_close = None
+        self._shutting_down = False
         self.recv_event = threading.Event()
 
     def __call__(self, url, sslopt, enable_multithread=False):
@@ -129,11 +129,16 @@ class FakeWebsocketClient(object):
 
     def recv(self):
         self.recv_event.wait()
+        if self._shutting_down:
+            return ''
+
         self.recv_event.clear()
         response = json.dumps(self.return_data.pop(0))
         return response
 
     def close(self):
+        self._shutting_down = True
+        self.recv_event.set()
         self.on_close()
 
 
@@ -142,6 +147,14 @@ class WebSocketTest(unittest.TestCase):
     client = None
     applications = []
     config = None
+
+    NO_CONNECTION = 'no connection'
+    PREVIOUS_TEST_FAILED = 'previous test failed'
+    TIMED_OUT = 'timed out'
+    APPLICATIONS_FAILED = 'no applications received'
+    GET_APPLICATION_FAILED = 'get application failed'
+    GET_CATEGORY_FAILED = 'get category failed'
+    GET_CONTENT_FAILED = 'get content failed'
 
     @staticmethod
     def _unserialize_string(s):
@@ -155,7 +168,8 @@ class WebSocketTest(unittest.TestCase):
         return base64.b64encode(s).decode("utf-8")
 
     def test_001_CONNECTION(self):
-        WebSocketTest.config = dict(
+        # sys.modules['samsungctl.application']._instances.clear()
+        WebSocketTest.config = samsungctl.Config(
             name="samsungctl",
             description="PC",
             id="",
@@ -164,6 +178,8 @@ class WebSocketTest(unittest.TestCase):
             port=8001,
             timeout=0
         )
+
+        self.config.log_level = LOG_LEVEL
 
         self.connection_event = threading.Event()
         WebSocketTest.client = FakeWebsocketClient(self)
@@ -178,16 +194,12 @@ class WebSocketTest(unittest.TestCase):
         logger.info(str(self.config))
 
         try:
-            self.remote = WebSocketTest.remote = samsungctl.Remote(
-                self.config,
-                LOG_LEVEL
-            ).__enter__()
-
+            self.remote = WebSocketTest.remote = samsungctl.Remote(self.config).__enter__()
             self.remote.open()
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
                 WebSocketTest.remote = None
-                self.fail('connection timed out')
+                self.fail('connection TIMED_OUT')
             else:
                 logger.info('connection successful')
         except:
@@ -196,12 +208,12 @@ class WebSocketTest(unittest.TestCase):
 
     def test_002_CONNECTION_PARAMS(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.skipTest('NO_CONNECTION')
 
         url = URL_FORMAT.format(
-            self.config['host'],
-            self.config['port'],
-            self._serialize_string(self.config['name'])
+            self.config.host,
+            self.config.port,
+            self._serialize_string(self.config.name)
         )
 
         self.assertEqual(url, self.client.url)
@@ -813,7 +825,7 @@ class WebSocketTest(unittest.TestCase):
 
     def test_0221_KEY_BT_VOICE_ON(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         event = threading.Event()
 
@@ -837,14 +849,14 @@ class WebSocketTest(unittest.TestCase):
         self.remote.start_voice_recognition()
 
         event.wait(3)
-        if not event.isSet():
-            self.skipTest('timed out')
-
         self.client.on_message = None
+
+        if not event.isSet():
+            self.fail('TIMED_OUT')
 
     def test_0222_KEY_BT_VOICE_OFF(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             expected_message = dict(
@@ -866,14 +878,14 @@ class WebSocketTest(unittest.TestCase):
         self.remote.stop_voice_recognition()
 
         event.wait(3)
-        if not event.isSet():
-            self.skipTest('timed out')
-
         self.client.on_message = None
+
+        if not event.isSet():
+            self.fail('TIMED_OUT')
 
     def test_0300_EDEN_APP_GET(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -902,34 +914,31 @@ class WebSocketTest(unittest.TestCase):
                 return responses.INSTALLED_APP_RESPONSE
 
         self.client.on_message = on_message
-        WebSocketSSLTest.applications = self.remote.applications[:]
+        WebSocketTest.applications = self.remote.applications[:]
         self.client.on_message = None
 
         if not self.applications:
-            self.skipTest('no applications received')
+            self.fail('APPLICATIONS_FAILED')
 
     def test_0301_APPLICATION_CATEGORIES_CONTENT(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         if not self.applications:
-            self.skipTest('previous test failed')
-            return
+            self.fail('PREVIOUS_TEST_FAILED')
 
         for app in self.applications:
             logger.info(app.name)
 
             for category in app:
-                logger.info('    ' + category.title)
+                logger.info('    ' + repr(category.title))
 
                 for content in category:
-                    logger.info('        ' + content.title)
+                    logger.info('        ' + repr(content.title))
 
     def test_0303_GET_APPLICATION(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -961,12 +970,11 @@ class WebSocketTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
+            self.fail('GET_APPLICATION_FAILED')
 
     def test_0304_LAUNCH_APPLICATION(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -998,8 +1006,7 @@ class WebSocketTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         event = threading.Event()
 
@@ -1011,7 +1018,7 @@ class WebSocketTest(unittest.TestCase):
                     to='host',
                     data=dict(
                         appId='11101200001',
-                        action_type='NATIVE_LAUNCH'
+                        action_type='DEEP_LINK'
                     )
                 )
             )
@@ -1024,12 +1031,11 @@ class WebSocketTest(unittest.TestCase):
 
         event.wait(15.0)
         if not event.isSet():
-            self.skipTest('timed out')
+            self.fail('TIMED_OUT')
 
     def test_0305_GET_CONTENT_CATEGORY(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -1061,18 +1067,15 @@ class WebSocketTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         category = app.get_category('Trending Now')
         if category is None:
-            self.skipTest('get category failed')
-            return
+            self.fail('GET_CATEGORY_FAILED')
 
     def test_0306_GET_CONTENT(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -1105,22 +1108,19 @@ class WebSocketTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         category = app.get_category('Trending Now')
         if category is None:
-            self.skipTest('get category failed')
-            return
+            self.fail('GET_CATEGORY_FAILED')
 
         content = category.get_content('How the Grinch Stole Christmas')
         if content is None:
-            self.skipTest('get content failed')
+            self.fail('GET_CONTENT_FAILED')
 
     def test_0307_PLAY_CONTENT(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -1152,18 +1152,15 @@ class WebSocketTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         category = app.get_category('Trending Now')
         if category is None:
-            self.skipTest('get category failed')
-            return
+            self.fail('GET_CATEGORY_FAILED')
 
         content = category.get_content('How the Grinch Stole Christmas')
         if content is None:
-            self.skipTest('get content failed')
-            return
+            self.fail('GET_CONTENT_FAILED')
 
         event = threading.Event()
 
@@ -1175,7 +1172,7 @@ class WebSocketTest(unittest.TestCase):
                     to='host',
                     data=dict(
                         appId='11101200001',
-                        action_type='NATIVE_LAUNCH',
+                        action_type='DEEP_LINK',
                         metaTag=(
                             'm=60000901&trackId=254080000&&source_type_payload'
                             '=groupIndex%3D2%26tileIndex%3D6%26action%3Dmdp%26'
@@ -1194,12 +1191,10 @@ class WebSocketTest(unittest.TestCase):
         self.client.on_message = None
 
         if not event.isSet():
-            self.skipTest('timed out')
+            self.fail('TIMED_OUT')
 
     def test_999_DISCONNECT(self):
-        if self.remote is None:
-            self.skipTest('no connection')
-        else:
+        if self.remote is not None:
             self.remote.close()
 
     def on_disconnect(self):
@@ -1207,7 +1202,7 @@ class WebSocketTest(unittest.TestCase):
 
     def on_connect(self, _):
         guid = str(uuid.uuid4())[1:-1]
-        name = self._serialize_string(self.config['name'])
+        name = self._serialize_string(self.config.name)
 
         clients = dict(
             attributes=dict(name=name),
@@ -1230,6 +1225,14 @@ class WebSocketSSLTest(unittest.TestCase):
     applications = []
     config = None
 
+    NO_CONNECTION = 'no connection'
+    PREVIOUS_TEST_FAILED = 'previous test failed'
+    TIMED_OUT = 'timed out'
+    APPLICATIONS_FAILED = 'no applications received'
+    GET_APPLICATION_FAILED = 'get application failed'
+    GET_CATEGORY_FAILED = 'get category failed'
+    GET_CONTENT_FAILED = 'get content failed'
+
     @staticmethod
     def _unserialize_string(s):
         return base64.b64decode(s).encode("utf-8")
@@ -1241,7 +1244,9 @@ class WebSocketSSLTest(unittest.TestCase):
         return base64.b64encode(s).decode("utf-8")
 
     def test_001_CONNECTION(self):
-        WebSocketSSLTest.config = dict(
+
+        # sys.modules['samsungctl.application']._instances.clear()
+        WebSocketSSLTest.config = samsungctl.Config(
             name="samsungctl",
             description="PC",
             id="",
@@ -1250,6 +1255,7 @@ class WebSocketSSLTest(unittest.TestCase):
             port=8002,
             timeout=0
         )
+        self.config.log_level = LOG_LEVEL
         self.connection_event = threading.Event()
         WebSocketSSLTest.client = FakeWebsocketClient(self)
 
@@ -1264,29 +1270,30 @@ class WebSocketSSLTest(unittest.TestCase):
 
         try:
             self.remote = WebSocketSSLTest.remote = samsungctl.Remote(
-                self.config,
-                LOG_LEVEL
+                self.config
             ).__enter__()
 
             self.remote.open()
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
                 WebSocketSSLTest.remote = None
-                self.fail('connection timed out')
+                self.fail('connection TIMED_OUT')
             else:
                 logger.info('connection successful')
         except:
+            import traceback
+            traceback.print_exc()
             WebSocketSSLTest.remote = None
             self.fail('unable to establish connection')
 
     def test_002_CONNECTION_PARAMS(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         url = SSL_URL_FORMAT.format(
-            self.config['host'],
-            self.config['port'],
-            self._serialize_string(self.config['name'])
+            self.config.host,
+            self.config.port,
+            self._serialize_string(self.config.name)
         )
 
         sslopt = {"cert_reqs": ssl.CERT_NONE}
@@ -1903,7 +1910,7 @@ class WebSocketSSLTest(unittest.TestCase):
 
     def test_0221_KEY_BT_VOICE_ON(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.skipTest('NO_CONNECTION')
 
         event = threading.Event()
 
@@ -1927,14 +1934,14 @@ class WebSocketSSLTest(unittest.TestCase):
         self.remote.start_voice_recognition()
 
         event.wait(3)
-        if not event.isSet():
-            self.skipTest('timed out')
-
         self.client.on_message = None
+
+        if not event.isSet():
+            self.fail('TIMED_OUT')
 
     def test_0222_KEY_BT_VOICE_OFF(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             expected_message = dict(
@@ -1954,16 +1961,15 @@ class WebSocketSSLTest(unittest.TestCase):
         event = threading.Event()
         self.client.on_message = on_message
         self.remote.stop_voice_recognition()
-
         event.wait(3)
-        if not event.isSet():
-            self.skipTest('timed out')
-
         self.client.on_message = None
+
+        if not event.isSet():
+            self.fail('TIMED_OUT')
 
     def test_0300_EDEN_APP_GET(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -1996,30 +2002,29 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if not self.applications:
-            self.skipTest('no applications received')
+            self.fail('APPLICATIONS_FAILED')
 
     def test_0301_APPLICATION_CATEGORIES_CONTENT(self):
         if self.remote is None:
-            self.skipTest('no connection')
+            self.skipTest('NO_CONNECTION')
             return
 
         if not self.applications:
-            self.skipTest('previous test failed')
+            self.skipTest('PREVIOUS_TEST_FAILED')
             return
 
         for app in self.applications:
             logger.info(app.name)
 
             for category in app:
-                logger.info('    ' + category.title)
+                logger.info('    ' + repr(category.title))
 
                 for content in category:
-                    logger.info('        ' + content.title)
+                    logger.info('        ' + repr(content.title))
 
     def test_0303_GET_APPLICATION(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -2051,12 +2056,11 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
+            self.fail('GET_APPLICATION_FAILED')
 
     def test_0304_LAUNCH_APPLICATION(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -2088,8 +2092,7 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         event = threading.Event()
 
@@ -2101,7 +2104,7 @@ class WebSocketSSLTest(unittest.TestCase):
                     to='host',
                     data=dict(
                         appId='11101200001',
-                        action_type='NATIVE_LAUNCH'
+                        action_type='DEEP_LINK'
                     )
                 )
             )
@@ -2114,12 +2117,11 @@ class WebSocketSSLTest(unittest.TestCase):
 
         event.wait(15.0)
         if not event.isSet():
-            self.skipTest('timed out')
+            self.fail('TIMED_OUT')
 
     def test_0305_GET_CONTENT_CATEGORY(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -2151,18 +2153,15 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         category = app.get_category('Trending Now')
         if category is None:
-            self.skipTest('get category failed')
-            return
+            self.fail('GET_CATEGORY_FAILED')
 
     def test_0306_GET_CONTENT(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -2195,22 +2194,19 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         category = app.get_category('Trending Now')
         if category is None:
-            self.skipTest('get category failed')
-            return
+            self.fail('GET_CATEGORY_FAILED')
 
         content = category.get_content('How the Grinch Stole Christmas')
         if content is None:
-            self.skipTest('get content failed')
+            self.fail('GET_CONTENT_FAILED')
 
     def test_0307_PLAY_CONTENT(self):
         if self.remote is None:
-            self.skipTest('no connection')
-            return
+            self.fail('NO_CONNECTION')
 
         def on_message(message):
             eden_message = dict(
@@ -2242,18 +2238,15 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if app is None:
-            self.skipTest('get application failed')
-            return
+            self.fail('GET_APPLICATION_FAILED')
 
         category = app.get_category('Trending Now')
         if category is None:
-            self.skipTest('get category failed')
-            return
+            self.fail('GET_CATEGORY_FAILED')
 
         content = category.get_content('How the Grinch Stole Christmas')
         if content is None:
-            self.skipTest('get content failed')
-            return
+            self.fail('GET_CONTENT_FAILED')
 
         event = threading.Event()
 
@@ -2265,7 +2258,7 @@ class WebSocketSSLTest(unittest.TestCase):
                     to='host',
                     data=dict(
                         appId='11101200001',
-                        action_type='NATIVE_LAUNCH',
+                        action_type='DEEP_LINK',
                         metaTag=(
                             'm=60000901&trackId=254080000&&source_type_payload'
                             '=groupIndex%3D2%26tileIndex%3D6%26action%3Dmdp%26'
@@ -2284,12 +2277,10 @@ class WebSocketSSLTest(unittest.TestCase):
         self.client.on_message = None
 
         if not event.isSet():
-            self.skipTest('timed out')
+            self.fail('TIMED_OUT')
 
     def test_999_DISCONNECT(self):
-        if self.remote is None:
-            self.skipTest('no connection')
-        else:
+        if self.remote is not None:
             self.remote.close()
 
     def on_disconnect(self):
@@ -2297,7 +2288,7 @@ class WebSocketSSLTest(unittest.TestCase):
 
     def on_connect(self, token):
         guid = str(uuid.uuid4())[1:-1]
-        name = self._serialize_string(self.config['name'])
+        name = self._serialize_string(self.config.name)
         if token is None:
             token = TOKEN
 
@@ -2344,14 +2335,23 @@ class LegacySocket(object):
         try:
             while not self._event.isSet():
                 data = conn.recv(4096)
-                if self.on_message is not None:
+                if self.on_message is not None and data:
                     self.on_message(data)
-
         except socket.error:
             pass
 
     def close(self):
-        self.sock.close()
+        self._event.set()
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except socket.error:
+            pass
+        try:
+            self.sock.close()
+        except socket.error:
+            pass
+
+        self._thread.join(3.0)
 
 
 def send_key(func):
@@ -2370,6 +2370,9 @@ class LegacyTest(unittest.TestCase):
     applications = []
     config = None
 
+    NO_CONNECTION = 'no connection'
+    TIMED_OUT = 'timed out'
+
     @staticmethod
     def _unserialize_string(s):
         return base64.b64decode(s).encode("utf-8")
@@ -2386,7 +2389,7 @@ class LegacyTest(unittest.TestCase):
         return bytes([len(string)]) + b"\x00" + string
 
     def test_001_CONNECTION(self):
-        LegacyTest.config = dict(
+        LegacyTest.config = samsungctl.Config(
             name="samsungctl",
             description="UnitTest",
             id="123456789",
@@ -2395,6 +2398,8 @@ class LegacyTest(unittest.TestCase):
             port=55000,
             timeout=0
         )
+
+        self.config.log_level = LOG_LEVEL
 
         LegacyTest.client = LegacySocket(self)
 
@@ -2408,14 +2413,13 @@ class LegacyTest(unittest.TestCase):
 
         try:
             self.remote = LegacyTest.remote = samsungctl.Remote(
-                self.config,
-                LOG_LEVEL
+                self.config
             ).__enter__()
 
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
                 LegacyTest.remote = None
-                self.fail('connection timed out')
+                self.fail('connection TIMED_OUT')
             else:
                 logger.info('connection successful')
         except:
@@ -2425,7 +2429,7 @@ class LegacyTest(unittest.TestCase):
     def send_command(self, key):
 
         if self.remote is None:
-            self.skipTest('no connection')
+            self.fail('NO_CONNECTION')
 
         event = threading.Event()
 
@@ -2438,7 +2442,7 @@ class LegacyTest(unittest.TestCase):
 
             self.assertEqual(expected_message, message)
 
-            tv_name = self.config["name"]
+            tv_name = self.config.name
             tv_name_len = bytearray.fromhex(hex(len(tv_name))[2:].zfill(2))
 
             while len(tv_name_len) < 3:
@@ -2457,11 +2461,10 @@ class LegacyTest(unittest.TestCase):
 
         self.remote.control(key)
         event.wait(1)
+        self.client.on_message = None
 
         if not event.isSet():
-            self.skipTest('timed out')
-
-        self.client.on_message = None
+            self.fail('TIMED_OUT')
 
     # @send_key
     def test_0100_KEY_POWEROFF(self):
@@ -3069,9 +3072,7 @@ class LegacyTest(unittest.TestCase):
         pass
 
     def test_999_DISCONNECT(self):
-        if self.remote is None:
-            self.skipTest('no connection')
-        else:
+        if self.remote is not None:
             self.remote.close()
 
         self.client.close()
@@ -3083,22 +3084,30 @@ class LegacyTest(unittest.TestCase):
 
         payload = (
             b"\x64\x00" +
-            self._serialize_string(self.config["description"]) +
-            self._serialize_string(self.config["id"]) +
-            self._serialize_string(self.config["name"])
+            self._serialize_string(self.config.description) +
+            self._serialize_string(self.config.id) +
+            self._serialize_string(self.config.name)
         )
         packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
 
-        self.assertEquals(packet, message)
+        self.assertEqual(packet, message)
 
-        tv_name = self.config["name"]
+        tv_name = self.config.name
         tv_name_len = bytearray.fromhex(hex(len(tv_name))[2:].zfill(2))
 
         while len(tv_name_len) < 3:
             tv_name_len = bytearray(b'\x00') + tv_name_len
 
-        packet1 = tv_name_len + tv_name.encode() + "\x00\x01\x0a".encode()
-        packet2 = tv_name_len + tv_name.encode() + "\x00\x04\x64\x00\x01\x00".encode()
+        packet1 = (
+            tv_name_len +
+            tv_name.encode() +
+            "\x00\x01\x0a".encode()
+        )
+        packet2 = (
+            tv_name_len +
+            tv_name.encode() +
+            "\x00\x04\x64\x00\x01\x00".encode()
+        )
 
         self.client.send(packet1)
         self.client.send(packet2)
@@ -3114,15 +3123,24 @@ if __name__ == '__main__':
     if not base_path:
         base_path = os.getcwd()
 
-    sys.path.insert(0, os.path.join(base_path, '..'))
+    sys.path.insert(0, os.path.abspath(os.path.join(base_path, '..')))
 
     import samsungctl
 
     logger = logging.getLogger('samsungctl')
     unittest.main()
 
+    # test_loader = unittest.TestLoader()
+    # websocket_test_suite = test_loader.loadTestsFromTestCase(WebSocketTest)
+    # websocket_ssl_test_suite = test_loader.loadTestsFromTestCase(WebSocketSSLTest)
+    # legacy_test_suite = test_loader.loadTestsFromTestCase(LegacyTest)
+    #
+    # # Default args:
+    # text_test_runner = unittest.TextTestRunner()
+    # text_test_runner.run(websocket_test_suite)
+    # text_test_runner.run(websocket_ssl_test_suite)
+    # text_test_runner.run(legacy_test_suite)
 else:
     import samsungctl
 
     logger = logging.getLogger('samsungctl')
-
