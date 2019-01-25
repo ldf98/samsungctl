@@ -271,6 +271,7 @@ def main():
         return
 
     config.log_level = log_level
+    
     try:
         with Remote(config) as remote:
             if args.interactive:

@@ -18,15 +18,12 @@ class RemoteLegacy(object):
     @LogIt
     def __init__(self, config):
         """Make a new connection."""
-
         self.config = config
         self.connection = None
 
     @LogIt
     def open(self):
-
-        self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+        config.port = 55000
         if self.config.timeout:
             self.connection.settimeout(self.config.timeout)
 
@@ -41,28 +38,28 @@ class RemoteLegacy(object):
         packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
 
         logger.info("Sending handshake.")
-        self.connection.send(packet)
+        self.sock.send(packet)
         self._read_response(True)
 
     @LogIt
     def close(self):
         """Close the connection."""
-        if self.connection:
-            self.connection.close()
-            self.connection = None
+        if self.sock:
+            self.sock.close()
+            self.sock = None
             logging.debug("Connection closed.")
 
     @LogIt
     def control(self, key):
         """Send a control command."""
-        if not self.connection:
+        if not self.sock:
             raise exceptions.ConnectionClosed()
 
         payload = b"\x00\x00\x00" + self._serialize_string(key)
         packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
 
         logger.info("Sending control command: %s", key)
-        self.connection.send(packet)
+        self.sock.send(packet)
         self._read_response()
         time.sleep(self._key_interval)
 
@@ -70,15 +67,15 @@ class RemoteLegacy(object):
 
     @LogIt
     def _read_response(self, first_time=False):
-        header = self.connection.recv(3)
+        header = self.sock.recv(3)
         tv_name_len = int(codecs.encode(header[1:3], 'hex'), 16)
-        tv_name = self.connection.recv(tv_name_len)
+        tv_name = self.sock.recv(tv_name_len)
 
         if first_time:
             logger.debug("Connected to '%s'.", tv_name.decode())
 
-        response_len = int(codecs.encode(self.connection.recv(2), 'hex'), 16)
-        response = self.connection.recv(response_len)
+        response_len = int(codecs.encode(self.sock.recv(2), 'hex'), 16)
+        response = self.sock.recv(response_len)
 
         if len(response) == 0:
             self.close()

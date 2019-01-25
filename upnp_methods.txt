@@ -1,0 +1,3581 @@
+UA32M4100
+IP Address: 192.168.2.33
+==============================================
+Services:
+    Service name: ScreenSharingService
+    Service class: urn:samsung.com:service:ScreenSharingService:1
+    Access point: UPNPObject.ScreenSharingService
+    ----------------------------------------------
+    Methods:
+        None
+    Service name: ConnectionManager
+    Service class: urn:schemas-upnp-org:service:ConnectionManager:1
+    Access point: UPNPObject.ConnectionManager
+    ----------------------------------------------
+    Methods:
+        None
+    Service name: RenderingControl
+    Service class: urn:schemas-upnp-org:service:RenderingControl:1
+    Access point: UPNPObject.RenderingControl
+    ----------------------------------------------
+    Methods:
+        None
+    Service name: AVTransport
+    Service class: urn:schemas-upnp-org:service:AVTransport:1
+    Access point: UPNPObject.AVTransport
+    ----------------------------------------------
+    Methods:
+        None
+    Service name: TestRCRService
+    Service class: urn:samsung.com:service:TestRCRService:1
+    Access point: UPNPObject.TestRCRService
+    ----------------------------------------------
+    Methods:
+        None
+Devices: None
+
+
+UA55MU6100
+IP Address: 192.168.2.32
+==============================================
+Services:
+    Service name: MultiScreenService
+    Service class: urn:samsung.com:service:MultiScreenService:1
+    Access point: UPNPObject.MultiScreenService
+    ----------------------------------------------
+    Methods:
+        Method name: SendKeyCode
+        Access point: UPNPObject.MultiScreenService.SendKeyCode
+        Call: UPNPObject.MultiScreenService.SendKeyCode(KeyCode, KeyDescription)
+        ----------------------------------------------
+            Parameters:
+            Name: KeyCode
+            UPNP data type: A_ARG_TYPE_KeyCode
+            Py data type: unsigned 32bit int
+
+            Name: KeyDescription
+            UPNP data type: A_ARG_TYPE_KeyDescription
+            Py data type: str, bytes
+
+            Return Values: None
+    Service name: RenderingControl
+    Service class: urn:schemas-upnp-org:service:RenderingControl:1
+    Access point: UPNPObject.RenderingControl
+    ----------------------------------------------
+    Methods:
+        Method name: X_UpdateAudioSelection
+        Access point: UPNPObject.RenderingControl.X_UpdateAudioSelection
+        Call: UPNPObject.RenderingControl.X_UpdateAudioSelection(InstanceID, AudioPID, AudioEncoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: AudioPID
+            UPNP data type: X_AudioPID
+            Py data type: unsigned 16bit int
+            Default: 0
+            Minimum: 0
+            Maximum: 65535
+            Step: 1
+
+            Name: AudioEncoding
+            UPNP data type: X_AudioEncoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_SetAspectRatio
+        Access point: UPNPObject.RenderingControl.X_SetAspectRatio
+        Call: UPNPObject.RenderingControl.X_SetAspectRatio(InstanceID, AspectRatio)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: AspectRatio
+            UPNP data type: X_AspectRatio
+            Py data type: str, bytes
+            Default: Default
+            Allowed values:
+                Default
+                FitScreen
+
+            Return Values: None
+
+        Method name: SelectPreset
+        Access point: UPNPObject.RenderingControl.SelectPreset
+        Call: UPNPObject.RenderingControl.SelectPreset(InstanceID, PresetName)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: PresetName
+            UPNP data type: A_ARG_TYPE_PresetName
+            Py data type: str, bytes
+            Allowed values:
+                FactoryDefaults
+
+            Return Values: None
+
+        Method name: X_GetTVSlideShow
+        Access point: UPNPObject.RenderingControl.X_GetTVSlideShow
+        Call: CurrentShowState, CurrentThemeId, TotalThemeNumber = UPNPObject.RenderingControl.X_GetTVSlideShow(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentShowState
+                UPNP data type: A_ARG_TYPE_SlideShowState
+                Py data type: bool
+                Possible returned values: True/False
+
+            Name: CurrentThemeId
+                UPNP data type: A_ARG_TYPE_ThemeId
+                Py data type: unsigned 32bit int
+
+            Name: TotalThemeNumber
+                UPNP data type: A_ARG_TYPE_TotalThemeNumber
+                Py data type: unsigned 32bit int
+
+        Method name: X_Origin360View
+        Access point: UPNPObject.RenderingControl.X_Origin360View
+        Call: UPNPObject.RenderingControl.X_Origin360View(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_Zoom360View
+        Access point: UPNPObject.RenderingControl.X_Zoom360View
+        Call: UPNPObject.RenderingControl.X_Zoom360View(InstanceID, ScaleFactorOffset)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: ScaleFactorOffset
+            UPNP data type: X_ARG_TYPE_ScaleFactorOffset
+            Py data type: float
+            Default: 1.0
+
+            Return Values: None
+
+        Method name: SetVolume
+        Access point: UPNPObject.RenderingControl.SetVolume
+        Call: UPNPObject.RenderingControl.SetVolume(InstanceID, Channel, DesiredVolume)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Name: DesiredVolume
+            UPNP data type: Volume
+            Py data type: unsigned 16bit int
+            Minimum: 0
+            Maximum: 100
+            Step: 1
+
+            Return Values: None
+
+        Method name: X_ControlCaption
+        Access point: UPNPObject.RenderingControl.X_ControlCaption
+        Call: UPNPObject.RenderingControl.X_ControlCaption(InstanceID, Operation, Name, ResourceURI, CaptionURI, CaptionType, Language, Encoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Operation
+            UPNP data type: X_ARG_TYPE_CaptionOperation
+            Py data type: str, bytes
+            Allowed values:
+                Enable
+                Disable
+
+            Name: Name
+            UPNP data type: X_ARG_TYPE_CaptionName
+            Py data type: str, bytes
+
+            Name: ResourceURI
+            UPNP data type: X_ARG_TYPE_ResourceURI
+            Py data type: str, bytes
+
+            Name: CaptionURI
+            UPNP data type: X_ARG_TYPE_CaptionURI
+            Py data type: str, bytes
+
+            Name: CaptionType
+            UPNP data type: X_ARG_TYPE_CaptionType
+            Py data type: str, bytes
+
+            Name: Language
+            UPNP data type: X_ARG_TYPE_Language
+            Py data type: str, bytes
+
+            Name: Encoding
+            UPNP data type: X_ARG_TYPE_Encoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_Move360View
+        Access point: UPNPObject.RenderingControl.X_Move360View
+        Call: UPNPObject.RenderingControl.X_Move360View(InstanceID, LatitudeOffset, LongitudeOffset)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: LatitudeOffset
+            UPNP data type: X_ARG_TYPE_ArcDegreeOffset
+            Py data type: float
+            Default: 0.0
+
+            Name: LongitudeOffset
+            UPNP data type: X_ARG_TYPE_ArcDegreeOffset
+            Py data type: float
+            Default: 0.0
+
+            Return Values: None
+
+        Method name: X_UpdateVideoSelection
+        Access point: UPNPObject.RenderingControl.X_UpdateVideoSelection
+        Call: UPNPObject.RenderingControl.X_UpdateVideoSelection(InstanceID, VideoPID, VideoEncoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: VideoPID
+            UPNP data type: X_VideoPID
+            Py data type: unsigned 16bit int
+            Default: 0
+            Minimum: 0
+            Maximum: 65535
+            Step: 1
+
+            Name: VideoEncoding
+            UPNP data type: X_VideoEncoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_SetZoom
+        Access point: UPNPObject.RenderingControl.X_SetZoom
+        Call: UPNPObject.RenderingControl.X_SetZoom(InstanceID, x, y, w, h)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: x
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: y
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: w
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: h
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_GetAspectRatio
+        Access point: UPNPObject.RenderingControl.X_GetAspectRatio
+        Call: AspectRatio = UPNPObject.RenderingControl.X_GetAspectRatio(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: AspectRatio
+                UPNP data type: X_AspectRatio
+                Py data type: str, bytes
+                Default: Default
+                Possible returned values:
+                    Default
+                    FitScreen
+
+        Method name: GetVolume
+        Access point: UPNPObject.RenderingControl.GetVolume
+        Call: CurrentVolume = UPNPObject.RenderingControl.GetVolume(InstanceID, Channel)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Return Values:
+            Name: CurrentVolume
+                UPNP data type: Volume
+                Py data type: unsigned 16bit int
+                Minimum: 0
+                Maximum: 100
+                Step: 1
+
+        Method name: X_GetVideoSelection
+        Access point: UPNPObject.RenderingControl.X_GetVideoSelection
+        Call: VideoPID, VideoEncoding = UPNPObject.RenderingControl.X_GetVideoSelection(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: VideoPID
+                UPNP data type: X_VideoPID
+                Py data type: unsigned 16bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 65535
+                Step: 1
+
+            Name: VideoEncoding
+                UPNP data type: X_VideoEncoding
+                Py data type: str, bytes
+
+        Method name: X_GetAudioSelection
+        Access point: UPNPObject.RenderingControl.X_GetAudioSelection
+        Call: AudioPID, AudioEncoding = UPNPObject.RenderingControl.X_GetAudioSelection(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: AudioPID
+                UPNP data type: X_AudioPID
+                Py data type: unsigned 16bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 65535
+                Step: 1
+
+            Name: AudioEncoding
+                UPNP data type: X_AudioEncoding
+                Py data type: str, bytes
+
+        Method name: X_GetCaptionState
+        Access point: UPNPObject.RenderingControl.X_GetCaptionState
+        Call: Captions, EnabledCaptions = UPNPObject.RenderingControl.X_GetCaptionState(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Captions
+                UPNP data type: X_Captions
+                Py data type: str, bytes
+
+            Name: EnabledCaptions
+                UPNP data type: X_EnabledCaptions
+                Py data type: str, bytes
+
+        Method name: GetMute
+        Access point: UPNPObject.RenderingControl.GetMute
+        Call: CurrentMute = UPNPObject.RenderingControl.GetMute(InstanceID, Channel)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Return Values:
+            Name: CurrentMute
+                UPNP data type: Mute
+                Py data type: bool
+                Possible returned values: True/False
+
+        Method name: SetMute
+        Access point: UPNPObject.RenderingControl.SetMute
+        Call: UPNPObject.RenderingControl.SetMute(InstanceID, Channel, DesiredMute)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Name: DesiredMute
+            UPNP data type: Mute
+            Py data type: bool
+            Allowed values: True/False
+
+            Return Values: None
+
+        Method name: X_SetTVSlideShow
+        Access point: UPNPObject.RenderingControl.X_SetTVSlideShow
+        Call: UPNPObject.RenderingControl.X_SetTVSlideShow(InstanceID, CurrentShowState, CurrentShowTheme)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: CurrentShowState
+            UPNP data type: A_ARG_TYPE_SlideShowState
+            Py data type: bool
+            Allowed values: True/False
+
+            Name: CurrentShowTheme
+            UPNP data type: A_ARG_TYPE_ThemeId
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_GetServiceCapabilities
+        Access point: UPNPObject.RenderingControl.X_GetServiceCapabilities
+        Call: ServiceCapabilities = UPNPObject.RenderingControl.X_GetServiceCapabilities(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: ServiceCapabilities
+                UPNP data type: X_ServiceCapabilities
+                Py data type: str, bytes
+
+        Method name: ListPresets
+        Access point: UPNPObject.RenderingControl.ListPresets
+        Call: CurrentPresetNameList = UPNPObject.RenderingControl.ListPresets(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentPresetNameList
+                UPNP data type: PresetNameList
+                Py data type: str, bytes
+                Default: FactoryDefaults
+    Service name: dial
+    Service class: urn:dial-multiscreen-org:service:dial:1
+    Access point: UPNPObject.dial
+    ----------------------------------------------
+    Methods:
+        Method name: SendKeyCode
+        Access point: UPNPObject.dial.SendKeyCode
+        Call: UPNPObject.dial.SendKeyCode(KeyCode, KeyDescription)
+        ----------------------------------------------
+            Parameters:
+            Name: KeyCode
+            UPNP data type: A_ARG_TYPE_KeyCode
+            Py data type: unsigned 32bit int
+
+            Name: KeyDescription
+            UPNP data type: A_ARG_TYPE_KeyDescription
+            Py data type: str, bytes
+
+            Return Values: None
+    Service name: AVTransport
+    Service class: urn:schemas-upnp-org:service:AVTransport:1
+    Access point: UPNPObject.AVTransport
+    ----------------------------------------------
+    Methods:
+        Method name: GetCurrentTransportActions
+        Access point: UPNPObject.AVTransport.GetCurrentTransportActions
+        Call: Actions = UPNPObject.AVTransport.GetCurrentTransportActions(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Actions
+                UPNP data type: CurrentTransportActions
+                Py data type: str, bytes
+
+        Method name: SetNextAVTransportURI
+        Access point: UPNPObject.AVTransport.SetNextAVTransportURI
+        Call: UPNPObject.AVTransport.SetNextAVTransportURI(InstanceID, NextURI, NextURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: NextURI
+            UPNP data type: NextAVTransportURI
+            Py data type: str, bytes
+
+            Name: NextURIMetaData
+            UPNP data type: NextAVTransportURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: GetDeviceCapabilities
+        Access point: UPNPObject.AVTransport.GetDeviceCapabilities
+        Call: PlayMedia, RecMedia, RecQualityModes = UPNPObject.AVTransport.GetDeviceCapabilities(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: PlayMedia
+                UPNP data type: PossiblePlaybackStorageMedia
+                Py data type: str, bytes
+                Default: NETWORK
+
+            Name: RecMedia
+                UPNP data type: PossibleRecordStorageMedia
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+            Name: RecQualityModes
+                UPNP data type: PossibleRecordQualityModes
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: GetMediaInfo
+        Access point: UPNPObject.AVTransport.GetMediaInfo
+        Call: NrTracks, MediaDuration, CurrentURI, CurrentURIMetaData, NextURI, NextURIMetaData, PlayMedium, RecordMedium, WriteStatus = UPNPObject.AVTransport.GetMediaInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: NrTracks
+                UPNP data type: NumberOfTracks
+                Py data type: unsigned 32bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 4294967295
+
+            Name: MediaDuration
+                UPNP data type: CurrentMediaDuration
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: CurrentURI
+                UPNP data type: AVTransportURI
+                Py data type: str, bytes
+
+            Name: CurrentURIMetaData
+                UPNP data type: AVTransportURIMetaData
+                Py data type: str, bytes
+
+            Name: NextURI
+                UPNP data type: NextAVTransportURI
+                Py data type: str, bytes
+
+            Name: NextURIMetaData
+                UPNP data type: NextAVTransportURIMetaData
+                Py data type: str, bytes
+
+            Name: PlayMedium
+                UPNP data type: PlaybackStorageMedium
+                Py data type: str, bytes
+                Default: NONE
+                Possible returned values:
+                    NONE
+                    NETWORK
+
+            Name: RecordMedium
+                UPNP data type: RecordStorageMedium
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+            Name: WriteStatus
+                UPNP data type: RecordMediumWriteStatus
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: GetTransportSettings
+        Access point: UPNPObject.AVTransport.GetTransportSettings
+        Call: PlayMode, RecQualityMode = UPNPObject.AVTransport.GetTransportSettings(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: PlayMode
+                UPNP data type: CurrentPlayMode
+                Py data type: str, bytes
+                Default: NORMAL
+                Possible returned values:
+                    NORMAL
+
+            Name: RecQualityMode
+                UPNP data type: CurrentRecordQualityMode
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: SetAVTransportURI
+        Access point: UPNPObject.AVTransport.SetAVTransportURI
+        Call: UPNPObject.AVTransport.SetAVTransportURI(InstanceID, CurrentURI, CurrentURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: CurrentURI
+            UPNP data type: AVTransportURI
+            Py data type: str, bytes
+
+            Name: CurrentURIMetaData
+            UPNP data type: AVTransportURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Pause
+        Access point: UPNPObject.AVTransport.Pause
+        Call: UPNPObject.AVTransport.Pause(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_DLNA_GetBytePositionInfo
+        Access point: UPNPObject.AVTransport.X_DLNA_GetBytePositionInfo
+        Call: TrackSize, RelByte, AbsByte = UPNPObject.AVTransport.X_DLNA_GetBytePositionInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: TrackSize
+                UPNP data type: X_DLNA_CurrentTrackSize
+                Py data type: str, bytes
+
+            Name: RelByte
+                UPNP data type: X_DLNA_RelativeBytePosition
+                Py data type: str, bytes
+
+            Name: AbsByte
+                UPNP data type: X_DLNA_AbsoluteBytePosition
+                Py data type: str, bytes
+
+        Method name: X_GetStoppedReason
+        Access point: UPNPObject.AVTransport.X_GetStoppedReason
+        Call: StoppedReason, StoppedReasonData = UPNPObject.AVTransport.X_GetStoppedReason(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: StoppedReason
+                UPNP data type: A_ARG_TYPE_StoppedReason
+                Py data type: str, bytes
+
+            Name: StoppedReasonData
+                UPNP data type: A_ARG_TYPE_StoppedReasonData
+                Py data type: str, bytes
+
+        Method name: Play
+        Access point: UPNPObject.AVTransport.Play
+        Call: UPNPObject.AVTransport.Play(InstanceID, Speed)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Speed
+            UPNP data type: TransportPlaySpeed
+            Py data type: str, bytes
+            Default: 1
+
+            Return Values: None
+
+        Method name: GetPositionInfo
+        Access point: UPNPObject.AVTransport.GetPositionInfo
+        Call: Track, TrackDuration, TrackMetaData, TrackURI, RelTime, AbsTime, RelCount, AbsCount = UPNPObject.AVTransport.GetPositionInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Track
+                UPNP data type: CurrentTrack
+                Py data type: unsigned 32bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 4294967295
+                Step: 1
+
+            Name: TrackDuration
+                UPNP data type: CurrentTrackDuration
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: TrackMetaData
+                UPNP data type: CurrentTrackMetaData
+                Py data type: str, bytes
+
+            Name: TrackURI
+                UPNP data type: CurrentTrackURI
+                Py data type: str, bytes
+
+            Name: RelTime
+                UPNP data type: RelativeTimePosition
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: AbsTime
+                UPNP data type: AbsoluteTimePosition
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: RelCount
+                UPNP data type: RelativeCounterPosition
+                Py data type: signed 32bit int
+                Default: 2147483647
+
+            Name: AbsCount
+                UPNP data type: AbsoluteCounterPosition
+                Py data type: signed 32bit int
+                Default: 2147483647
+
+        Method name: Seek
+        Access point: UPNPObject.AVTransport.Seek
+        Call: UPNPObject.AVTransport.Seek(InstanceID, Unit, Target)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Unit
+            UPNP data type: A_ARG_TYPE_SeekMode
+            Py data type: str, bytes
+            Default: REL_TIME
+            Allowed values:
+                TRACK_NR
+                REL_TIME
+                ABS_TIME
+                ABS_COUNT
+                REL_COUNT
+                X_DLNA_REL_BYTE
+                FRAME
+
+            Name: Target
+            UPNP data type: A_ARG_TYPE_SeekTarget
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Stop
+        Access point: UPNPObject.AVTransport.Stop
+        Call: UPNPObject.AVTransport.Stop(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: Next
+        Access point: UPNPObject.AVTransport.Next
+        Call: UPNPObject.AVTransport.Next(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: Previous
+        Access point: UPNPObject.AVTransport.Previous
+        Call: UPNPObject.AVTransport.Previous(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_PlayerAppHint
+        Access point: UPNPObject.AVTransport.X_PlayerAppHint
+        Call: UPNPObject.AVTransport.X_PlayerAppHint(InstanceID, UpnpClass, PlayerHint)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: UpnpClass
+            UPNP data type: X_ARG_TYPE_UpnpClass
+            Py data type: str, bytes
+            Allowed values:
+                object.item.imageItem
+                object.item.audioItem
+                object.item.videoItem
+
+            Name: PlayerHint
+            UPNP data type: X_ARG_TYPE_PlayerHint
+            Py data type: str, bytes
+            Allowed values:
+                load
+                unload
+
+            Return Values: None
+
+        Method name: X_PrefetchURI
+        Access point: UPNPObject.AVTransport.X_PrefetchURI
+        Call: UPNPObject.AVTransport.X_PrefetchURI(InstanceID, PrefetchURI, PrefetchURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: PrefetchURI
+            UPNP data type: A_ARG_TYPE_PrefetchURI
+            Py data type: str, bytes
+
+            Name: PrefetchURIMetaData
+            UPNP data type: A_ARG_TYPE_PrefetchURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: SetPlayMode
+        Access point: UPNPObject.AVTransport.SetPlayMode
+        Call: UPNPObject.AVTransport.SetPlayMode(InstanceID, NewPlayMode)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: NewPlayMode
+            UPNP data type: CurrentPlayMode
+            Py data type: str, bytes
+            Default: NORMAL
+            Allowed values:
+                NORMAL
+
+            Return Values: None
+
+        Method name: GetTransportInfo
+        Access point: UPNPObject.AVTransport.GetTransportInfo
+        Call: CurrentTransportState, CurrentTransportStatus, CurrentSpeed = UPNPObject.AVTransport.GetTransportInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentTransportState
+                UPNP data type: TransportState
+                Py data type: str, bytes
+                Default: NO_MEDIA_PRESENT
+                Possible returned values:
+                    STOPPED
+                    PAUSED_PLAYBACK
+                    PLAYING
+                    TRANSITIONING
+                    NO_MEDIA_PRESENT
+
+            Name: CurrentTransportStatus
+                UPNP data type: TransportStatus
+                Py data type: str, bytes
+                Default: OK
+                Possible returned values:
+                    OK
+                    ERROR_OCCURRED
+
+            Name: CurrentSpeed
+                UPNP data type: TransportPlaySpeed
+                Py data type: str, bytes
+                Default: 1
+    Service name: ScreenSharingService
+    Service class: urn:samsung.com:service:ScreenSharingService:1
+    Access point: UPNPObject.ScreenSharingService
+    ----------------------------------------------
+    Methods:
+        Method name: X_ConnectScreenSharingM2TV
+        Access point: UPNPObject.ScreenSharingService.X_ConnectScreenSharingM2TV
+        Call: tBSSID, tWlanFreq, tListenFreq = UPNPObject.ScreenSharingService.X_ConnectScreenSharingM2TV(mWlanMacAddress, mP2pDeviceAddress, mBluetoothMacAddress, mWFDSourcePort)
+        ----------------------------------------------
+            Parameters:
+            Name: mWlanMacAddress
+            UPNP data type: A_ARG_TYPE_mWlanMacAddress
+            Py data type: str, bytes
+
+            Name: mP2pDeviceAddress
+            UPNP data type: A_ARG_TYPE_mP2pDeviceAddress
+            Py data type: str, bytes
+
+            Name: mBluetoothMacAddress
+            UPNP data type: A_ARG_TYPE_mBluetoothMacAddress
+            Py data type: str, bytes
+
+            Name: mWFDSourcePort
+            UPNP data type: A_ARG_TYPE_mWFDSourcePort
+            Py data type: str, bytes
+
+            Return Values:
+            Name: tBSSID
+                UPNP data type: A_ARG_TYPE_tBSSID
+                Py data type: str, bytes
+
+            Name: tWlanFreq
+                UPNP data type: A_ARG_TYPE_tWlanFreq
+                Py data type: str, bytes
+
+            Name: tListenFreq
+                UPNP data type: A_ARG_TYPE_tListenFreq
+                Py data type: str, bytes
+
+        Method name: X_ConnectScreenSharingTV2M
+        Access point: UPNPObject.ScreenSharingService.X_ConnectScreenSharingTV2M
+        Call: tBSSID, tWlanFreq, tListenFreq, tWFDSourcePort = UPNPObject.ScreenSharingService.X_ConnectScreenSharingTV2M(mWlanMacAddress, mP2pDeviceAddress, mBluetoothMacAddress)
+        ----------------------------------------------
+            Parameters:
+            Name: mWlanMacAddress
+            UPNP data type: A_ARG_TYPE_mWlanMacAddress
+            Py data type: str, bytes
+
+            Name: mP2pDeviceAddress
+            UPNP data type: A_ARG_TYPE_mP2pDeviceAddress
+            Py data type: str, bytes
+
+            Name: mBluetoothMacAddress
+            UPNP data type: A_ARG_TYPE_mBluetoothMacAddress
+            Py data type: str, bytes
+
+            Return Values:
+            Name: tBSSID
+                UPNP data type: A_ARG_TYPE_tBSSID
+                Py data type: str, bytes
+
+            Name: tWlanFreq
+                UPNP data type: A_ARG_TYPE_tWlanFreq
+                Py data type: str, bytes
+
+            Name: tListenFreq
+                UPNP data type: A_ARG_TYPE_tListenFreq
+                Py data type: str, bytes
+
+            Name: tWFDSourcePort
+                UPNP data type: A_ARG_TYPE_tWFDSourcePort
+                Py data type: str, bytes
+    Service name: ConnectionManager
+    Service class: urn:schemas-upnp-org:service:ConnectionManager:1
+    Access point: UPNPObject.ConnectionManager
+    ----------------------------------------------
+    Methods:
+        Method name: PrepareForConnection
+        Access point: UPNPObject.ConnectionManager.PrepareForConnection
+        Call: ConnectionID, AVTransportID, RcsID = UPNPObject.ConnectionManager.PrepareForConnection(RemoteProtocolInfo, PeerConnectionManager, PeerConnectionID, Direction)
+        ----------------------------------------------
+            Parameters:
+            Name: RemoteProtocolInfo
+            UPNP data type: A_ARG_TYPE_ProtocolInfo
+            Py data type: str, bytes
+
+            Name: PeerConnectionManager
+            UPNP data type: A_ARG_TYPE_ConnectionManager
+            Py data type: str, bytes
+
+            Name: PeerConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Name: Direction
+            UPNP data type: A_ARG_TYPE_Direction
+            Py data type: str, bytes
+            Allowed values:
+                Input
+                Output
+
+            Return Values:
+            Name: ConnectionID
+                UPNP data type: A_ARG_TYPE_ConnectionID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: AVTransportID
+                UPNP data type: A_ARG_TYPE_AVTransportID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: RcsID
+                UPNP data type: A_ARG_TYPE_RcsID
+                Py data type: signed 32bit int
+                Default: 0
+
+        Method name: ConnectionComplete
+        Access point: UPNPObject.ConnectionManager.ConnectionComplete
+        Call: UPNPObject.ConnectionManager.ConnectionComplete(ConnectionID)
+        ----------------------------------------------
+            Parameters:
+            Name: ConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Return Values: None
+
+        Method name: GetCurrentConnectionInfo
+        Access point: UPNPObject.ConnectionManager.GetCurrentConnectionInfo
+        Call: RcsID, AVTransportID, ProtocolInfo, PeerConnectionManager, PeerConnectionID, Direction, Status = UPNPObject.ConnectionManager.GetCurrentConnectionInfo(ConnectionID)
+        ----------------------------------------------
+            Parameters:
+            Name: ConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Return Values:
+            Name: RcsID
+                UPNP data type: A_ARG_TYPE_RcsID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: AVTransportID
+                UPNP data type: A_ARG_TYPE_AVTransportID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: ProtocolInfo
+                UPNP data type: A_ARG_TYPE_ProtocolInfo
+                Py data type: str, bytes
+
+            Name: PeerConnectionManager
+                UPNP data type: A_ARG_TYPE_ConnectionManager
+                Py data type: str, bytes
+
+            Name: PeerConnectionID
+                UPNP data type: A_ARG_TYPE_ConnectionID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: Direction
+                UPNP data type: A_ARG_TYPE_Direction
+                Py data type: str, bytes
+                Possible returned values:
+                    Input
+                    Output
+
+            Name: Status
+                UPNP data type: A_ARG_TYPE_ConnectionStatus
+                Py data type: str, bytes
+                Possible returned values:
+                    OK
+                    ContentFormatMismatch
+                    InsufficientBandwidth
+                    UnreliableChannel
+                    Unknown
+
+        Method name: GetProtocolInfo
+        Access point: UPNPObject.ConnectionManager.GetProtocolInfo
+        Call: Source, Sink = UPNPObject.ConnectionManager.GetProtocolInfo()
+        ----------------------------------------------
+            Parameters: None
+
+            Return Values:
+            Name: Source
+                UPNP data type: SourceProtocolInfo
+                Py data type: str, bytes
+
+            Name: Sink
+                UPNP data type: SinkProtocolInfo
+                Py data type: str, bytes
+
+        Method name: GetCurrentConnectionIDs
+        Access point: UPNPObject.ConnectionManager.GetCurrentConnectionIDs
+        Call: ConnectionIDs = UPNPObject.ConnectionManager.GetCurrentConnectionIDs()
+        ----------------------------------------------
+            Parameters: None
+
+            Return Values:
+            Name: ConnectionIDs
+                UPNP data type: CurrentConnectionIDs
+                Py data type: str, bytes
+                Default: 0
+    Service name: StreamSplicing
+    Service class: urn:schemas-rvualliance-org:service:StreamSplicing:1
+    Access point: UPNPObject.StreamSplicing
+    ----------------------------------------------
+    Methods:
+        Method name: SetBreakAuxStreamPlaylist
+        Access point: UPNPObject.StreamSplicing.SetBreakAuxStreamPlaylist
+        Call: UPNPObject.StreamSplicing.SetBreakAuxStreamPlaylist(BreakId, BreakSpliceOutPosition, ExpirationTime, AuxStreamPlaylist)
+        ----------------------------------------------
+            Parameters:
+            Name: BreakId
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakSpliceOutPosition
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Name: ExpirationTime
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Name: AuxStreamPlaylist
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: SetBreakAuxStreamTrigger
+        Access point: UPNPObject.StreamSplicing.SetBreakAuxStreamTrigger
+        Call: UPNPObject.StreamSplicing.SetBreakAuxStreamTrigger(BreakId, BreakTriggerHigh, BreakTriggerLow)
+        ----------------------------------------------
+            Parameters:
+            Name: BreakId
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakTriggerHigh
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakTriggerLow
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Return Values: None
+Devices: None
+
+
+UA55MU6100
+IP Address: 192.168.2.11
+==============================================
+Services:
+    Service name: StreamSplicing
+    Service class: urn:schemas-rvualliance-org:service:StreamSplicing:1
+    Access point: UPNPObject.StreamSplicing
+    ----------------------------------------------
+    Methods:
+        Method name: SetBreakAuxStreamPlaylist
+        Access point: UPNPObject.StreamSplicing.SetBreakAuxStreamPlaylist
+        Call: UPNPObject.StreamSplicing.SetBreakAuxStreamPlaylist(BreakId, BreakSpliceOutPosition, ExpirationTime, AuxStreamPlaylist)
+        ----------------------------------------------
+            Parameters:
+            Name: BreakId
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakSpliceOutPosition
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Name: ExpirationTime
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Name: AuxStreamPlaylist
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: SetBreakAuxStreamTrigger
+        Access point: UPNPObject.StreamSplicing.SetBreakAuxStreamTrigger
+        Call: UPNPObject.StreamSplicing.SetBreakAuxStreamTrigger(BreakId, BreakTriggerHigh, BreakTriggerLow)
+        ----------------------------------------------
+            Parameters:
+            Name: BreakId
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakTriggerHigh
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakTriggerLow
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Return Values: None
+    Service name: RenderingControl
+    Service class: urn:schemas-upnp-org:service:RenderingControl:1
+    Access point: UPNPObject.RenderingControl
+    ----------------------------------------------
+    Methods:
+        Method name: X_UpdateAudioSelection
+        Access point: UPNPObject.RenderingControl.X_UpdateAudioSelection
+        Call: UPNPObject.RenderingControl.X_UpdateAudioSelection(InstanceID, AudioPID, AudioEncoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: AudioPID
+            UPNP data type: X_AudioPID
+            Py data type: unsigned 16bit int
+            Default: 0
+            Minimum: 0
+            Maximum: 65535
+            Step: 1
+
+            Name: AudioEncoding
+            UPNP data type: X_AudioEncoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_SetAspectRatio
+        Access point: UPNPObject.RenderingControl.X_SetAspectRatio
+        Call: UPNPObject.RenderingControl.X_SetAspectRatio(InstanceID, AspectRatio)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: AspectRatio
+            UPNP data type: X_AspectRatio
+            Py data type: str, bytes
+            Default: Default
+            Allowed values:
+                Default
+                FitScreen
+
+            Return Values: None
+
+        Method name: SelectPreset
+        Access point: UPNPObject.RenderingControl.SelectPreset
+        Call: UPNPObject.RenderingControl.SelectPreset(InstanceID, PresetName)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: PresetName
+            UPNP data type: A_ARG_TYPE_PresetName
+            Py data type: str, bytes
+            Allowed values:
+                FactoryDefaults
+
+            Return Values: None
+
+        Method name: X_GetTVSlideShow
+        Access point: UPNPObject.RenderingControl.X_GetTVSlideShow
+        Call: CurrentShowState, CurrentThemeId, TotalThemeNumber = UPNPObject.RenderingControl.X_GetTVSlideShow(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentShowState
+                UPNP data type: A_ARG_TYPE_SlideShowState
+                Py data type: bool
+                Possible returned values: True/False
+
+            Name: CurrentThemeId
+                UPNP data type: A_ARG_TYPE_ThemeId
+                Py data type: unsigned 32bit int
+
+            Name: TotalThemeNumber
+                UPNP data type: A_ARG_TYPE_TotalThemeNumber
+                Py data type: unsigned 32bit int
+
+        Method name: X_Origin360View
+        Access point: UPNPObject.RenderingControl.X_Origin360View
+        Call: UPNPObject.RenderingControl.X_Origin360View(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_Zoom360View
+        Access point: UPNPObject.RenderingControl.X_Zoom360View
+        Call: UPNPObject.RenderingControl.X_Zoom360View(InstanceID, ScaleFactorOffset)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: ScaleFactorOffset
+            UPNP data type: X_ARG_TYPE_ScaleFactorOffset
+            Py data type: float
+            Default: 1.0
+
+            Return Values: None
+
+        Method name: SetVolume
+        Access point: UPNPObject.RenderingControl.SetVolume
+        Call: UPNPObject.RenderingControl.SetVolume(InstanceID, Channel, DesiredVolume)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Name: DesiredVolume
+            UPNP data type: Volume
+            Py data type: unsigned 16bit int
+            Minimum: 0
+            Maximum: 100
+            Step: 1
+
+            Return Values: None
+
+        Method name: X_ControlCaption
+        Access point: UPNPObject.RenderingControl.X_ControlCaption
+        Call: UPNPObject.RenderingControl.X_ControlCaption(InstanceID, Operation, Name, ResourceURI, CaptionURI, CaptionType, Language, Encoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Operation
+            UPNP data type: X_ARG_TYPE_CaptionOperation
+            Py data type: str, bytes
+            Allowed values:
+                Enable
+                Disable
+
+            Name: Name
+            UPNP data type: X_ARG_TYPE_CaptionName
+            Py data type: str, bytes
+
+            Name: ResourceURI
+            UPNP data type: X_ARG_TYPE_ResourceURI
+            Py data type: str, bytes
+
+            Name: CaptionURI
+            UPNP data type: X_ARG_TYPE_CaptionURI
+            Py data type: str, bytes
+
+            Name: CaptionType
+            UPNP data type: X_ARG_TYPE_CaptionType
+            Py data type: str, bytes
+
+            Name: Language
+            UPNP data type: X_ARG_TYPE_Language
+            Py data type: str, bytes
+
+            Name: Encoding
+            UPNP data type: X_ARG_TYPE_Encoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_Move360View
+        Access point: UPNPObject.RenderingControl.X_Move360View
+        Call: UPNPObject.RenderingControl.X_Move360View(InstanceID, LatitudeOffset, LongitudeOffset)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: LatitudeOffset
+            UPNP data type: X_ARG_TYPE_ArcDegreeOffset
+            Py data type: float
+            Default: 0.0
+
+            Name: LongitudeOffset
+            UPNP data type: X_ARG_TYPE_ArcDegreeOffset
+            Py data type: float
+            Default: 0.0
+
+            Return Values: None
+
+        Method name: X_UpdateVideoSelection
+        Access point: UPNPObject.RenderingControl.X_UpdateVideoSelection
+        Call: UPNPObject.RenderingControl.X_UpdateVideoSelection(InstanceID, VideoPID, VideoEncoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: VideoPID
+            UPNP data type: X_VideoPID
+            Py data type: unsigned 16bit int
+            Default: 0
+            Minimum: 0
+            Maximum: 65535
+            Step: 1
+
+            Name: VideoEncoding
+            UPNP data type: X_VideoEncoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_SetZoom
+        Access point: UPNPObject.RenderingControl.X_SetZoom
+        Call: UPNPObject.RenderingControl.X_SetZoom(InstanceID, x, y, w, h)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: x
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: y
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: w
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: h
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_GetAspectRatio
+        Access point: UPNPObject.RenderingControl.X_GetAspectRatio
+        Call: AspectRatio = UPNPObject.RenderingControl.X_GetAspectRatio(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: AspectRatio
+                UPNP data type: X_AspectRatio
+                Py data type: str, bytes
+                Default: Default
+                Possible returned values:
+                    Default
+                    FitScreen
+
+        Method name: GetVolume
+        Access point: UPNPObject.RenderingControl.GetVolume
+        Call: CurrentVolume = UPNPObject.RenderingControl.GetVolume(InstanceID, Channel)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Return Values:
+            Name: CurrentVolume
+                UPNP data type: Volume
+                Py data type: unsigned 16bit int
+                Minimum: 0
+                Maximum: 100
+                Step: 1
+
+        Method name: X_GetVideoSelection
+        Access point: UPNPObject.RenderingControl.X_GetVideoSelection
+        Call: VideoPID, VideoEncoding = UPNPObject.RenderingControl.X_GetVideoSelection(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: VideoPID
+                UPNP data type: X_VideoPID
+                Py data type: unsigned 16bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 65535
+                Step: 1
+
+            Name: VideoEncoding
+                UPNP data type: X_VideoEncoding
+                Py data type: str, bytes
+
+        Method name: X_GetAudioSelection
+        Access point: UPNPObject.RenderingControl.X_GetAudioSelection
+        Call: AudioPID, AudioEncoding = UPNPObject.RenderingControl.X_GetAudioSelection(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: AudioPID
+                UPNP data type: X_AudioPID
+                Py data type: unsigned 16bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 65535
+                Step: 1
+
+            Name: AudioEncoding
+                UPNP data type: X_AudioEncoding
+                Py data type: str, bytes
+
+        Method name: X_GetCaptionState
+        Access point: UPNPObject.RenderingControl.X_GetCaptionState
+        Call: Captions, EnabledCaptions = UPNPObject.RenderingControl.X_GetCaptionState(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Captions
+                UPNP data type: X_Captions
+                Py data type: str, bytes
+
+            Name: EnabledCaptions
+                UPNP data type: X_EnabledCaptions
+                Py data type: str, bytes
+
+        Method name: GetMute
+        Access point: UPNPObject.RenderingControl.GetMute
+        Call: CurrentMute = UPNPObject.RenderingControl.GetMute(InstanceID, Channel)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Return Values:
+            Name: CurrentMute
+                UPNP data type: Mute
+                Py data type: bool
+                Possible returned values: True/False
+
+        Method name: SetMute
+        Access point: UPNPObject.RenderingControl.SetMute
+        Call: UPNPObject.RenderingControl.SetMute(InstanceID, Channel, DesiredMute)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Name: DesiredMute
+            UPNP data type: Mute
+            Py data type: bool
+            Allowed values: True/False
+
+            Return Values: None
+
+        Method name: X_SetTVSlideShow
+        Access point: UPNPObject.RenderingControl.X_SetTVSlideShow
+        Call: UPNPObject.RenderingControl.X_SetTVSlideShow(InstanceID, CurrentShowState, CurrentShowTheme)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: CurrentShowState
+            UPNP data type: A_ARG_TYPE_SlideShowState
+            Py data type: bool
+            Allowed values: True/False
+
+            Name: CurrentShowTheme
+            UPNP data type: A_ARG_TYPE_ThemeId
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_GetServiceCapabilities
+        Access point: UPNPObject.RenderingControl.X_GetServiceCapabilities
+        Call: ServiceCapabilities = UPNPObject.RenderingControl.X_GetServiceCapabilities(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: ServiceCapabilities
+                UPNP data type: X_ServiceCapabilities
+                Py data type: str, bytes
+
+        Method name: ListPresets
+        Access point: UPNPObject.RenderingControl.ListPresets
+        Call: CurrentPresetNameList = UPNPObject.RenderingControl.ListPresets(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentPresetNameList
+                UPNP data type: PresetNameList
+                Py data type: str, bytes
+                Default: FactoryDefaults
+    Service name: dial
+    Service class: urn:dial-multiscreen-org:service:dial:1
+    Access point: UPNPObject.dial
+    ----------------------------------------------
+    Methods:
+        Method name: SendKeyCode
+        Access point: UPNPObject.dial.SendKeyCode
+        Call: UPNPObject.dial.SendKeyCode(KeyCode, KeyDescription)
+        ----------------------------------------------
+            Parameters:
+            Name: KeyCode
+            UPNP data type: A_ARG_TYPE_KeyCode
+            Py data type: unsigned 32bit int
+
+            Name: KeyDescription
+            UPNP data type: A_ARG_TYPE_KeyDescription
+            Py data type: str, bytes
+
+            Return Values: None
+    Service name: AVTransport
+    Service class: urn:schemas-upnp-org:service:AVTransport:1
+    Access point: UPNPObject.AVTransport
+    ----------------------------------------------
+    Methods:
+        Method name: GetCurrentTransportActions
+        Access point: UPNPObject.AVTransport.GetCurrentTransportActions
+        Call: Actions = UPNPObject.AVTransport.GetCurrentTransportActions(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Actions
+                UPNP data type: CurrentTransportActions
+                Py data type: str, bytes
+
+        Method name: SetNextAVTransportURI
+        Access point: UPNPObject.AVTransport.SetNextAVTransportURI
+        Call: UPNPObject.AVTransport.SetNextAVTransportURI(InstanceID, NextURI, NextURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: NextURI
+            UPNP data type: NextAVTransportURI
+            Py data type: str, bytes
+
+            Name: NextURIMetaData
+            UPNP data type: NextAVTransportURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: GetDeviceCapabilities
+        Access point: UPNPObject.AVTransport.GetDeviceCapabilities
+        Call: PlayMedia, RecMedia, RecQualityModes = UPNPObject.AVTransport.GetDeviceCapabilities(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: PlayMedia
+                UPNP data type: PossiblePlaybackStorageMedia
+                Py data type: str, bytes
+                Default: NETWORK
+
+            Name: RecMedia
+                UPNP data type: PossibleRecordStorageMedia
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+            Name: RecQualityModes
+                UPNP data type: PossibleRecordQualityModes
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: GetMediaInfo
+        Access point: UPNPObject.AVTransport.GetMediaInfo
+        Call: NrTracks, MediaDuration, CurrentURI, CurrentURIMetaData, NextURI, NextURIMetaData, PlayMedium, RecordMedium, WriteStatus = UPNPObject.AVTransport.GetMediaInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: NrTracks
+                UPNP data type: NumberOfTracks
+                Py data type: unsigned 32bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 4294967295
+
+            Name: MediaDuration
+                UPNP data type: CurrentMediaDuration
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: CurrentURI
+                UPNP data type: AVTransportURI
+                Py data type: str, bytes
+
+            Name: CurrentURIMetaData
+                UPNP data type: AVTransportURIMetaData
+                Py data type: str, bytes
+
+            Name: NextURI
+                UPNP data type: NextAVTransportURI
+                Py data type: str, bytes
+
+            Name: NextURIMetaData
+                UPNP data type: NextAVTransportURIMetaData
+                Py data type: str, bytes
+
+            Name: PlayMedium
+                UPNP data type: PlaybackStorageMedium
+                Py data type: str, bytes
+                Default: NONE
+                Possible returned values:
+                    NONE
+                    NETWORK
+
+            Name: RecordMedium
+                UPNP data type: RecordStorageMedium
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+            Name: WriteStatus
+                UPNP data type: RecordMediumWriteStatus
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: GetTransportSettings
+        Access point: UPNPObject.AVTransport.GetTransportSettings
+        Call: PlayMode, RecQualityMode = UPNPObject.AVTransport.GetTransportSettings(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: PlayMode
+                UPNP data type: CurrentPlayMode
+                Py data type: str, bytes
+                Default: NORMAL
+                Possible returned values:
+                    NORMAL
+
+            Name: RecQualityMode
+                UPNP data type: CurrentRecordQualityMode
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: SetAVTransportURI
+        Access point: UPNPObject.AVTransport.SetAVTransportURI
+        Call: UPNPObject.AVTransport.SetAVTransportURI(InstanceID, CurrentURI, CurrentURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: CurrentURI
+            UPNP data type: AVTransportURI
+            Py data type: str, bytes
+
+            Name: CurrentURIMetaData
+            UPNP data type: AVTransportURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Pause
+        Access point: UPNPObject.AVTransport.Pause
+        Call: UPNPObject.AVTransport.Pause(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_DLNA_GetBytePositionInfo
+        Access point: UPNPObject.AVTransport.X_DLNA_GetBytePositionInfo
+        Call: TrackSize, RelByte, AbsByte = UPNPObject.AVTransport.X_DLNA_GetBytePositionInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: TrackSize
+                UPNP data type: X_DLNA_CurrentTrackSize
+                Py data type: str, bytes
+
+            Name: RelByte
+                UPNP data type: X_DLNA_RelativeBytePosition
+                Py data type: str, bytes
+
+            Name: AbsByte
+                UPNP data type: X_DLNA_AbsoluteBytePosition
+                Py data type: str, bytes
+
+        Method name: X_GetStoppedReason
+        Access point: UPNPObject.AVTransport.X_GetStoppedReason
+        Call: StoppedReason, StoppedReasonData = UPNPObject.AVTransport.X_GetStoppedReason(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: StoppedReason
+                UPNP data type: A_ARG_TYPE_StoppedReason
+                Py data type: str, bytes
+
+            Name: StoppedReasonData
+                UPNP data type: A_ARG_TYPE_StoppedReasonData
+                Py data type: str, bytes
+
+        Method name: Play
+        Access point: UPNPObject.AVTransport.Play
+        Call: UPNPObject.AVTransport.Play(InstanceID, Speed)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Speed
+            UPNP data type: TransportPlaySpeed
+            Py data type: str, bytes
+            Default: 1
+
+            Return Values: None
+
+        Method name: GetPositionInfo
+        Access point: UPNPObject.AVTransport.GetPositionInfo
+        Call: Track, TrackDuration, TrackMetaData, TrackURI, RelTime, AbsTime, RelCount, AbsCount = UPNPObject.AVTransport.GetPositionInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Track
+                UPNP data type: CurrentTrack
+                Py data type: unsigned 32bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 4294967295
+                Step: 1
+
+            Name: TrackDuration
+                UPNP data type: CurrentTrackDuration
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: TrackMetaData
+                UPNP data type: CurrentTrackMetaData
+                Py data type: str, bytes
+
+            Name: TrackURI
+                UPNP data type: CurrentTrackURI
+                Py data type: str, bytes
+
+            Name: RelTime
+                UPNP data type: RelativeTimePosition
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: AbsTime
+                UPNP data type: AbsoluteTimePosition
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: RelCount
+                UPNP data type: RelativeCounterPosition
+                Py data type: signed 32bit int
+                Default: 2147483647
+
+            Name: AbsCount
+                UPNP data type: AbsoluteCounterPosition
+                Py data type: signed 32bit int
+                Default: 2147483647
+
+        Method name: Seek
+        Access point: UPNPObject.AVTransport.Seek
+        Call: UPNPObject.AVTransport.Seek(InstanceID, Unit, Target)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Unit
+            UPNP data type: A_ARG_TYPE_SeekMode
+            Py data type: str, bytes
+            Default: REL_TIME
+            Allowed values:
+                TRACK_NR
+                REL_TIME
+                ABS_TIME
+                ABS_COUNT
+                REL_COUNT
+                X_DLNA_REL_BYTE
+                FRAME
+
+            Name: Target
+            UPNP data type: A_ARG_TYPE_SeekTarget
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Stop
+        Access point: UPNPObject.AVTransport.Stop
+        Call: UPNPObject.AVTransport.Stop(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: Next
+        Access point: UPNPObject.AVTransport.Next
+        Call: UPNPObject.AVTransport.Next(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: Previous
+        Access point: UPNPObject.AVTransport.Previous
+        Call: UPNPObject.AVTransport.Previous(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_PlayerAppHint
+        Access point: UPNPObject.AVTransport.X_PlayerAppHint
+        Call: UPNPObject.AVTransport.X_PlayerAppHint(InstanceID, UpnpClass, PlayerHint)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: UpnpClass
+            UPNP data type: X_ARG_TYPE_UpnpClass
+            Py data type: str, bytes
+            Allowed values:
+                object.item.imageItem
+                object.item.audioItem
+                object.item.videoItem
+
+            Name: PlayerHint
+            UPNP data type: X_ARG_TYPE_PlayerHint
+            Py data type: str, bytes
+            Allowed values:
+                load
+                unload
+
+            Return Values: None
+
+        Method name: X_PrefetchURI
+        Access point: UPNPObject.AVTransport.X_PrefetchURI
+        Call: UPNPObject.AVTransport.X_PrefetchURI(InstanceID, PrefetchURI, PrefetchURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: PrefetchURI
+            UPNP data type: A_ARG_TYPE_PrefetchURI
+            Py data type: str, bytes
+
+            Name: PrefetchURIMetaData
+            UPNP data type: A_ARG_TYPE_PrefetchURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: SetPlayMode
+        Access point: UPNPObject.AVTransport.SetPlayMode
+        Call: UPNPObject.AVTransport.SetPlayMode(InstanceID, NewPlayMode)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: NewPlayMode
+            UPNP data type: CurrentPlayMode
+            Py data type: str, bytes
+            Default: NORMAL
+            Allowed values:
+                NORMAL
+
+            Return Values: None
+
+        Method name: GetTransportInfo
+        Access point: UPNPObject.AVTransport.GetTransportInfo
+        Call: CurrentTransportState, CurrentTransportStatus, CurrentSpeed = UPNPObject.AVTransport.GetTransportInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentTransportState
+                UPNP data type: TransportState
+                Py data type: str, bytes
+                Default: NO_MEDIA_PRESENT
+                Possible returned values:
+                    STOPPED
+                    PAUSED_PLAYBACK
+                    PLAYING
+                    TRANSITIONING
+                    NO_MEDIA_PRESENT
+
+            Name: CurrentTransportStatus
+                UPNP data type: TransportStatus
+                Py data type: str, bytes
+                Default: OK
+                Possible returned values:
+                    OK
+                    ERROR_OCCURRED
+
+            Name: CurrentSpeed
+                UPNP data type: TransportPlaySpeed
+                Py data type: str, bytes
+                Default: 1
+    Service name: ScreenSharingService
+    Service class: urn:samsung.com:service:ScreenSharingService:1
+    Access point: UPNPObject.ScreenSharingService
+    ----------------------------------------------
+    Methods:
+        Method name: X_ConnectScreenSharingM2TV
+        Access point: UPNPObject.ScreenSharingService.X_ConnectScreenSharingM2TV
+        Call: tBSSID, tWlanFreq, tListenFreq = UPNPObject.ScreenSharingService.X_ConnectScreenSharingM2TV(mWlanMacAddress, mP2pDeviceAddress, mBluetoothMacAddress, mWFDSourcePort)
+        ----------------------------------------------
+            Parameters:
+            Name: mWlanMacAddress
+            UPNP data type: A_ARG_TYPE_mWlanMacAddress
+            Py data type: str, bytes
+
+            Name: mP2pDeviceAddress
+            UPNP data type: A_ARG_TYPE_mP2pDeviceAddress
+            Py data type: str, bytes
+
+            Name: mBluetoothMacAddress
+            UPNP data type: A_ARG_TYPE_mBluetoothMacAddress
+            Py data type: str, bytes
+
+            Name: mWFDSourcePort
+            UPNP data type: A_ARG_TYPE_mWFDSourcePort
+            Py data type: str, bytes
+
+            Return Values:
+            Name: tBSSID
+                UPNP data type: A_ARG_TYPE_tBSSID
+                Py data type: str, bytes
+
+            Name: tWlanFreq
+                UPNP data type: A_ARG_TYPE_tWlanFreq
+                Py data type: str, bytes
+
+            Name: tListenFreq
+                UPNP data type: A_ARG_TYPE_tListenFreq
+                Py data type: str, bytes
+
+        Method name: X_ConnectScreenSharingTV2M
+        Access point: UPNPObject.ScreenSharingService.X_ConnectScreenSharingTV2M
+        Call: tBSSID, tWlanFreq, tListenFreq, tWFDSourcePort = UPNPObject.ScreenSharingService.X_ConnectScreenSharingTV2M(mWlanMacAddress, mP2pDeviceAddress, mBluetoothMacAddress)
+        ----------------------------------------------
+            Parameters:
+            Name: mWlanMacAddress
+            UPNP data type: A_ARG_TYPE_mWlanMacAddress
+            Py data type: str, bytes
+
+            Name: mP2pDeviceAddress
+            UPNP data type: A_ARG_TYPE_mP2pDeviceAddress
+            Py data type: str, bytes
+
+            Name: mBluetoothMacAddress
+            UPNP data type: A_ARG_TYPE_mBluetoothMacAddress
+            Py data type: str, bytes
+
+            Return Values:
+            Name: tBSSID
+                UPNP data type: A_ARG_TYPE_tBSSID
+                Py data type: str, bytes
+
+            Name: tWlanFreq
+                UPNP data type: A_ARG_TYPE_tWlanFreq
+                Py data type: str, bytes
+
+            Name: tListenFreq
+                UPNP data type: A_ARG_TYPE_tListenFreq
+                Py data type: str, bytes
+
+            Name: tWFDSourcePort
+                UPNP data type: A_ARG_TYPE_tWFDSourcePort
+                Py data type: str, bytes
+    Service name: ConnectionManager
+    Service class: urn:schemas-upnp-org:service:ConnectionManager:1
+    Access point: UPNPObject.ConnectionManager
+    ----------------------------------------------
+    Methods:
+        Method name: PrepareForConnection
+        Access point: UPNPObject.ConnectionManager.PrepareForConnection
+        Call: ConnectionID, AVTransportID, RcsID = UPNPObject.ConnectionManager.PrepareForConnection(RemoteProtocolInfo, PeerConnectionManager, PeerConnectionID, Direction)
+        ----------------------------------------------
+            Parameters:
+            Name: RemoteProtocolInfo
+            UPNP data type: A_ARG_TYPE_ProtocolInfo
+            Py data type: str, bytes
+
+            Name: PeerConnectionManager
+            UPNP data type: A_ARG_TYPE_ConnectionManager
+            Py data type: str, bytes
+
+            Name: PeerConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Name: Direction
+            UPNP data type: A_ARG_TYPE_Direction
+            Py data type: str, bytes
+            Allowed values:
+                Input
+                Output
+
+            Return Values:
+            Name: ConnectionID
+                UPNP data type: A_ARG_TYPE_ConnectionID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: AVTransportID
+                UPNP data type: A_ARG_TYPE_AVTransportID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: RcsID
+                UPNP data type: A_ARG_TYPE_RcsID
+                Py data type: signed 32bit int
+                Default: 0
+
+        Method name: ConnectionComplete
+        Access point: UPNPObject.ConnectionManager.ConnectionComplete
+        Call: UPNPObject.ConnectionManager.ConnectionComplete(ConnectionID)
+        ----------------------------------------------
+            Parameters:
+            Name: ConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Return Values: None
+
+        Method name: GetCurrentConnectionInfo
+        Access point: UPNPObject.ConnectionManager.GetCurrentConnectionInfo
+        Call: RcsID, AVTransportID, ProtocolInfo, PeerConnectionManager, PeerConnectionID, Direction, Status = UPNPObject.ConnectionManager.GetCurrentConnectionInfo(ConnectionID)
+        ----------------------------------------------
+            Parameters:
+            Name: ConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Return Values:
+            Name: RcsID
+                UPNP data type: A_ARG_TYPE_RcsID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: AVTransportID
+                UPNP data type: A_ARG_TYPE_AVTransportID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: ProtocolInfo
+                UPNP data type: A_ARG_TYPE_ProtocolInfo
+                Py data type: str, bytes
+
+            Name: PeerConnectionManager
+                UPNP data type: A_ARG_TYPE_ConnectionManager
+                Py data type: str, bytes
+
+            Name: PeerConnectionID
+                UPNP data type: A_ARG_TYPE_ConnectionID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: Direction
+                UPNP data type: A_ARG_TYPE_Direction
+                Py data type: str, bytes
+                Possible returned values:
+                    Input
+                    Output
+
+            Name: Status
+                UPNP data type: A_ARG_TYPE_ConnectionStatus
+                Py data type: str, bytes
+                Possible returned values:
+                    OK
+                    ContentFormatMismatch
+                    InsufficientBandwidth
+                    UnreliableChannel
+                    Unknown
+
+        Method name: GetProtocolInfo
+        Access point: UPNPObject.ConnectionManager.GetProtocolInfo
+        Call: Source, Sink = UPNPObject.ConnectionManager.GetProtocolInfo()
+        ----------------------------------------------
+            Parameters: None
+
+            Return Values:
+            Name: Source
+                UPNP data type: SourceProtocolInfo
+                Py data type: str, bytes
+
+            Name: Sink
+                UPNP data type: SinkProtocolInfo
+                Py data type: str, bytes
+
+        Method name: GetCurrentConnectionIDs
+        Access point: UPNPObject.ConnectionManager.GetCurrentConnectionIDs
+        Call: ConnectionIDs = UPNPObject.ConnectionManager.GetCurrentConnectionIDs()
+        ----------------------------------------------
+            Parameters: None
+
+            Return Values:
+            Name: ConnectionIDs
+                UPNP data type: CurrentConnectionIDs
+                Py data type: str, bytes
+                Default: 0
+    Service name: MultiScreenService
+    Service class: urn:samsung.com:service:MultiScreenService:1
+    Access point: UPNPObject.MultiScreenService
+    ----------------------------------------------
+    Methods:
+        Method name: SendKeyCode
+        Access point: UPNPObject.MultiScreenService.SendKeyCode
+        Call: UPNPObject.MultiScreenService.SendKeyCode(KeyCode, KeyDescription)
+        ----------------------------------------------
+            Parameters:
+            Name: KeyCode
+            UPNP data type: A_ARG_TYPE_KeyCode
+            Py data type: unsigned 32bit int
+
+            Name: KeyDescription
+            UPNP data type: A_ARG_TYPE_KeyDescription
+            Py data type: str, bytes
+
+            Return Values: None
+Devices: None
+
+
+UA50MU6100
+IP Address: 192.168.2.40
+==============================================
+Services:
+    Service name: ConnectionManager
+    Service class: urn:schemas-upnp-org:service:ConnectionManager:1
+    Access point: UPNPObject.ConnectionManager
+    ----------------------------------------------
+    Methods:
+        Method name: GetProtocolInfo
+        Access point: UPNPObject.ConnectionManager.GetProtocolInfo
+        Call: Source, Sink = UPNPObject.ConnectionManager.GetProtocolInfo()
+        ----------------------------------------------
+            Parameters: None
+
+            Return Values:
+            Name: Source
+                UPNP data type: SourceProtocolInfo
+                Py data type: str, bytes
+
+            Name: Sink
+                UPNP data type: SinkProtocolInfo
+                Py data type: str, bytes
+
+        Method name: GetCurrentConnectionIDs
+        Access point: UPNPObject.ConnectionManager.GetCurrentConnectionIDs
+        Call: ConnectionIDs = UPNPObject.ConnectionManager.GetCurrentConnectionIDs()
+        ----------------------------------------------
+            Parameters: None
+
+            Return Values:
+            Name: ConnectionIDs
+                UPNP data type: CurrentConnectionIDs
+                Py data type: str, bytes
+                Default: 0
+
+        Method name: ConnectionComplete
+        Access point: UPNPObject.ConnectionManager.ConnectionComplete
+        Call: UPNPObject.ConnectionManager.ConnectionComplete(ConnectionID)
+        ----------------------------------------------
+            Parameters:
+            Name: ConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Return Values: None
+
+        Method name: GetCurrentConnectionInfo
+        Access point: UPNPObject.ConnectionManager.GetCurrentConnectionInfo
+        Call: RcsID, AVTransportID, ProtocolInfo, PeerConnectionManager, PeerConnectionID, Direction, Status = UPNPObject.ConnectionManager.GetCurrentConnectionInfo(ConnectionID)
+        ----------------------------------------------
+            Parameters:
+            Name: ConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Return Values:
+            Name: RcsID
+                UPNP data type: A_ARG_TYPE_RcsID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: AVTransportID
+                UPNP data type: A_ARG_TYPE_AVTransportID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: ProtocolInfo
+                UPNP data type: A_ARG_TYPE_ProtocolInfo
+                Py data type: str, bytes
+
+            Name: PeerConnectionManager
+                UPNP data type: A_ARG_TYPE_ConnectionManager
+                Py data type: str, bytes
+
+            Name: PeerConnectionID
+                UPNP data type: A_ARG_TYPE_ConnectionID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: Direction
+                UPNP data type: A_ARG_TYPE_Direction
+                Py data type: str, bytes
+                Possible returned values:
+                    Input
+                    Output
+
+            Name: Status
+                UPNP data type: A_ARG_TYPE_ConnectionStatus
+                Py data type: str, bytes
+                Possible returned values:
+                    OK
+                    ContentFormatMismatch
+                    InsufficientBandwidth
+                    UnreliableChannel
+                    Unknown
+
+        Method name: PrepareForConnection
+        Access point: UPNPObject.ConnectionManager.PrepareForConnection
+        Call: ConnectionID, AVTransportID, RcsID = UPNPObject.ConnectionManager.PrepareForConnection(RemoteProtocolInfo, PeerConnectionManager, PeerConnectionID, Direction)
+        ----------------------------------------------
+            Parameters:
+            Name: RemoteProtocolInfo
+            UPNP data type: A_ARG_TYPE_ProtocolInfo
+            Py data type: str, bytes
+
+            Name: PeerConnectionManager
+            UPNP data type: A_ARG_TYPE_ConnectionManager
+            Py data type: str, bytes
+
+            Name: PeerConnectionID
+            UPNP data type: A_ARG_TYPE_ConnectionID
+            Py data type: signed 32bit int
+            Default: 0
+
+            Name: Direction
+            UPNP data type: A_ARG_TYPE_Direction
+            Py data type: str, bytes
+            Allowed values:
+                Input
+                Output
+
+            Return Values:
+            Name: ConnectionID
+                UPNP data type: A_ARG_TYPE_ConnectionID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: AVTransportID
+                UPNP data type: A_ARG_TYPE_AVTransportID
+                Py data type: signed 32bit int
+                Default: 0
+
+            Name: RcsID
+                UPNP data type: A_ARG_TYPE_RcsID
+                Py data type: signed 32bit int
+                Default: 0
+    Service name: RenderingControl
+    Service class: urn:schemas-upnp-org:service:RenderingControl:1
+    Access point: UPNPObject.RenderingControl
+    ----------------------------------------------
+    Methods:
+        Method name: X_Move360View
+        Access point: UPNPObject.RenderingControl.X_Move360View
+        Call: UPNPObject.RenderingControl.X_Move360View(InstanceID, LatitudeOffset, LongitudeOffset)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: LatitudeOffset
+            UPNP data type: X_ARG_TYPE_ArcDegreeOffset
+            Py data type: float
+            Default: 0.0
+
+            Name: LongitudeOffset
+            UPNP data type: X_ARG_TYPE_ArcDegreeOffset
+            Py data type: float
+            Default: 0.0
+
+            Return Values: None
+
+        Method name: X_SetTVSlideShow
+        Access point: UPNPObject.RenderingControl.X_SetTVSlideShow
+        Call: UPNPObject.RenderingControl.X_SetTVSlideShow(InstanceID, CurrentShowState, CurrentShowTheme)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: CurrentShowState
+            UPNP data type: A_ARG_TYPE_SlideShowState
+            Py data type: bool
+            Allowed values: True/False
+
+            Name: CurrentShowTheme
+            UPNP data type: A_ARG_TYPE_ThemeId
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_GetAudioSelection
+        Access point: UPNPObject.RenderingControl.X_GetAudioSelection
+        Call: AudioPID, AudioEncoding = UPNPObject.RenderingControl.X_GetAudioSelection(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: AudioPID
+                UPNP data type: X_AudioPID
+                Py data type: unsigned 16bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 65535
+                Step: 1
+
+            Name: AudioEncoding
+                UPNP data type: X_AudioEncoding
+                Py data type: str, bytes
+
+        Method name: GetMute
+        Access point: UPNPObject.RenderingControl.GetMute
+        Call: CurrentMute = UPNPObject.RenderingControl.GetMute(InstanceID, Channel)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Return Values:
+            Name: CurrentMute
+                UPNP data type: Mute
+                Py data type: bool
+                Possible returned values: True/False
+
+        Method name: SetVolume
+        Access point: UPNPObject.RenderingControl.SetVolume
+        Call: UPNPObject.RenderingControl.SetVolume(InstanceID, Channel, DesiredVolume)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Name: DesiredVolume
+            UPNP data type: Volume
+            Py data type: unsigned 16bit int
+            Minimum: 0
+            Maximum: 100
+            Step: 1
+
+            Return Values: None
+
+        Method name: X_GetVideoSelection
+        Access point: UPNPObject.RenderingControl.X_GetVideoSelection
+        Call: VideoPID, VideoEncoding = UPNPObject.RenderingControl.X_GetVideoSelection(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: VideoPID
+                UPNP data type: X_VideoPID
+                Py data type: unsigned 16bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 65535
+                Step: 1
+
+            Name: VideoEncoding
+                UPNP data type: X_VideoEncoding
+                Py data type: str, bytes
+
+        Method name: X_GetCaptionState
+        Access point: UPNPObject.RenderingControl.X_GetCaptionState
+        Call: Captions, EnabledCaptions = UPNPObject.RenderingControl.X_GetCaptionState(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Captions
+                UPNP data type: X_Captions
+                Py data type: str, bytes
+
+            Name: EnabledCaptions
+                UPNP data type: X_EnabledCaptions
+                Py data type: str, bytes
+
+        Method name: GetVolume
+        Access point: UPNPObject.RenderingControl.GetVolume
+        Call: CurrentVolume = UPNPObject.RenderingControl.GetVolume(InstanceID, Channel)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Return Values:
+            Name: CurrentVolume
+                UPNP data type: Volume
+                Py data type: unsigned 16bit int
+                Minimum: 0
+                Maximum: 100
+                Step: 1
+
+        Method name: X_SetAspectRatio
+        Access point: UPNPObject.RenderingControl.X_SetAspectRatio
+        Call: UPNPObject.RenderingControl.X_SetAspectRatio(InstanceID, AspectRatio)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: AspectRatio
+            UPNP data type: X_AspectRatio
+            Py data type: str, bytes
+            Default: Default
+            Allowed values:
+                Default
+                FitScreen
+
+            Return Values: None
+
+        Method name: X_UpdateVideoSelection
+        Access point: UPNPObject.RenderingControl.X_UpdateVideoSelection
+        Call: UPNPObject.RenderingControl.X_UpdateVideoSelection(InstanceID, VideoPID, VideoEncoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: VideoPID
+            UPNP data type: X_VideoPID
+            Py data type: unsigned 16bit int
+            Default: 0
+            Minimum: 0
+            Maximum: 65535
+            Step: 1
+
+            Name: VideoEncoding
+            UPNP data type: X_VideoEncoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_UpdateAudioSelection
+        Access point: UPNPObject.RenderingControl.X_UpdateAudioSelection
+        Call: UPNPObject.RenderingControl.X_UpdateAudioSelection(InstanceID, AudioPID, AudioEncoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: AudioPID
+            UPNP data type: X_AudioPID
+            Py data type: unsigned 16bit int
+            Default: 0
+            Minimum: 0
+            Maximum: 65535
+            Step: 1
+
+            Name: AudioEncoding
+            UPNP data type: X_AudioEncoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: SelectPreset
+        Access point: UPNPObject.RenderingControl.SelectPreset
+        Call: UPNPObject.RenderingControl.SelectPreset(InstanceID, PresetName)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: PresetName
+            UPNP data type: A_ARG_TYPE_PresetName
+            Py data type: str, bytes
+            Allowed values:
+                FactoryDefaults
+
+            Return Values: None
+
+        Method name: X_GetTVSlideShow
+        Access point: UPNPObject.RenderingControl.X_GetTVSlideShow
+        Call: CurrentShowState, CurrentThemeId, TotalThemeNumber = UPNPObject.RenderingControl.X_GetTVSlideShow(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentShowState
+                UPNP data type: A_ARG_TYPE_SlideShowState
+                Py data type: bool
+                Possible returned values: True/False
+
+            Name: CurrentThemeId
+                UPNP data type: A_ARG_TYPE_ThemeId
+                Py data type: unsigned 32bit int
+
+            Name: TotalThemeNumber
+                UPNP data type: A_ARG_TYPE_TotalThemeNumber
+                Py data type: unsigned 32bit int
+
+        Method name: X_ControlCaption
+        Access point: UPNPObject.RenderingControl.X_ControlCaption
+        Call: UPNPObject.RenderingControl.X_ControlCaption(InstanceID, Operation, Name, ResourceURI, CaptionURI, CaptionType, Language, Encoding)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Operation
+            UPNP data type: X_ARG_TYPE_CaptionOperation
+            Py data type: str, bytes
+            Allowed values:
+                Enable
+                Disable
+
+            Name: Name
+            UPNP data type: X_ARG_TYPE_CaptionName
+            Py data type: str, bytes
+
+            Name: ResourceURI
+            UPNP data type: X_ARG_TYPE_ResourceURI
+            Py data type: str, bytes
+
+            Name: CaptionURI
+            UPNP data type: X_ARG_TYPE_CaptionURI
+            Py data type: str, bytes
+
+            Name: CaptionType
+            UPNP data type: X_ARG_TYPE_CaptionType
+            Py data type: str, bytes
+
+            Name: Language
+            UPNP data type: X_ARG_TYPE_Language
+            Py data type: str, bytes
+
+            Name: Encoding
+            UPNP data type: X_ARG_TYPE_Encoding
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_GetAspectRatio
+        Access point: UPNPObject.RenderingControl.X_GetAspectRatio
+        Call: AspectRatio = UPNPObject.RenderingControl.X_GetAspectRatio(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: AspectRatio
+                UPNP data type: X_AspectRatio
+                Py data type: str, bytes
+                Default: Default
+                Possible returned values:
+                    Default
+                    FitScreen
+
+        Method name: X_Zoom360View
+        Access point: UPNPObject.RenderingControl.X_Zoom360View
+        Call: UPNPObject.RenderingControl.X_Zoom360View(InstanceID, ScaleFactorOffset)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: ScaleFactorOffset
+            UPNP data type: X_ARG_TYPE_ScaleFactorOffset
+            Py data type: float
+            Default: 1.0
+
+            Return Values: None
+
+        Method name: X_GetServiceCapabilities
+        Access point: UPNPObject.RenderingControl.X_GetServiceCapabilities
+        Call: ServiceCapabilities = UPNPObject.RenderingControl.X_GetServiceCapabilities(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: ServiceCapabilities
+                UPNP data type: X_ServiceCapabilities
+                Py data type: str, bytes
+
+        Method name: ListPresets
+        Access point: UPNPObject.RenderingControl.ListPresets
+        Call: CurrentPresetNameList = UPNPObject.RenderingControl.ListPresets(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentPresetNameList
+                UPNP data type: PresetNameList
+                Py data type: str, bytes
+                Default: FactoryDefaults
+
+        Method name: X_SetZoom
+        Access point: UPNPObject.RenderingControl.X_SetZoom
+        Call: UPNPObject.RenderingControl.X_SetZoom(InstanceID, x, y, w, h)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: x
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: y
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: w
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Name: h
+            UPNP data type: A_ARG_TYPE_Coordinate
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_Origin360View
+        Access point: UPNPObject.RenderingControl.X_Origin360View
+        Call: UPNPObject.RenderingControl.X_Origin360View(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: SetMute
+        Access point: UPNPObject.RenderingControl.SetMute
+        Call: UPNPObject.RenderingControl.SetMute(InstanceID, Channel, DesiredMute)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Channel
+            UPNP data type: A_ARG_TYPE_Channel
+            Py data type: str, bytes
+            Allowed values:
+                Master
+
+            Name: DesiredMute
+            UPNP data type: Mute
+            Py data type: bool
+            Allowed values: True/False
+
+            Return Values: None
+    Service name: StreamSplicing
+    Service class: urn:schemas-rvualliance-org:service:StreamSplicing:1
+    Access point: UPNPObject.StreamSplicing
+    ----------------------------------------------
+    Methods:
+        Method name: SetBreakAuxStreamPlaylist
+        Access point: UPNPObject.StreamSplicing.SetBreakAuxStreamPlaylist
+        Call: UPNPObject.StreamSplicing.SetBreakAuxStreamPlaylist(BreakId, BreakSpliceOutPosition, ExpirationTime, AuxStreamPlaylist)
+        ----------------------------------------------
+            Parameters:
+            Name: BreakId
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakSpliceOutPosition
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Name: ExpirationTime
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Name: AuxStreamPlaylist
+            UPNP data type: A_ARG_TYPE_String
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: SetBreakAuxStreamTrigger
+        Access point: UPNPObject.StreamSplicing.SetBreakAuxStreamTrigger
+        Call: UPNPObject.StreamSplicing.SetBreakAuxStreamTrigger(BreakId, BreakTriggerHigh, BreakTriggerLow)
+        ----------------------------------------------
+            Parameters:
+            Name: BreakId
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakTriggerHigh
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Name: BreakTriggerLow
+            UPNP data type: A_ARG_TYPE_Int
+            Py data type: unsigned 32bit int
+            Default: 0
+
+            Return Values: None
+    Service name: AVTransport
+    Service class: urn:schemas-upnp-org:service:AVTransport:1
+    Access point: UPNPObject.AVTransport
+    ----------------------------------------------
+    Methods:
+        Method name: GetPositionInfo
+        Access point: UPNPObject.AVTransport.GetPositionInfo
+        Call: Track, TrackDuration, TrackMetaData, TrackURI, RelTime, AbsTime, RelCount, AbsCount = UPNPObject.AVTransport.GetPositionInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Track
+                UPNP data type: CurrentTrack
+                Py data type: unsigned 32bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 4294967295
+                Step: 1
+
+            Name: TrackDuration
+                UPNP data type: CurrentTrackDuration
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: TrackMetaData
+                UPNP data type: CurrentTrackMetaData
+                Py data type: str, bytes
+
+            Name: TrackURI
+                UPNP data type: CurrentTrackURI
+                Py data type: str, bytes
+
+            Name: RelTime
+                UPNP data type: RelativeTimePosition
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: AbsTime
+                UPNP data type: AbsoluteTimePosition
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: RelCount
+                UPNP data type: RelativeCounterPosition
+                Py data type: signed 32bit int
+                Default: 2147483647
+
+            Name: AbsCount
+                UPNP data type: AbsoluteCounterPosition
+                Py data type: signed 32bit int
+                Default: 2147483647
+
+        Method name: X_PrefetchURI
+        Access point: UPNPObject.AVTransport.X_PrefetchURI
+        Call: UPNPObject.AVTransport.X_PrefetchURI(InstanceID, PrefetchURI, PrefetchURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: PrefetchURI
+            UPNP data type: A_ARG_TYPE_PrefetchURI
+            Py data type: str, bytes
+
+            Name: PrefetchURIMetaData
+            UPNP data type: A_ARG_TYPE_PrefetchURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: X_GetStoppedReason
+        Access point: UPNPObject.AVTransport.X_GetStoppedReason
+        Call: StoppedReason, StoppedReasonData = UPNPObject.AVTransport.X_GetStoppedReason(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: StoppedReason
+                UPNP data type: A_ARG_TYPE_StoppedReason
+                Py data type: str, bytes
+
+            Name: StoppedReasonData
+                UPNP data type: A_ARG_TYPE_StoppedReasonData
+                Py data type: str, bytes
+
+        Method name: Seek
+        Access point: UPNPObject.AVTransport.Seek
+        Call: UPNPObject.AVTransport.Seek(InstanceID, Unit, Target)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Unit
+            UPNP data type: A_ARG_TYPE_SeekMode
+            Py data type: str, bytes
+            Default: REL_TIME
+            Allowed values:
+                TRACK_NR
+                REL_TIME
+                ABS_TIME
+                ABS_COUNT
+                REL_COUNT
+                X_DLNA_REL_BYTE
+                FRAME
+
+            Name: Target
+            UPNP data type: A_ARG_TYPE_SeekTarget
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Play
+        Access point: UPNPObject.AVTransport.Play
+        Call: UPNPObject.AVTransport.Play(InstanceID, Speed)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: Speed
+            UPNP data type: TransportPlaySpeed
+            Py data type: str, bytes
+            Default: 1
+
+            Return Values: None
+
+        Method name: Next
+        Access point: UPNPObject.AVTransport.Next
+        Call: UPNPObject.AVTransport.Next(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: X_PlayerAppHint
+        Access point: UPNPObject.AVTransport.X_PlayerAppHint
+        Call: UPNPObject.AVTransport.X_PlayerAppHint(InstanceID, UpnpClass, PlayerHint)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: UpnpClass
+            UPNP data type: X_ARG_TYPE_UpnpClass
+            Py data type: str, bytes
+            Allowed values:
+                object.item.imageItem
+                object.item.audioItem
+                object.item.videoItem
+
+            Name: PlayerHint
+            UPNP data type: X_ARG_TYPE_PlayerHint
+            Py data type: str, bytes
+            Allowed values:
+                load
+                unload
+
+            Return Values: None
+
+        Method name: GetTransportSettings
+        Access point: UPNPObject.AVTransport.GetTransportSettings
+        Call: PlayMode, RecQualityMode = UPNPObject.AVTransport.GetTransportSettings(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: PlayMode
+                UPNP data type: CurrentPlayMode
+                Py data type: str, bytes
+                Default: NORMAL
+                Possible returned values:
+                    NORMAL
+
+            Name: RecQualityMode
+                UPNP data type: CurrentRecordQualityMode
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: GetMediaInfo
+        Access point: UPNPObject.AVTransport.GetMediaInfo
+        Call: NrTracks, MediaDuration, CurrentURI, CurrentURIMetaData, NextURI, NextURIMetaData, PlayMedium, RecordMedium, WriteStatus = UPNPObject.AVTransport.GetMediaInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: NrTracks
+                UPNP data type: NumberOfTracks
+                Py data type: unsigned 32bit int
+                Default: 0
+                Minimum: 0
+                Maximum: 4294967295
+
+            Name: MediaDuration
+                UPNP data type: CurrentMediaDuration
+                Py data type: str, bytes
+                Default: 00:00:00
+
+            Name: CurrentURI
+                UPNP data type: AVTransportURI
+                Py data type: str, bytes
+
+            Name: CurrentURIMetaData
+                UPNP data type: AVTransportURIMetaData
+                Py data type: str, bytes
+
+            Name: NextURI
+                UPNP data type: NextAVTransportURI
+                Py data type: str, bytes
+
+            Name: NextURIMetaData
+                UPNP data type: NextAVTransportURIMetaData
+                Py data type: str, bytes
+
+            Name: PlayMedium
+                UPNP data type: PlaybackStorageMedium
+                Py data type: str, bytes
+                Default: NONE
+                Possible returned values:
+                    NONE
+                    NETWORK
+
+            Name: RecordMedium
+                UPNP data type: RecordStorageMedium
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+            Name: WriteStatus
+                UPNP data type: RecordMediumWriteStatus
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: SetAVTransportURI
+        Access point: UPNPObject.AVTransport.SetAVTransportURI
+        Call: UPNPObject.AVTransport.SetAVTransportURI(InstanceID, CurrentURI, CurrentURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: CurrentURI
+            UPNP data type: AVTransportURI
+            Py data type: str, bytes
+
+            Name: CurrentURIMetaData
+            UPNP data type: AVTransportURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Stop
+        Access point: UPNPObject.AVTransport.Stop
+        Call: UPNPObject.AVTransport.Stop(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: GetTransportInfo
+        Access point: UPNPObject.AVTransport.GetTransportInfo
+        Call: CurrentTransportState, CurrentTransportStatus, CurrentSpeed = UPNPObject.AVTransport.GetTransportInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: CurrentTransportState
+                UPNP data type: TransportState
+                Py data type: str, bytes
+                Default: NO_MEDIA_PRESENT
+                Possible returned values:
+                    STOPPED
+                    PAUSED_PLAYBACK
+                    PLAYING
+                    TRANSITIONING
+                    NO_MEDIA_PRESENT
+
+            Name: CurrentTransportStatus
+                UPNP data type: TransportStatus
+                Py data type: str, bytes
+                Default: OK
+                Possible returned values:
+                    OK
+                    ERROR_OCCURRED
+
+            Name: CurrentSpeed
+                UPNP data type: TransportPlaySpeed
+                Py data type: str, bytes
+                Default: 1
+
+        Method name: GetDeviceCapabilities
+        Access point: UPNPObject.AVTransport.GetDeviceCapabilities
+        Call: PlayMedia, RecMedia, RecQualityModes = UPNPObject.AVTransport.GetDeviceCapabilities(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: PlayMedia
+                UPNP data type: PossiblePlaybackStorageMedia
+                Py data type: str, bytes
+                Default: NETWORK
+
+            Name: RecMedia
+                UPNP data type: PossibleRecordStorageMedia
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+            Name: RecQualityModes
+                UPNP data type: PossibleRecordQualityModes
+                Py data type: str, bytes
+                NOT_IMPLEMENTED
+
+        Method name: SetPlayMode
+        Access point: UPNPObject.AVTransport.SetPlayMode
+        Call: UPNPObject.AVTransport.SetPlayMode(InstanceID, NewPlayMode)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: NewPlayMode
+            UPNP data type: CurrentPlayMode
+            Py data type: str, bytes
+            Default: NORMAL
+            Allowed values:
+                NORMAL
+
+            Return Values: None
+
+        Method name: X_DLNA_GetBytePositionInfo
+        Access point: UPNPObject.AVTransport.X_DLNA_GetBytePositionInfo
+        Call: TrackSize, RelByte, AbsByte = UPNPObject.AVTransport.X_DLNA_GetBytePositionInfo(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: TrackSize
+                UPNP data type: X_DLNA_CurrentTrackSize
+                Py data type: str, bytes
+
+            Name: RelByte
+                UPNP data type: X_DLNA_RelativeBytePosition
+                Py data type: str, bytes
+
+            Name: AbsByte
+                UPNP data type: X_DLNA_AbsoluteBytePosition
+                Py data type: str, bytes
+
+        Method name: SetNextAVTransportURI
+        Access point: UPNPObject.AVTransport.SetNextAVTransportURI
+        Call: UPNPObject.AVTransport.SetNextAVTransportURI(InstanceID, NextURI, NextURIMetaData)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Name: NextURI
+            UPNP data type: NextAVTransportURI
+            Py data type: str, bytes
+
+            Name: NextURIMetaData
+            UPNP data type: NextAVTransportURIMetaData
+            Py data type: str, bytes
+
+            Return Values: None
+
+        Method name: Previous
+        Access point: UPNPObject.AVTransport.Previous
+        Call: UPNPObject.AVTransport.Previous(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: Pause
+        Access point: UPNPObject.AVTransport.Pause
+        Call: UPNPObject.AVTransport.Pause(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values: None
+
+        Method name: GetCurrentTransportActions
+        Access point: UPNPObject.AVTransport.GetCurrentTransportActions
+        Call: Actions = UPNPObject.AVTransport.GetCurrentTransportActions(InstanceID)
+        ----------------------------------------------
+            Parameters:
+            Name: InstanceID
+            UPNP data type: A_ARG_TYPE_InstanceID
+            Py data type: unsigned 32bit int
+
+            Return Values:
+            Name: Actions
+                UPNP data type: CurrentTransportActions
+                Py data type: str, bytes
+    Service name: ScreenSharingService
+    Service class: urn:samsung.com:service:ScreenSharingService:1
+    Access point: UPNPObject.ScreenSharingService
+    ----------------------------------------------
+    Methods:
+        Method name: X_ConnectScreenSharingM2TV
+        Access point: UPNPObject.ScreenSharingService.X_ConnectScreenSharingM2TV
+        Call: tBSSID, tWlanFreq, tListenFreq = UPNPObject.ScreenSharingService.X_ConnectScreenSharingM2TV(mWlanMacAddress, mP2pDeviceAddress, mBluetoothMacAddress, mWFDSourcePort)
+        ----------------------------------------------
+            Parameters:
+            Name: mWlanMacAddress
+            UPNP data type: A_ARG_TYPE_mWlanMacAddress
+            Py data type: str, bytes
+
+            Name: mP2pDeviceAddress
+            UPNP data type: A_ARG_TYPE_mP2pDeviceAddress
+            Py data type: str, bytes
+
+            Name: mBluetoothMacAddress
+            UPNP data type: A_ARG_TYPE_mBluetoothMacAddress
+            Py data type: str, bytes
+
+            Name: mWFDSourcePort
+            UPNP data type: A_ARG_TYPE_mWFDSourcePort
+            Py data type: str, bytes
+
+            Return Values:
+            Name: tBSSID
+                UPNP data type: A_ARG_TYPE_tBSSID
+                Py data type: str, bytes
+
+            Name: tWlanFreq
+                UPNP data type: A_ARG_TYPE_tWlanFreq
+                Py data type: str, bytes
+
+            Name: tListenFreq
+                UPNP data type: A_ARG_TYPE_tListenFreq
+                Py data type: str, bytes
+
+        Method name: X_ConnectScreenSharingTV2M
+        Access point: UPNPObject.ScreenSharingService.X_ConnectScreenSharingTV2M
+        Call: tBSSID, tWlanFreq, tListenFreq, tWFDSourcePort = UPNPObject.ScreenSharingService.X_ConnectScreenSharingTV2M(mWlanMacAddress, mP2pDeviceAddress, mBluetoothMacAddress)
+        ----------------------------------------------
+            Parameters:
+            Name: mWlanMacAddress
+            UPNP data type: A_ARG_TYPE_mWlanMacAddress
+            Py data type: str, bytes
+
+            Name: mP2pDeviceAddress
+            UPNP data type: A_ARG_TYPE_mP2pDeviceAddress
+            Py data type: str, bytes
+
+            Name: mBluetoothMacAddress
+            UPNP data type: A_ARG_TYPE_mBluetoothMacAddress
+            Py data type: str, bytes
+
+            Return Values:
+            Name: tBSSID
+                UPNP data type: A_ARG_TYPE_tBSSID
+                Py data type: str, bytes
+
+            Name: tWlanFreq
+                UPNP data type: A_ARG_TYPE_tWlanFreq
+                Py data type: str, bytes
+
+            Name: tListenFreq
+                UPNP data type: A_ARG_TYPE_tListenFreq
+                Py data type: str, bytes
+
+            Name: tWFDSourcePort
+                UPNP data type: A_ARG_TYPE_tWFDSourcePort
+                Py data type: str, bytes
+    Service name: dial
+    Service class: urn:dial-multiscreen-org:service:dial:1
+    Access point: UPNPObject.dial
+    ----------------------------------------------
+    Methods:
+        Method name: SendKeyCode
+        Access point: UPNPObject.dial.SendKeyCode
+        Call: UPNPObject.dial.SendKeyCode(KeyCode, KeyDescription)
+        ----------------------------------------------
+            Parameters:
+            Name: KeyCode
+            UPNP data type: A_ARG_TYPE_KeyCode
+            Py data type: unsigned 32bit int
+
+            Name: KeyDescription
+            UPNP data type: A_ARG_TYPE_KeyDescription
+            Py data type: str, bytes
+
+            Return Values: None
+    Service name: MultiScreenService
+    Service class: urn:samsung.com:service:MultiScreenService:1
+    Access point: UPNPObject.MultiScreenService
+    ----------------------------------------------
+    Methods:
+        Method name: SendKeyCode
+        Access point: UPNPObject.MultiScreenService.SendKeyCode
+        Call: UPNPObject.MultiScreenService.SendKeyCode(KeyCode, KeyDescription)
+        ----------------------------------------------
+            Parameters:
+            Name: KeyCode
+            UPNP data type: A_ARG_TYPE_KeyCode
+            Py data type: unsigned 32bit int
+
+            Name: KeyDescription
+            UPNP data type: A_ARG_TYPE_KeyDescription
+            Py data type: str, bytes
+
+            Return Values: None
+Devices: None

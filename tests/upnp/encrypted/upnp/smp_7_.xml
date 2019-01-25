@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<root xmlns='urn:schemas-upnp-org:device-1-0' xmlns:sec='http://www.sec.co.kr/dlna' xmlns:dlna='urn:schemas-dlna-org:device-1-0'>
+ <specVersion>
+  <major>1</major>
+  <minor>0</minor>
+ </specVersion>
+ <device>
+  <deviceType>urn:samsung.com:device:RemoteControlReceiver:1</deviceType>
+  <friendlyName>[TV]Samsung LED55</friendlyName>
+  <manufacturer>Samsung Electronics</manufacturer>
+  <manufacturerURL>http://www.samsung.com/sec</manufacturerURL>
+  <modelDescription>Samsung TV RCR</modelDescription>
+  <modelName>UE55H6400</modelName>
+  <modelNumber>1.0</modelNumber>
+  <modelURL>http://www.samsung.com/sec</modelURL>
+  <serialNumber>20090804RCR</serialNumber>
+  <UDN>uuid:068e7780-006e-1000-bc6f-f877b8a47bf1</UDN>
+  <sec:deviceID>EXCJ645PSTBA6</sec:deviceID>
+  <sec:ProductCap>Resolution:1920X1080,ImageZoom,ImageRotate,Y2014,ENC</sec:ProductCap>
+  <serviceList>
+   <service>
+    <serviceType>urn:samsung.com:service:MultiScreenService:1</serviceType>
+    <serviceId>urn:samsung.com:serviceId:MultiScreenService</serviceId>
+    <controlURL>/smp_9_</controlURL>
+    <eventSubURL>/smp_10_</eventSubURL>
+    <SCPDURL>/smp_8_</SCPDURL>
+   </service>
+  </serviceList>
+  <sec:Capabilities>
+   <sec:Capability name='samsung:multiscreen:1' port='8001' location='/ms/1.0/'></sec:Capability>
+  </sec:Capabilities>
+ </device>
+</root>

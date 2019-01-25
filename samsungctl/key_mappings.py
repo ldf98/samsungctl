@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-
 class SendButtonCls(object):
 
     def __init__(self, key, group, description):
