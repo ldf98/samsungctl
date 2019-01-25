@@ -86,8 +86,8 @@ class Config(object):
 
         return False
 
-    @classmethod
-    def load(cls, path):
+    @staticmethod
+    def load(path):
         if os.path.exists(path):
             config = dict(
                 list(item for item in DEFAULT_CONFIG.items())
@@ -125,10 +125,9 @@ class Config(object):
         else:
             raise exceptions.ConfigLoadError
 
-        config['path'] = path
-
-        self = cls.__new__(**config)
+        self = Config(**config)
         self.path = path
+        return self
 
     def save(self, path=None):
         if path is None:
