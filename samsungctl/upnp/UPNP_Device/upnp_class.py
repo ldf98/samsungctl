@@ -34,7 +34,7 @@ class UPNPObject(object):
         for location in locations:
             parsed_url = urlparse(location)
 
-            url = parsed_url.scheme + '//' + parsed_url.netloc
+            url = parsed_url.scheme + '://' + parsed_url.netloc
             response = requests.get(location)
 
             if dump:
@@ -78,7 +78,18 @@ class UPNPObject(object):
 
             for service in services:
                 scpdurl = service.find('SCPDURL').text.replace(url, '')
-                control_url = service.find('controlURL').text.replace(url, '')
+
+                control_url = service.find('controlURL').text
+                if control_url is None:
+                    if scpdurl.endswith('.xml'):
+                        control_url = scpdurl.rsplit('/', 1)[0]
+                        if control_url == scpdurl:
+                            control_url = ''
+                    else:
+                        control_url = scpdurl
+                else:
+                    control_url = control_url.replace(url, '')
+
                 service_id = service.find('serviceId').text
                 service_type = service.find('serviceType').text
 
