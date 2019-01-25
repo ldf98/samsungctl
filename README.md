@@ -1,6 +1,9 @@
 
 **SAMSUNGCTL**
 ==========
+BIG NEWS!!!!
+samsungctl now supports the ever elusive H and J model year (2014 and 2015) TV's
+
 
 OK so first thing is first.
 I want to give a special thanks to the people that helped in the bug testing
@@ -118,8 +121,10 @@ arguments:
 ```
 usage: samsungctl [-h] [--version] [-v] [-q] [-i] [--host HOST] [--port PORT]
                   [--method METHOD] [--name NAME] [--description DESC]
-                  [--id ID] [--timeout TIMEOUT] [--start-app APP NAME OR ID]
-                  [--app-metadata METADATA] [--key-help]
+                  [--id ID] [--token TOKEN] [--timeout TIMEOUT]
+                  [--config-file PATH/FILENAME]
+                  [--start-app APP NAME OR ID] [--app-metadata METADATA]
+                  [--key-help]
                   [key [key ...]]
 
 Remote control Samsung televisions via TCP/IP connection
@@ -130,7 +135,7 @@ positional arguments:
 
 
 optional argument|description
--- | --
+-----------------|-----------
 -h, --help|show this help message and exit
 --version|show program's version number and exit
 -v, --verbose|increase output verbosity
@@ -142,15 +147,11 @@ optional argument|description
 --name NAME|remote control name
 --description DESC|remote control description
 --id ID|remote control id
---timeout TIMEOUT|socket timeout in seconds \(0 = no timeout\)
---start-app APPPLICATION NAME OR ID|starts an application
---app-metadata METADATA|string of information the application can use
-when it starts up.
-And example would be the browser.
-To have it open directly to a specific URL you would enter: "
-"http\/\/www.some-web-address.com"
-wrapping the meta data in quotes will reduce the possibility of a
-command line parser error.
+--token TOKEN|Authentication token that is used by 2014-2015 TVs and some 2016-current TVs
+--timeout TIMEOUT|socket timeout in seconds (0 = no timeout)
+--config-file PATH/FILENAME|path and filename to configuration file *see below for mor information
+--start-app APPLICATION NAME OR ID|starts an application
+--app-metadata METADATA|string of information the application can use when it starts up. And example would be the browser. To have it open directly to a specific URL you would enter: `"http\/\/www.some-web-address.com"` wrapping the meta data in quotes will reduce the possibility of a command line parser error.
 --key-help {OPTIONAL KEYS}|prints out key help
 
 ```
@@ -178,6 +179,18 @@ bundled with the source as
 
 * `samsungctl.conf <samsungctl.conf>`
 
+***--config-file***
+___________________
+This is how the --config-file parameter works. If this is the first time
+you are using this library on a TV you must specify --method and --host
+and key code for the command you wish to execute along with this parameter.
+By doing this is will make all of the necessary config file settings that
+are needed to be made for your TV. After the library has sent the command
+to your TV it will then save the file. Any calls there after will only
+need to have --config-file PATH/FILENAME along with the command you
+wish to perform for a command line options.
+All other information will be retrieved from the file.
+
 
 <br></br>
 ***Library usage***
@@ -196,6 +209,12 @@ constructed using the `with` statement:
         # Use the remote object
 ```
 
+
+<br></br>
+***Config Class***
+__________________
+
+***Depreciated***
 The constructor takes a configuration dictionary as a parameter. All
 configuration items must be specified.
 
@@ -208,27 +227,158 @@ method|string|Connection method \(`legacy` or `websocket`\)
 name|string|Name of the remote controller.
 description|string|Remote controller description.
 id|string|Additional remote controller ID.
+token|string|Authentication token
 timeout|int|Timeout in seconds. `0` means no timeout.
 
 
-The `Remote` object is very simple and you only need the `control(key)`
-method. The only parameter is a string naming the key to be sent (e.g.
-`KEY_VOLDOWN`). See `Key codes`_. You can call `control` multiple times
-using the same `Remote` object. The connection is automatically closed when
-exiting the `with` statement.
+I have put into place a class that handlees all of thee configuration
+information. It makes it easier for saving and loading confiig data.
+
+```python
+import samsungctl
+
+
+config = samsungctl.Config(
+    name='samsungctl',
+    description='samsungctl-library',
+    method='websocket',
+    port=8001
+)
+```
+
+The constrictor for the Config class takes these parameters
+
+Param Name|Default value|Use
+----------|-------------|---
+name|None|Name of the "remote" this is the name that is going to appear on the TV
+description|None|Only used in the legacy connection (pre 2014  TVs)
+host|None|The ip address of the TV
+port|None|The port to connect to. choices aree 55000 (< 2014), 8080 (2014 & 2015), 8001 & 8002 (>= 2016)
+method|None|The connection method. legacy, websocket or encrypted
+id|None|This is an identifier that you can set. when using the "encrypted" method this should be left out
+timeout|0|socket timeout, only used for the legacy method
+token|None|Authentication token that is used for 2014 & 2015 and some 2016+ TV's
+device_id|None|Internal Use
+upnp_locations|None|Future Use
+
+
+the Config class is also where you set your logging level
+
+```python
+import logging
+import samsungctl
+
+
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
+
+config.log_level = logging.DEBUG
+```
+
+There are 2 nice convenience methods for saving and loading a config file.
+
+```python
+import samsungctl
+
+config = samsungctl.Config.load('path/to/save/file')
+```
+
+If you load a file the path is saved so you can simply call save to
+save any new data. If you constructed the Config class manually you will
+need to pass a path when calling save. and that path is then saved so
+any subsequent calls to save will not require you to pass thee path
+
+```python
+import samsungctl
+
+
+config = samsungctl.Config(
+    name='samsungctl',
+    description='samsungctl-library',
+    method='websocket',
+    host='192.168.1.100'
+)
+
+config.save('path/to/save/file')
+```
+
+when calling save if you pass only a folder path and not a folder/file path
+the name you passed to the constructor will be useed along with the
+extension ".config"
+
+You do not need to keep track of the config instance. once it is passed
+to the Remote constructor it is then stored in that instance.
+
+```python
+import samsungctl
+
+
+config = samsungctl.Config.load('path/to/save/file')
+remote = samsungctl.Remote(config)
+remote.config.save()
+```
+
+You are still able to pass a dictionary to the Remote constructor as well.
+
+The only parameters you MUST supply is the method and the host. everything else
+has a default value associated with it.
+
+<br></br>
+***Power Property***
+____________________
+
+I also added power status along with powering off and on 2014+ TV's
+
+
+```python
+import samsungctl
+
+
+config = samsungctl.Config.load('path/to/save/file')
+remote = samsungctl.Remote(config)
+print(remote.power)
+
+# turns the TV on
+remote.power = True
+
+print(remote.power)
+# turns the TV off
+remote.power = False
+
+# toggles the power
+remote.power = not remote.power
+```
+
+We do not have the ability to turn on the TV's older then 2014.
+
+<br></br>
+***Exceptions***
+________________
 
 When something goes wrong you will receive an exception:
 
 Exception|Description
 ---------|-----------
-AccessDenied|The TV does not allow you to send keys.
-ConnectionClosed|The connection was closed.
-UnhandledResponse|An unexpected response was received.
-socket.timeout|The connection timed out.
+SamsungTVError|Samsung TV Exception Base Class.
+AccessDenied|Connection was denied.
+ConnectionClosed|Connection was closed.
+UnhandledResponse|Received unknown response.
+NoTVFound|Unable to locate a TV.
+ConfigError|Base class for config exceptions.
+ConfigUnknownMethod|Unknown connection method.
+ConfigParseError|Config data is not json formatted or is not a formatted flat file.
+ConfigLoadError|Config path specified cannot be located.
+ConfigSavePathError|Config save path is not valid.
+ConfigSaveError|Error saving config.
+ConfigSavePathNotSpecified|Config save path was not specified.
+ConfigParameterError|Parameter is not a config parameter.
 
 <br></br>
 ***Example program***
----------------------
+_____________________
 
 This simple program opens and closes the menu a few times.
 
@@ -236,15 +386,11 @@ This simple program opens and closes the menu a few times.
 import samsungctl
 import time
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 55000,
-    "method": "legacy",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='legacy',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
     for i in range(10):
@@ -253,7 +399,7 @@ with samsungctl.Remote(config) as remote:
 ```
 <br></br>
 ***Mouse Control***
----------------------
+___________________
 
 Mouse control can only be done by using samsungctl as a python module.
 Mouse command are built. this way you can accomplish multiple movements
@@ -265,15 +411,11 @@ each movement.
 ```python
 import samsungctl
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 8002,
-    "method": "websocket",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
     mouse = remote.mouse
@@ -309,15 +451,11 @@ import samsungctl
 import time
 
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 8002,
-    "method": "websocket",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
      mouse = remote.mouse
@@ -342,7 +480,7 @@ with samsungctl.Remote(config) as remote:
 ```
 <br></br>
 ***Voice Recognition***
----------------------
+_______________________
 
 If you TV supports voice recognition you have the ability to start and
 stop the voice recognition service on the TV. this can be done only by
@@ -355,15 +493,11 @@ example code of how to do this is below.
 import samsungctl
 import time
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 8002,
-    "method": "websocket",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
     remote.start_voice_recognition()
@@ -373,7 +507,7 @@ with samsungctl.Remote(config) as remote:
 
 <br></br>
 ***Applications***
----------------------
+__________________
 
 This is going to be a wee bit long winded. But here goes
 <br></br>
@@ -383,15 +517,11 @@ below is a sample of how to access the applications on the TV
 ```python
 import samsungctl
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 8002,
-    "method": "websocket",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
     for app in remote.applications:
@@ -408,15 +538,11 @@ if you want to access a specific application by name or by the app id
 ```python
 import samsungctl
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 8002,
-    "method": "websocket",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
     app = remote.get_application('YouTube')
@@ -456,21 +582,17 @@ the available content in that group
 ```python
 import samsungctl
 
-config = {
-    "name": "samsungctl",
-    "description": "PC",
-    "id": "",
-    "host": "192.168.0.10",
-    "port": 8002,
-    "method": "websocket",
-    "timeout": 0,
-}
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
 
 with samsungctl.Remote(config) as remote:
     for app in remote.applications:
         print('name:', app.name)
         print('=' * 30)
-        for content_group in application:
+        for content_group in app:
             print('   ', content_group.title)
             print('   ', '-' * 26)
             for content in content_group:
@@ -908,6 +1030,41 @@ KEY_EXT41|
 Please note that some codes are different on the 2016+ TVs. For example,
 `KEY_POWEROFF` is `KEY_POWER` on the newer TVs.
 
+I also added all of th keys as methods. so you havee the choice of using
+the method for sending a key
+
+```python
+import samsungctl
+
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
+
+with samsungctl.Remote(config) as remote:
+    remote.command("KEY_VOLUP")
+
+```
+
+or you can also use this
+
+```python
+import samsungctl
+
+config = samsungctl.Config(
+    name='samsungctl',
+    method='websocket',
+    host='192.168.1.100'
+)
+
+with samsungctl.Remote(config) as remote:
+    remote.KEY_VOLUP()
+
+```
+
+
+
 <br></br>
 ***References***
 ----------------
@@ -919,3 +1076,4 @@ the only implementation. Here is the list of things that inspired samsungctl.
 - https://gist.github.com/danielfaust/998441
 - https://github.com/Bntdumas/SamsungIPRemote
 - https://github.com/kyleaa/homebridge-samsungtv2016
+- https://github.com/eclair4151/SmartCrypto

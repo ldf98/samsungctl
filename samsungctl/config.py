@@ -11,13 +11,16 @@ logger = logging.getLogger('samsungctl')
 
 
 DEFAULT_CONFIG = dict(
-    name=None,
-    description=None,
+    name='samsungctl',
+    description=socket.gethostname(),
     host=None,
     port=None,
     id=None,
     method=None,
-    timeout=None
+    timeout=0,
+    token=None,
+    device_id=None,
+    upnp_locations=None,
 )
 
 
@@ -40,12 +43,38 @@ class Config(object):
         timeout=0,
         token=None,
         device_id=None,
-        http_port=None,
-        upnp_locations=None
+        upnp_locations=None,
+        **_
     ):
+        if name is None:
+            name = 'samsungctl'
 
         if description is None:
             description = socket.gethostname()
+            
+        if method is None and port is not None:
+            if port == 55000:
+                method = 'legacy'
+            elif port in (8001, 8002):
+                method = 'websocket'
+            else:
+                method = 'encrypted'
+        elif port is None and method is not None:
+            if method == 'legacy':
+                port = 55000
+            elif method == 'websocket':
+                if token is None:
+                    port = 8001
+                else:
+                    port = 8002
+            else:
+                port = 8080
+
+        if id is None:
+           id = "654321"
+
+        if device_id is None:
+            device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
 
         self.name = name
         self.description = description
@@ -57,10 +86,8 @@ class Config(object):
         self.token = token
         self.path = None
         self.device_id = device_id
-        self.http_port = http_port
-        self.serialized_name = None
-        self.protocol = None
         self.upnp_locations = upnp_locations
+        self.app_id = ''.join(sorted(list(id)[1:]))
 
     @property
     def log_level(self):
@@ -105,23 +132,33 @@ class Config(object):
                             continue
 
                         try:
-                            key, value = line.split('=')
+                            key, value = line.split('=', 1)
                         except ValueError:
-                            raise exceptions.ConfigParseError
+                            if line.count('=') == 1:
+                                key = line.replace('=', '')
+                                value = ''
+                            else:
+                                continue
 
                         key = key.lower().strip()
-                        value = value.strip()
 
-                        if key != 'token' and key not in config:
-                            raise exceptions.ConfigParameterError(key)
-
-                        try:
-                            value = int(value)
-                        except ValueError:
+                        if key not in config:
                             continue
 
-                        config[key] = value
+                        value = value.strip()
 
+                        if value.lower() in ('none', 'null'):
+                            value = None
+                        elif not value:
+                            value = None
+
+                        elif key in ('port', 'timeout'):
+                            try:
+                                value = int(value)
+                            except ValueError:
+                                raise exceptions.ConfigParameterError(key)
+
+                        config[key] = value
         else:
             raise exceptions.ConfigLoadError
 
@@ -150,7 +187,7 @@ class Config(object):
             path = os.path.join(path, self.name + '.config')
 
         if os.path.exists(path):
-            with open(path, 'w') as f:
+            with open(path, 'r') as f:
                 data = f.read().split('\n')
         else:
             data = []
@@ -160,7 +197,8 @@ class Config(object):
         for new_line in new:
             key = new_line.split('=')[0]
             for i, old_line in enumerate(data):
-                if old_line.startswith(key):
+                if old_line.lower().strip().startswith(key):
+
                     data[i] = new_line
                     break
             else:
@@ -185,7 +223,6 @@ class Config(object):
         yield 'timeout', self.timeout
         yield 'token', self.token
         yield 'device_id', self.device_id
-        yield 'http_port', self.http_port
         yield 'upnp_locations', self.upnp_locations
 
     def __str__(self):
@@ -199,8 +236,7 @@ class Config(object):
             timeout=self.timeout,
             token=self.token,
             device_id=self.device_id,
-            http_port=self.http_port,
-            upnp_locations=self.upnp_locations
+            upnp_locations=self.upnp_locations,
         )
 
 
@@ -213,6 +249,5 @@ method = {method}
 timeout = {timeout}
 token = {token}
 device_id = {device_id}
-http_port = {http_port}
 upnp_locations = {upnp_locations}
 '''

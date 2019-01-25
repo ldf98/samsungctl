@@ -21,7 +21,7 @@ setuptools.setup(
         "console_scripts": ["samsungctl=samsungctl.__main__:main"]
     },
     packages=["samsungctl"],
-    install_requires=['websocket-client', 'requests', 'lxml', 'six', 'ifaddr'],
+    install_requires=['websocket-client', 'requests', 'lxml', 'six', 'ifaddr', 'pycryptodome'],
     extras_require={
         "interactive_ui": ["curses"],
     },

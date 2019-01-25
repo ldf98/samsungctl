@@ -1,5 +1,5 @@
 class SamsungTVError(Exception):
-    """Samsung TV Exception Base Class"""
+    """Samsung TV Exception Base Class."""
 
     def __init__(self, *args):
         self._args = args
@@ -25,7 +25,7 @@ class UnhandledResponse(SamsungTVError):
 
 
 class NoTVFound(SamsungTVError):
-    """ Unable to locate a TV."""
+    """Unable to locate a TV."""
 
 
 class ConfigError(SamsungTVError):

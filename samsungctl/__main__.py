@@ -164,6 +164,11 @@ def main():
         help="TV hostname or IP address"
     )
     parser.add_argument(
+        "--token",
+        default=None,
+        help="token for TV's >= 2014"
+    )
+    parser.add_argument(
         "--port",
         type=int,
         help="TV port number (TCP)"
@@ -190,7 +195,12 @@ def main():
         type=float,
         help="socket timeout in seconds (0 = no timeout)"
     )
-
+    parser.add_argument(
+        "--config-file",
+        type=str,
+        default=None,
+        help="configuration file to load and/or save to"
+    )
     parser.add_argument(
         "--start-app",
         help="start an application --start-app \"Netflix\""
@@ -233,23 +243,42 @@ def main():
     if args.key_help:
         keys_help(args.key)
 
-    config = _read_config()
-    config.update({k: v for k, v in vars(args).items() if v is not None})
+    if args.config_file is None:
+        config = _read_config()
+        config.update(
+            {
+                k: v for k, v in vars(args).items()
+                if v is not None
+            }
+        )
+        config = Config(**config)
+    else:
+        if os.path.isfile(args.config_file):
+            config = Config.load(args.config_file)
+        else:
+            config = _read_config()
+            config.update(
+                {
+                    k: v for k, v in vars(args).items()
+                    if v is not None
+                }
+            )
+            config = Config(**config)
+            config.path = args.config_file
 
-    if not config["host"]:
+    if not config.host:
         logging.error("Error: --host must be set")
         return
 
-    config = Config(**config)
     config.log_level = log_level
-
+    
     try:
         with Remote(config) as remote:
             if args.interactive:
                 logging.getLogger().setLevel(logging.ERROR)
                 from . import interactive
                 interactive.run(remote)
-            elif config["method"] == 'websocket' and args.start_app:
+            elif config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
                     app.run(args.app_metadata)
@@ -267,12 +296,15 @@ def main():
         logging.error("Error: Connection closed!")
     except exceptions.AccessDenied:
         logging.error("Error: Access denied!")
-    except exceptions.UnknownMethod:
-        logging.error("Error: Unknown method '{}'".format(config["method"]))
+    except exceptions.ConfigUnknownMethod:
+        logging.error("Error: Unknown method '{}'".format(config.method))
     except socket.timeout:
         logging.error("Error: Timed out!")
     except OSError as e:
         logging.error("Error: %s", e.strerror)
+
+    if args.config_file:
+        config.save()
 
 
 if __name__ == "__main__":
