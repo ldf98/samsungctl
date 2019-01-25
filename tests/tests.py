@@ -194,7 +194,7 @@ class WebSocketTest(unittest.TestCase):
         logger.info(str(self.config))
 
         try:
-            self.remote = WebSocketTest.remote = samsungctl.Remote(self.config).__enter__()
+            self.remote = WebSocketTest.remote = samsungctl.Remote(self.config)
             self.remote.open()
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
@@ -1269,10 +1269,7 @@ class WebSocketSSLTest(unittest.TestCase):
         logger.info(str(self.config))
 
         try:
-            self.remote = WebSocketSSLTest.remote = samsungctl.Remote(
-                self.config
-            ).__enter__()
-
+            self.remote = WebSocketSSLTest.remote = samsungctl.Remote(self.config)
             self.remote.open()
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
@@ -2412,10 +2409,8 @@ class LegacyTest(unittest.TestCase):
         logger.info(str(self.config))
 
         try:
-            self.remote = LegacyTest.remote = samsungctl.Remote(
-                self.config
-            ).__enter__()
-
+            self.remote = LegacyTest.remote = samsungctl.Remote(self.config)
+            self.remote.open()
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
                 LegacyTest.remote = None
@@ -2423,6 +2418,8 @@ class LegacyTest(unittest.TestCase):
             else:
                 logger.info('connection successful')
         except:
+            import traceback
+            traceback.print_exc()
             LegacyTest.remote = None
             self.fail('unable to establish connection')
 

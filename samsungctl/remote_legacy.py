@@ -30,7 +30,7 @@ class RemoteLegacy(object):
         if self.config.timeout:
             self.connection.settimeout(self.config.timeout)
 
-        self.connection.connect((config.host, config.port))
+        self.connection.connect((self.config.host, self.config.port))
 
         payload = (
             b"\x64\x00" +
