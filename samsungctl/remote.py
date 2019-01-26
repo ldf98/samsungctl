@@ -68,7 +68,7 @@ class Remote(object):
         self.open()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *_):
         self.close()
 
     def open(self):
@@ -96,8 +96,9 @@ class Remote(object):
 
         if self._upnp_tv is not None:
             if item in self._upnp_tv.__class__.__dict__:
-                if hasattr(self._upnp_tv.__class__.__dict__[item], 'fget'):
-                    return self._upnp_tv.__class__.__dict__[item].fget(self._upnp_tv)
+                obj = self._upnp_tv.__class__.__dict__[item]
+                if hasattr(obj, 'fget'):
+                    return obj.fget(self._upnp_tv)
 
         raise AttributeError(item)
 
