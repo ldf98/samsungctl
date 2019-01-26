@@ -125,24 +125,22 @@ class RemoteWebsocket(object):
 
         elif not value and self.sock is not None:
             with self.receive_lock:
-                params = dict(
-                    Cmd='Click',
-                    DataOfCmd='KEY_POWER',
-                    Option="false",
-                    TypeOfRemote="SendRemoteKey"
-                )
+                count = 0
+                while (
+                    not self._power_event.isSet() and
+                    self.sock is not None and
+                    count < 6
+                ):
+                    params = dict(
+                        Cmd='Click',
+                        DataOfCmd='KEY_POWER',
+                        Option="false",
+                        TypeOfRemote="SendRemoteKey"
+                    )
 
-                logger.info("Sending control command: " + str(params))
-                self.send("ms.remote.control", **params)
+                    logger.info("Sending control command: " + str(params))
+                    self.send("ms.remote.control", **params)
 
-            self._power_event.wait(2.0)
-
-            if not self._power_event.isSet():
-                logger.info(
-                    'unable to power off TV using command KEY_POWER. '
-                    'Trying command KEY_POWEROFF'
-                )
-                with self.receive_lock:
                     params = dict(
                         Cmd='Click',
                         DataOfCmd='KEY_POWEROFF',
@@ -152,11 +150,10 @@ class RemoteWebsocket(object):
 
                     logger.info("Sending control command: " + str(params))
                     self.send("ms.remote.control", **params)
+                    self._power_event.wait(2.0)
 
-                self._power_event.wait(2.0)
-
-            if not self._power_event.isSet():
-                logger.error('Unable to power off the TV')
+                if count == 6:
+                    logger.info('Unable to power off the TV')
 
     def loop(self):
 

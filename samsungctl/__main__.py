@@ -72,7 +72,7 @@ def _read_config():
             config.update(config_json)
         except ValueError as e:
             logging.warning("Could not parse the configuration file.\n  %s", e)
-    
+
     return config
 
 
