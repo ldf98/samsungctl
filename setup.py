@@ -20,8 +20,21 @@ setuptools.setup(
     entry_points={
         "console_scripts": ["samsungctl=samsungctl.__main__:main"]
     },
-    packages=["samsungctl"],
-    install_requires=['websocket-client', 'requests', 'lxml', 'six', 'ifaddr', 'pycryptodome'],
+    packages=[
+        "samsungctl",
+        "samsungctl.upnp",
+        "samsungctl.upnp.UPNP_Device",
+        "samsungctl.remote_encrypted",
+        "samsungctl].py3rijndael"
+    ],
+    install_requires=[
+        'websocket-client',
+        'requests',
+        'lxml',
+        'six',
+        'ifaddr',
+        'pycryptodome'
+    ],
     extras_require={
         "interactive_ui": ["curses"],
     },
