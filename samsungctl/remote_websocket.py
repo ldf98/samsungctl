@@ -269,7 +269,8 @@ class RemoteWebsocket(object):
         if self.sock is not None:
             self._loop_event.set()
             self.sock.close()
-            self._thread.join(3.0)
+            if self._thread is not None:
+                self._thread.join(3.0)
             if self._thread is not None:
                 raise RuntimeError('Loop thread did not properly terminate')
 
