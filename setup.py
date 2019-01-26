@@ -25,7 +25,7 @@ setuptools.setup(
         "samsungctl.upnp",
         "samsungctl.upnp.UPNP_Device",
         "samsungctl.remote_encrypted",
-        "samsungctl.py3rijndael"
+        "samsungctl.remote_encrypted.py3rijndael"
     ],
     install_requires=[
         'websocket-client',
