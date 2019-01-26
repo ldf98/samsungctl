@@ -18,12 +18,13 @@ class RemoteLegacy(object):
     @LogIt
     def __init__(self, config):
         """Make a new connection."""
+        self.sock = None
         self.config = config
         self.connection = None
 
     @LogIt
     def open(self):
-        config.port = 55000
+        self.config.port = 55000
         if self.config.timeout:
             self.connection.settimeout(self.config.timeout)
 
