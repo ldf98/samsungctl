@@ -186,6 +186,75 @@ def main():
         help="remote control id"
     )
     parser.add_argument(
+        "--volume",
+        type=int,
+        help=(
+            "sets the TV volume to the entered value, a value of -1 will "
+            "display the volume level"
+        )
+    )
+    parser.add_argument(
+        "--brightness",
+        type=int,
+        help=(
+            "sets the TV brightness level to the entered value, "
+            "a value of -1 will display the brightness level"
+        )
+    )
+    parser.add_argument(
+        "--contrast",
+        type=int,
+        help=(
+            "sets the TV contrast level to the entered value, "
+            "a value of -1 will display the contrast level"
+        )
+    )
+    parser.add_argument(
+        "--sharpness",
+        type=int,
+        help=(
+            "sets the TV sharpness level to the entered value, "
+            "a value of -1 will display the sharpness level"
+        )
+    )
+    parser.add_argument(
+        "--mute",
+        type=str,
+        choices=['off', 'on', 'state'],
+        help=(
+            "sets the mute on or off (not a toggle), "
+            "state displays if the mute if on or off"
+        )
+    )
+
+    parser.add_argument(
+        "--source",
+        type=str,
+        help=(
+            "changes the input source to the one specified. "
+            "You can either enter the TV source name "
+            "eg: HDMI1 HDMI2, USB, PC...."
+            "or you can enter the programmed label for the source. "
+            "This is going to be what is displayed on the OSD when you change "
+            "the source from the remote. If you enter 'state' for the source "
+            "name it will print out the currently "
+            "active source label and name."
+        )
+    )
+
+    parser.add_argument(
+        "--source-label",
+        type=str,
+        help=(
+            "changes the label for a source. "
+            "If you do not use --source to specify the source to change the "
+            "label on. It will automatically default to the currently "
+            "active source. If you set the label to 'state' it will print out "
+            "the current label for a source if specified using --source or "
+            "the currently active source"
+        )
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         help="socket timeout in seconds (0 = no timeout)"
@@ -249,26 +318,80 @@ def main():
                 logging.getLogger().setLevel(logging.ERROR)
                 from . import interactive
                 interactive.run(remote)
-            elif config["method"] == 'websocket' and args.start_app:
+            elif config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
                     app.run(args.app_metadata)
                 else:
                     app.run()
-            elif len(args.key) == 0:
-                logging.warning("Warning: No keys specified.")
+
             else:
                 for key in args.key:
                     if key is None:
                         continue
                     key(remote)
 
+            if args.volume is not None:
+                if args.volume == -1:
+                    print('Volume:', remote.volume, '%')
+                else:
+                    remote.volume = args.volume
+
+            elif args.mute is not None:
+                if args.mute == 'state':
+                    print('Mute:', 'ON' if remote.mute else 'OFF')
+                else:
+                    remote.mute = args.mute == 'on'
+
+            if args.brightness is not None:
+                if args.brightness == -1:
+                    print('Brightness:', remote.brightness, '%')
+                else:
+                    remote.brightness = args.brightness
+
+            if args.contrast is not None:
+                if args.contrast == -1:
+                    print('Contrast:', remote.contrast, '%')
+                else:
+                    remote.contrast = args.contrast
+
+            if args.sharpness is not None:
+                if args.sharpness == -1:
+                    print('Sharpness:', remote.sharpness, '%')
+                else:
+                    remote.sharpness = args.sharpness
+
+            if args.source_label is not None:
+                if args.source is None:
+                    if args.source_label == 'state':
+                        print('Source Label:', remote.source.label)
+                    else:
+                        remote.source.label = args.remote_label
+                else:
+                    for source in remote.sources:
+                        if args.source in (source.label, source.name):
+                            if args.source_label == 'state':
+                                print('Source Label:', source.label)
+                            else:
+                                source.label = args.source_label
+                            break
+
+            elif args.source is not None:
+                if args.source == 'state':
+                    source = remote.source
+                    print(
+                        'Source: Label =', source.label,
+                        'Name =', source.name
+                    )
+                else:
+                    remote.source = args.source
+
     except exceptions.ConnectionClosed:
         logging.error("Error: Connection closed!")
     except exceptions.AccessDenied:
         logging.error("Error: Access denied!")
-    except exceptions.UnknownMethod:
-        logging.error("Error: Unknown method '{}'".format(config["method"]))
+    except exceptions.ConfigUnknownMethod:
+        logging.error("Error: Unknown method '{}'".format(config.method))
     except socket.timeout:
         logging.error("Error: Timed out!")
     except OSError as e:

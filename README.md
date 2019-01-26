@@ -118,7 +118,11 @@ arguments:
 ```
 usage: samsungctl [-h] [--version] [-v] [-q] [-i] [--host HOST] [--port PORT]
                   [--method METHOD] [--name NAME] [--description DESC]
-                  [--id ID] [--timeout TIMEOUT] [--start-app APP NAME OR ID]
+                  [--id ID] [--timeout TIMEOUT]
+                  [--volume VOLUME] [--mute MUTE] [--brightness BRIGHTNESS]
+                  [--contrast CONTRAST] [--sharpness SHARPNESS]
+                  [--source SOURCE] [--source-label SOURCE_LABEL]
+                  [--start-app APP NAME OR ID]
                   [--app-metadata METADATA] [--key-help]
                   [key [key ...]]
 
@@ -143,6 +147,13 @@ optional argument|description
 --description DESC|remote control description
 --id ID|remote control id
 --timeout TIMEOUT|socket timeout in seconds \(0 = no timeout\)
+--volume VOLUME|sets the volume allowed values: 0-100 or -1 to print the volume
+--mute MUTE|sets the mute. allowed values: on, off, state. state to print the mute state
+--brightness BRIGHTNESS|sets the brightness allowed values: 0-100 or -1 to print the brightness
+--contrast CONTRAST|sets the contrast allowed values: 0-100 or -1 to print the contrast
+--sharpness SHARPNESS|sets the sharpness allowed values: 0-100 or -1 to print the sharpness
+--source SOURCE|set the source. you can use the TV defined names.. HDMI1, HDMI2, PC, USB... or you can use the programmed label that appears on the OSD.
+--source-label SOURCE_LABEL|sets the source label that appears on the OSD
 --start-app APPPLICATION NAME OR ID|starts an application
 --app-metadata METADATA|string of information the application can use
 when it starts up.
