@@ -2,7 +2,6 @@
 
 from __future__ import absolute_import
 import base64
-import json
 import logging
 import threading
 import ssl
@@ -59,7 +58,9 @@ class RemoteWebsocket(object):
                 timeout=5
             )
             try:
-                is_support = json.loads(response.content)['device']['isSupport']
+                is_support = (
+                    json.loads(response.content)['device']['isSupport']
+                )
             except (ValueError, KeyError):
                 return False
 
@@ -69,8 +70,6 @@ class RemoteWebsocket(object):
                 return False
         except requests.HTTPError:
             return None
-
-
 
     @property
     @LogItWithReturn
