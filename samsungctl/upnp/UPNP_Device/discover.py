@@ -199,7 +199,7 @@ def discover(timeout=5, log_level=None, search_ips=(), dump=''):
             sock = send_to(ip_addr, timeout)
         except OSError:
             threads.remove(threading.current_thread())
-            
+
             if not threads:
                 found_event.set()
             return
