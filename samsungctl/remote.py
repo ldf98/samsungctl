@@ -103,11 +103,11 @@ class Remote(object):
 
     def __setattr__(self, key, value):
         if key in ('_upnp_tv', 'remote', 'config'):
-            object.__setattr__(self, key, value)
+            self.__dict__[key] = value
             return
 
         if key == 'name':
-            self.name = value
+            self.__class__.__dict__[key].fset(self, value)
             return
 
         if key in self.remote.__class__.__dict__:
