@@ -7,8 +7,6 @@ import json
 import logging
 import os
 import socket
-import errno
-
 
 try:
     from . import __doc__ as doc
@@ -39,15 +37,17 @@ except ValueError:
 
 
 def _read_config():
-    config = collections.defaultdict(lambda: None, {
-        "name": "samsungctl",
-        "description": "PC",
-        "id": "",
-        "method": "legacy",
-        "timeout": 0,
-    })
+    config = collections.defaultdict(
+        lambda: None,
+        dict(
+            name="samsungctl",
+            description="PC",
+            id="",
+            method="legacy",
+            timeout=0,
+        )
+    )
 
-    file_loaded = False
     directories = []
 
     xdg_config = os.getenv("XDG_CONFIG_HOME")
@@ -58,31 +58,21 @@ def _read_config():
     directories.append("/etc")
 
     for directory in directories:
-        path = os.path.join(directory, "samsungctl.conf")
-        try:
-            config_file = open(path)
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                continue
-            else:
-                raise
-        else:
-            file_loaded = True
-            break
+        pth = os.path.join(directory, "samsungctl.conf")
 
-    if not file_loaded:
+        if os.path.isfile(pth):
+            config_file = open(pth, 'r')
+            break
+    else:
         return config
 
     with config_file:
         try:
             config_json = json.load(config_file)
+            config.update(config_json)
         except ValueError as e:
-            message = "Warning: Could not parse the configuration file.\n  %s"
-            logging.warning(message, e)
-            return config
-
-        config.update(config_json)
-
+            logging.warning("Could not parse the configuration file.\n  %s", e)
+    
     return config
 
 
@@ -340,7 +330,7 @@ def main():
         return
 
     config.log_level = log_level
-    
+
     try:
         with Remote(config) as remote:
             if args.interactive:

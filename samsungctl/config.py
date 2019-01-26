@@ -79,7 +79,7 @@ class Config(object):
                 paired = False
 
         if id is None:
-           id = "654321"
+            id = "654321"
 
         if device_id is None:
             device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"

@@ -12,6 +12,7 @@ PY3 = sys.version_info[0] > 2
 _instances = {}
 
 
+# noinspection PyPep8Naming
 class Singleton(type):
 
     def __call__(
@@ -81,6 +82,7 @@ class Singleton(type):
         return instance
 
 
+# noinspection PyUnusedLocal,PyDeprecation,PyPep8Naming
 @six.add_metaclass(Singleton)
 class Application(object):
 
@@ -180,7 +182,7 @@ class Application(object):
         response = requests.get(url)
         try:
             response = response.json()
-        except:
+        except ValueError:
             return 'Unknown'
 
         if 'version' not in response:
@@ -199,7 +201,7 @@ class Application(object):
         response = requests.get(url)
         try:
             response = response.json()
-        except:
+        except ValueError:
             return None
 
         if 'visible' not in response:
@@ -218,7 +220,7 @@ class Application(object):
         response = requests.get(url)
         try:
             response = response.json()
-        except:
+        except ValueError:
             return None
 
         if 'running' not in response:
@@ -303,6 +305,7 @@ class Application(object):
             return icon[0]
 
 
+# noinspection PyPep8Naming
 @six.add_metaclass(Singleton)
 class Accelerator(object):
 
@@ -344,6 +347,7 @@ class Accelerator(object):
             yield AppData(self.application, **content[content_name])
 
 
+# noinspection PyProtectedMember,PyDeprecation,PyPep8Naming
 @six.add_metaclass(Singleton)
 class AppData(object):
 
@@ -499,5 +503,3 @@ class AppData(object):
                 'ed.apps.icon'
             )
             return icon[0]
-
-
