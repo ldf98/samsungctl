@@ -165,7 +165,6 @@ class RemoteWebsocket(object):
             try:
                 data = self.sock.recv()
                 if data:
-                    print(data)
                     self.on_message(data)
             except:
                 self._loop_event.set()
