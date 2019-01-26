@@ -51,7 +51,7 @@ class Config(object):
 
         if description is None:
             description = socket.gethostname()
-
+            
         if method is None and port is not None:
             if port == 55000:
                 method = 'legacy'
@@ -198,6 +198,7 @@ class Config(object):
             key = new_line.split('=')[0]
             for i, old_line in enumerate(data):
                 if old_line.lower().strip().startswith(key):
+
                     data[i] = new_line
                     break
             else:
@@ -250,4 +251,3 @@ token = {token}
 device_id = {device_id}
 upnp_locations = {upnp_locations}
 '''
-

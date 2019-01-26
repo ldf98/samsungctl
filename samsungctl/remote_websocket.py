@@ -27,7 +27,6 @@ class RemoteWebsocket(object):
     @LogIt
     def __init__(self, config):
         self.config = config
-
         self._loop_event = threading.Event()
         self.receive_lock = threading.Lock()
         self._power_event = threading.Event()
@@ -37,6 +36,7 @@ class RemoteWebsocket(object):
         self._mac_address = None
         self.sock = None
         self._running = False
+        self.send_event = threading.Event()
 
     @property
     @LogItWithReturn
@@ -149,9 +149,9 @@ class RemoteWebsocket(object):
 
         self._power_event.set()
         self.sock = None
+        del self._registered_callbacks[:]
         logger.info('Websocket closed')
         self._loop_event.clear()
-        del self._registered_callbacks[:]
         self._thread = None
 
     @LogIt
@@ -159,7 +159,6 @@ class RemoteWebsocket(object):
         with self.receive_lock:
             if self.sock is not None:
                 self.close()
-
             if self.config.port == 8002:
                 if self.config.token:
                     logger.debug('using saved token: ' + self.config.token)
@@ -173,7 +172,6 @@ class RemoteWebsocket(object):
                     self.config.port,
                     self._serialize_string(self.config.name)
                 ) + token
-
             else:
                 self.config.port = 8001
                 sslopt = {}
@@ -225,6 +223,14 @@ class RemoteWebsocket(object):
                     'event',
                     'ms.channel.unauthorized'
                 )
+
+                if 'data' in data and 'token' in data["data"]:
+                    self.config.token = data['data']["token"]
+                    logger.debug('new token: ' + self.config.token)
+
+                logger.debug("Access granted.")
+                auth_event.set()
+
                 self._power_event.set()
 
             self.register_receive_callback(
@@ -243,6 +249,7 @@ class RemoteWebsocket(object):
             self._thread.start()
 
             auth_event.wait(30.0)
+
             if not auth_event.isSet():
                 self.close()
                 raise RuntimeError('Auth Failure')
@@ -261,6 +268,9 @@ class RemoteWebsocket(object):
         if self.sock is not None:
             self._loop_event.set()
             self.sock.close()
+            self._thread.join(3.0)
+            if self._thread is not None:
+                raise RuntimeError('Loop thread did not properly terminate')
 
     @LogIt
     def send(self, method, **params):
@@ -269,6 +279,7 @@ class RemoteWebsocket(object):
                 if not self._running:
                     try:
                         self.open()
+                        
                         return self.send(method, **params)
                     except RuntimeError:
                         pass
@@ -315,7 +326,6 @@ class RemoteWebsocket(object):
             return
 
         with self.receive_lock:
-            event = threading.Event()
             params = dict(
                 Cmd=cmd,
                 DataOfCmd=key,
@@ -325,7 +335,6 @@ class RemoteWebsocket(object):
 
             logger.info("Sending control command: " + str(params))
             self.send("ms.remote.control", **params)
-            event.wait(0.15)
 
     _key_interval = 0.5
 
@@ -370,7 +379,6 @@ class RemoteWebsocket(object):
         )
 
         for event in ['ed.edenApp.get', 'ed.installedApp.get']:
-
             params = dict(
                 data='',
                 event=event,
@@ -379,24 +387,25 @@ class RemoteWebsocket(object):
 
             self.send('ms.channel.emit', **params)
 
-        eden_event.wait(2.0)
-        installed_event.wait(2.0)
+        eden_event.wait(10.0)
+        installed_event.wait(10.0)
+
+        self.unregister_receive_callback(
+            eden_app_get,
+            'event',
+            'ed.edenApp.get'
+        )
+
+        self.unregister_receive_callback(
+            installed_app_get,
+            'data',
+            None
+        )
 
         if not eden_event.isSet():
-
-            self.unregister_receive_callback(
-                eden_app_get,
-                'event',
-                'ed.edenApp.get'
-            )
             logger.debug('ed.edenApp.get timed out')
 
         if not installed_event.isSet():
-            self.unregister_receive_callback(
-                installed_app_get,
-                'data',
-                None
-            )
             logger.debug('ed.installedApp.get timed out')
 
         if eden_data and installed_data:
@@ -441,6 +450,7 @@ class RemoteWebsocket(object):
             if key in response and (data is None or response[key] == data):
                 callback(response)
                 self._registered_callbacks.remove([callback, key, data])
+                break
 
     @LogIt
     def start_voice_recognition(self):
@@ -468,12 +478,13 @@ class RemoteWebsocket(object):
             self.send("ms.remote.control", **params)
 
             event.wait(2.0)
+            self.unregister_receive_callback(
+                voice_callback,
+                'event',
+                'ms.voiceApp.standby'
+            )
+
             if not event.isSet():
-                self.unregister_receive_callback(
-                    voice_callback,
-                    'event',
-                    'ms.voiceApp.standby'
-                )
                 logger.debug('ms.voiceApp.standby timed out')
 
     @LogIt
@@ -503,12 +514,12 @@ class RemoteWebsocket(object):
             self.send("ms.remote.control", **params)
 
             event.wait(2.0)
+            self.unregister_receive_callback(
+                voice_callback,
+                'event',
+                'ms.voiceApp.hide'
+            )
             if not event.isSet():
-                self.unregister_receive_callback(
-                    voice_callback,
-                    'event',
-                    'ms.voiceApp.hide'
-                )
                 logger.debug('ms.voiceApp.hide timed out')
 
     @staticmethod
@@ -659,5 +670,23 @@ class Mouse(object):
                 self._ime_start_event.wait(len(self._commands))
                 self._ime_update_event.wait(len(self._commands))
                 self._touch_enable_event.wait(len(self._commands))
+
+                self._remote.unregister_receive_callback(
+                    imeStart,
+                    'event',
+                    'ms.remote.imeStart'
+                )
+
+                self._remote.unregister_receive_callback(
+                    imeUpdate,
+                    'event',
+                    'ms.remote.imeUpdate'
+                )
+
+                self._remote.unregister_receive_callback(
+                    touchEnable,
+                    'event',
+                    'ms.remote.touchEnable'
+                )
 
                 self._is_running = False

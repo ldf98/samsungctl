@@ -2411,6 +2411,7 @@ class LegacyTest(unittest.TestCase):
         try:
             self.remote = LegacyTest.remote = samsungctl.Remote(self.config)
             self.remote.open()
+
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
                 LegacyTest.remote = None
