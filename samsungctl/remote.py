@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging
 from . import exceptions
 from .remote_legacy import RemoteLegacy
 from .remote_websocket import RemoteWebsocket
@@ -18,10 +17,12 @@ except ImportError:
 class Remote(object):
     def __init__(self, config):
         self._upnp_tv = None
+        self.config = config
+        self.remote = None
 
         if isinstance(config, dict):
             config = Config(**config)
-            
+
         if config.method == "legacy":
             self.remote = RemoteLegacy(config)
         elif config.method == "websocket":
@@ -37,7 +38,6 @@ class Remote(object):
         else:
             raise exceptions.ConfigUnknownMethod()
 
-        self.config = config
     def connect_upnp(self):
         if self._upnp is None:
             if not self.config.upnp_locations:
@@ -64,7 +64,6 @@ class Remote(object):
     def name(self, value):
         self.config.name = value
 
-
     def __enter__(self):
         self.open()
         return self
@@ -79,10 +78,6 @@ class Remote(object):
         if item in self.__dict__:
             return self.__dict__[item]
 
-        if self._upnp_tv is not None:
-            if hasattr(self._upnp_tv, item):
-                return getattr(self._upnp_tv, item)
-
         if hasattr(self.remote, item):
             return getattr(self.remote, item)
 
@@ -96,43 +91,43 @@ class Remote(object):
 
             return wrapper
 
+        if self._upnp_tv is None:
+            self.connect_upnp()
+
+        if self._upnp_tv is not None:
+            if item in self._upnp_tv.__class__.__dict__:
+                if hasattr(self._upnp_tv.__class__.__dict__[item], 'fget'):
+                    return self._upnp_tv.__class__.__dict__[item].fget(self._upnp_tv)
+
         raise AttributeError(item)
 
     def __setattr__(self, key, value):
         if key in ('_upnp_tv', 'remote', 'config'):
             object.__setattr__(self, key, value)
-            
-        elif key == 'name':
+            return
+
+        if key == 'name':
             self.name = value
-            
-        elif key in self.remote.__class__.__dict__:
+            return
+
+        if key in self.remote.__class__.__dict__:
             obj = self.remote.__class__.__dict__[key]
             if hasattr(obj, 'fset'):
                 obj.fset(self.remote, value)
+                return
 
-        elif self._upnp_tv is not None:
+        if hasattr(self.remote, key):
+            setattr(self.remote, key, value)
+            return
+
+        if self._upnp_tv is None:
+            self.connect_upnp()
+
+        if self._upnp_tv is not None:
             if key in self._upnp_tv.__class__.__dict__:
                 obj = self._upnp_tv.__class__.__dict__[key]
                 if hasattr(obj, 'fset'):
                     obj.fset(self._upnp_tv, value)
-                    
+
     def control(self, key):
         return self.remote.control(key)
-
-    def __getattr__(self, item):
-        if item in self.__dict__:
-            return self.__dict__[item]
-
-        if hasattr(self.remote, item):
-            return getattr(self.remote, item)
-
-        if item.isupper() and item in KEYS:
-            def wrapper():
-                KEYS[item](self)
-
-            return wrapper
-          
-        if self._upnp_tv is not None and hasattr(self._upnp_tv, item):
-          return getattr(self._upnp_tv, item)
-        
-        raise AttributeError(item)
