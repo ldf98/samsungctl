@@ -21,6 +21,7 @@ DEFAULT_CONFIG = dict(
     token=None,
     device_id=None,
     upnp_locations=None,
+    paired=None
 )
 
 
@@ -44,6 +45,7 @@ class Config(object):
         token=None,
         device_id=None,
         upnp_locations=None,
+        paired=False,
         **_
     ):
         if name is None:
@@ -51,7 +53,7 @@ class Config(object):
 
         if description is None:
             description = socket.gethostname()
-            
+
         if method is None and port is not None:
             if port == 55000:
                 method = 'legacy'
@@ -69,6 +71,12 @@ class Config(object):
                     port = 8002
             else:
                 port = 8080
+
+        if paired is None:
+            if token is not None:
+                paired = True
+            else:
+                paired = False
 
         if id is None:
            id = "654321"
@@ -88,6 +96,7 @@ class Config(object):
         self.device_id = device_id
         self.upnp_locations = upnp_locations
         self.app_id = ''.join(sorted(list(id)[1:]))
+        self.paired = paired
 
     @property
     def log_level(self):
@@ -224,6 +233,7 @@ class Config(object):
         yield 'token', self.token
         yield 'device_id', self.device_id
         yield 'upnp_locations', self.upnp_locations
+        yield 'paired', self.paired
 
     def __str__(self):
         return TEMPLATE.format(
@@ -237,6 +247,7 @@ class Config(object):
             token=self.token,
             device_id=self.device_id,
             upnp_locations=self.upnp_locations,
+            paired=self.paired
         )
 
 
@@ -250,4 +261,5 @@ timeout = {timeout}
 token = {token}
 device_id = {device_id}
 upnp_locations = {upnp_locations}
+paired = {paired}
 '''

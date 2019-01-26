@@ -9,6 +9,7 @@ import ssl
 import websocket
 import requests
 import time
+import json
 from . import exceptions
 from . import application
 from . import wake_on_lan
@@ -51,9 +52,30 @@ class RemoteWebsocket(object):
         return self._mac_address
 
     @property
+    def has_ssl(self):
+        try:
+            response = requests.get(
+                ' http://{0}:8001/api/v2/'.format(self.config.host),
+                timeout=5
+            )
+            try:
+                is_support = json.loads(response.content)['device']['isSupport']
+            except (ValueError, KeyError):
+                return False
+
+            try:
+                return json.loads(is_support)['TokenAuthSupport']
+            except (ValueError, KeyError):
+                return False
+        except requests.HTTPError:
+            return None
+
+
+
+    @property
     @LogItWithReturn
     def power(self):
-        if not self._running:
+        if not self._running and self.config.paired:
             try:
                 self.open()
                 return True
@@ -72,7 +94,7 @@ class RemoteWebsocket(object):
     @power.setter
     @LogIt
     def power(self, value):
-        if not self._running:
+        if not self._running and self.config.paired:
             try:
                 self.open()
             except RuntimeError:
@@ -158,9 +180,19 @@ class RemoteWebsocket(object):
     @LogIt
     def open(self):
         with self.receive_lock:
+            if not self.config.paired and not self.power:
+                self.power = True
+                if not self.power:
+                    raise RuntimeError(
+                        'Unable to pair with TV.. Is the TV off?!?'
+                    )
+
             if self.sock is not None:
                 self.close()
-            if self.config.port == 8002:
+
+            if self.config.port == 8002 or self.has_ssl:
+                self.config.port = 8002
+
                 if self.config.token:
                     logger.debug('using saved token: ' + self.config.token)
                     token = "&token=" + self.config.token
@@ -175,6 +207,7 @@ class RemoteWebsocket(object):
                 ) + token
             else:
                 self.config.port = 8001
+
                 sslopt = {}
                 url = URL_FORMAT.format(
                     self.config.host,
@@ -230,6 +263,7 @@ class RemoteWebsocket(object):
                     logger.debug('new token: ' + self.config.token)
 
                 logger.debug("Access granted.")
+                self.config.paired = True
                 auth_event.set()
 
                 self._power_event.set()
@@ -249,7 +283,10 @@ class RemoteWebsocket(object):
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
 
-            auth_event.wait(30.0)
+            if self.config.paired:
+                auth_event.wait(5.0)
+            else:
+                auth_event.wait(30.0)
 
             if not auth_event.isSet():
                 self.close()
@@ -674,19 +711,19 @@ class Mouse(object):
                 self._touch_enable_event.wait(len(self._commands))
 
                 self._remote.unregister_receive_callback(
-                    imeStart,
+                    ime_start,
                     'event',
                     'ms.remote.imeStart'
                 )
 
                 self._remote.unregister_receive_callback(
-                    imeUpdate,
+                    ime_update,
                     'event',
                     'ms.remote.imeUpdate'
                 )
 
                 self._remote.unregister_receive_callback(
-                    touchEnable,
+                    touch_enable,
                     'event',
                     'ms.remote.touchEnable'
                 )
