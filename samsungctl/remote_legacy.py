@@ -25,6 +25,8 @@ class RemoteLegacy(object):
     @LogIt
     def open(self):
         self.config.port = 55000
+
+        self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if self.config.timeout:
             self.connection.settimeout(self.config.timeout)
 
