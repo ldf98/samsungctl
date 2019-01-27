@@ -152,9 +152,8 @@ class RemoteEncrypted(object):
                 self.first_step_of_pairing()
                 output = self.hello_exchange(tv_pin)
                 if output:
-
                     self.ctx = output['ctx'].hex()
-                    self.sk_prime = output['sk_prime']
+                    self.sk_prime = output['SKPrime']
                     logger.debug("ctx: " + self.ctx)
                     logger.info("Pin accepted :)\n")
                 else:
@@ -196,6 +195,8 @@ class RemoteEncrypted(object):
                 'Unable to open connection.. Is the TV off?!?'
             )
 
+        print('websocket_response: ' + websocket_response.content)
+
         websocket_url = (
             'ws://' +
             self.config.host +
@@ -232,7 +233,8 @@ class RemoteEncrypted(object):
 
     @LogIt
     def show_pin_page(self):
-        requests.post(self.get_full_url("/ws/apps/CloudPINPage"), "pin4")
+        response = requests.post(self.get_full_url("/ws/apps/CloudPINPage"), "pin4")
+        print('show_pin_page: ' + response.content)
 
     @LogItWithReturn
     def check_pin_page(self):
@@ -251,6 +253,8 @@ class RemoteEncrypted(object):
                 raise RuntimeError(
                     'Unable to connect with TV.. Is the TV off?!?'
                 )
+
+        print('page: ' + page)
 
         output = re.search('state>([^<>]*)</state>', page, flags=re.IGNORECASE)
         if output is not None:
@@ -291,7 +295,7 @@ class RemoteEncrypted(object):
 
         second_step_url = self.get_request_url(1)
         second_step_response = requests.post(second_step_url, content).text
-
+        print('second_step_response: ' + second_step_response)
         logger.debug('second_step_response: ' + second_step_response)
 
         output = re.search(
@@ -327,6 +331,8 @@ class RemoteEncrypted(object):
 
         third_step_url = self.get_request_url(2)
         third_step_response = requests.post(third_step_url, content).text
+
+        print('third_step_response: ' + third_step_response)
 
         if "secure-mode" in third_step_response:
             raise RuntimeError(
