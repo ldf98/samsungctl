@@ -56,33 +56,40 @@ class Config(object):
 
         if method is None and port is not None:
             if port == 55000:
+                app_id = ''
                 method = 'legacy'
             elif port in (8001, 8002):
+                app_id = ''
                 method = 'websocket'
             else:
+                app_id = '654321'
+                id = "654321"
+                device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
                 method = 'encrypted'
         elif port is None and method is not None:
             if method == 'legacy':
+                app_id = ''
                 port = 55000
             elif method == 'websocket':
+                app_id = ''
                 if token is None:
                     port = 8001
                 else:
                     port = 8002
             else:
                 port = 8080
+                app_id = '654321'
+                id = "654321"
+                device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
+
+        else:
+            app_id = ''
 
         if paired is None:
             if token is not None:
                 paired = True
             else:
                 paired = False
-
-        if id is None:
-            id = "654321"
-
-        if device_id is None:
-            device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
 
         self.name = name
         self.description = description
@@ -95,7 +102,8 @@ class Config(object):
         self.path = None
         self.device_id = device_id
         self.upnp_locations = upnp_locations
-        self.app_id = ''.join(sorted(list(id)[1:]))
+        self.app_id = app_id
+
         self.paired = paired
 
     @property
