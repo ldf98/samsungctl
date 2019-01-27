@@ -20,17 +20,24 @@ class RemoteLegacy(object):
         """Make a new connection."""
         self.sock = None
         self.config = config
-        self.connection = None
 
     @LogIt
     def open(self):
         self.config.port = 55000
 
-        self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if self.config.timeout:
-            self.connection.settimeout(self.config.timeout)
+            self.sock.settimeout(self.config.timeout)
 
-        self.connection.connect((self.config.host, self.config.port))
+        try:
+            self.sock.connect((self.config.host, self.config.port))
+        except socket.error:
+            if not self.config.paired:
+                raise RuntimeError('Unable to pair with TV.. Is the TV off?!?')
+            else:
+                raise RuntimeError(
+                    'Unable to open connection.. Is the TV off?!?'
+                )
 
         payload = (
             b"\x64\x00" +
@@ -86,6 +93,7 @@ class RemoteLegacy(object):
 
         if response == b"\x64\x00\x01\x00":
             logger.debug("Access granted.")
+            self.config.paired = True
             return
         elif response == b"\x64\x00\x00\x00":
             raise exceptions.AccessDenied()

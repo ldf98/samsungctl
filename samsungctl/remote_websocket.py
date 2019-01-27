@@ -55,20 +55,15 @@ class RemoteWebsocket(object):
         try:
             response = requests.get(
                 ' http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=5
+                timeout=3
             )
-            try:
-                is_support = (
-                    json.loads(response.content)['device']['isSupport']
-                )
-            except (ValueError, KeyError):
-                return False
-
-            try:
-                return json.loads(is_support)['TokenAuthSupport']
-            except (ValueError, KeyError):
-                return False
-        except requests.HTTPError:
+            is_support = (
+                json.loads(response.content)['device']['isSupport']
+            )
+            return json.loads(is_support)['TokenAuthSupport']
+        except (ValueError, KeyError):
+            return False
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return None
 
     @property
@@ -84,10 +79,10 @@ class RemoteWebsocket(object):
         try:
             requests.get(
                 ' http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=2
+                timeout=3
             )
             return True
-        except requests.HTTPError:
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return False
 
     @power.setter

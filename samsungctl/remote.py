@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
+
+import six
 from . import exceptions
 from .remote_legacy import RemoteLegacy
 from .remote_websocket import RemoteWebsocket
 from .config import Config
 from .key_mappings import KEYS
 from .upnp import UPNPTV
-from .upnp.UPNP_Device.discover import discover
-
+from .upnp.discover import discover
 
 try:
     from .remote_encrypted import RemoteEncrypted
@@ -14,121 +15,68 @@ except ImportError:
     RemoteEncrypted = None
 
 
-class Remote(object):
-    def __init__(self, config):
-        self._upnp_tv = None
-        self.config = config
-        self.remote = None
+class KeyWrapper(object):
+    def __init__(self, remote, key):
+        self.remote = remote
+        self.key = key
 
-        if isinstance(config, dict):
-            config = Config(**config)
+    def __call__(self):
+        self.key(self.remote)
 
-        if config.method == "legacy":
-            self.remote = RemoteLegacy(config)
-        elif config.method == "websocket":
-            self.remote = RemoteWebsocket(config)
-        elif config.method == "encrypted":
+
+class RemoteMeta(type):
+
+    def __call__(cls, conf):
+
+        if isinstance(conf, dict):
+            conf = Config(**conf)
+
+        if conf.method == "legacy":
+            remote = RemoteLegacy
+        elif conf.method == "websocket":
+            remote = RemoteWebsocket
+        elif conf.method == "encrypted":
             if RemoteEncrypted is None:
                 raise RuntimeError(
                     'Python 2 is not currently supported '
                     'for H and J model year TV\'s'
                 )
 
-            self.remote = RemoteEncrypted(config)
+            remote = RemoteEncrypted
         else:
             raise exceptions.ConfigUnknownMethod()
 
-    def connect_upnp(self):
-        if self._upnp is None:
-            if not self.config.upnp_locations:
-                devices = discover(self.config.host)
-                if devices:
-                    self.config.upnp_locations = devices[0][1]
 
-            if self.config.upnp_locations:
-                self._upnp_tv = UPNPTV(
-                    self.config.host,
-                    self.config.upnp_locations,
-                    self
-                )
+        class RemoteWrapper(remote, UPNPTV):
 
-    @property
-    def upnp_tv(self):
-        return self._upnp_tv
+            def __init__(self, config):
+                for name, key in KEYS.items():
+                    self.__dict__[name] = KeyWrapper(self, key)
 
-    @property
-    def name(self):
-        return self.config.name
+                remote.__init__(self, config)
 
-    @name.setter
-    def name(self, value):
-        self.config.name = value
+                if config.upnp_locations is not None:
+                    discover(config)
 
-    def __enter__(self):
-        self.open()
-        return self
+                if config.upnp_locations:
+                    UPNPTV.__init__(
+                        self,
+                        config.host,
+                        config.upnp_locations,
+                        self
+                    )
 
-    def __exit__(self, *_):
-        self.close()
+                if config.path:
+                    config.save()
 
-    def open(self):
-        self.remote.open()
+                self.open()
 
-    def __getattr__(self, item):
-        if item in self.__dict__:
-            return self.__dict__[item]
+        return RemoteWrapper(conf)
 
-        if hasattr(self.remote, item):
-            return getattr(self.remote, item)
 
-        if item in self.__class__.__dict__:
-            if hasattr(self.__class__.__dict__[item], 'fget'):
-                return self.__class__.__dict__[item].fget(self)
+@six.add_metaclass(RemoteMeta)
+class Remote(object):
 
-        if item.isupper() and item in KEYS:
-            def wrapper():
-                KEYS[item](self)
+    def __init__(self, config):
+        self.config = config
 
-            return wrapper
-
-        if self._upnp_tv is None:
-            self.connect_upnp()
-
-        if self._upnp_tv is not None:
-            if item in self._upnp_tv.__class__.__dict__:
-                obj = self._upnp_tv.__class__.__dict__[item]
-                if hasattr(obj, 'fget'):
-                    return obj.fget(self._upnp_tv)
-
-        raise AttributeError(item)
-
-    def __setattr__(self, key, value):
-        if key in ('_upnp_tv', 'remote', 'config'):
-            self.__dict__[key] = value
-            return
-
-        if key == 'name':
-            self.__class__.__dict__[key].fset(self, value)
-            return
-
-        if key in self.remote.__class__.__dict__:
-            obj = self.remote.__class__.__dict__[key]
-            if hasattr(obj, 'fset'):
-                obj.fset(self.remote, value)
-                return
-
-        if hasattr(self.remote, key):
-            setattr(self.remote, key, value)
-            return
-
-        if self._upnp_tv is None:
-            self.connect_upnp()
-
-        if self._upnp_tv is not None:
-            if key in self._upnp_tv.__class__.__dict__:
-                obj = self._upnp_tv.__class__.__dict__[key]
-                if hasattr(obj, 'fset'):
-                    obj.fset(self._upnp_tv, value)
-
-    def control(self, key):
-        return self.remote.control(key)

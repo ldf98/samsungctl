@@ -22,7 +22,6 @@ except ImportError:
     from instance_singleton import InstanceSingleton
 
 
-@six.add_metaclass(InstanceSingleton)
 class UPNPObject(object):
 
     def __init__(self, ip, locations, dump=''):

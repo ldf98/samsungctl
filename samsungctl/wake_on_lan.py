@@ -44,7 +44,7 @@ def get_mac_address(ip):
         buf = ctypes.c_buffer(6)
         add_len = ctypes.c_ulong(ctypes.sizeof(buf))
         if SendARP(inet_addr, 0, ctypes.byref(buf), ctypes.byref(add_len)) != 0:
-            raise ctypes.WinError()
+            return None
 
         # Convert binary data into a string.
         mac_addr = ''

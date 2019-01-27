@@ -19,4 +19,10 @@ __license__ = "MIT"
 
 from .remote import Remote # NOQA
 from .config import Config # NOQA
-from .upnp.discover import discover # NOQA
+
+
+def discover(timeout=5):
+    from .upnp.discover import discover as _discover
+
+    for config in _discover(timeout=timeout):
+        yield Remote(config)

@@ -70,7 +70,7 @@ class RemoteEncrypted(object):
     @property
     @LogItWithReturn
     def power(self):
-        if not self._running:
+        if not self._running and self.config.paired:
             try:
                 self.open()
                 return True
@@ -83,13 +83,13 @@ class RemoteEncrypted(object):
                 timeout=2
             )
             return True
-        except requests.HTTPError:
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return False
 
     @power.setter
     @LogIt
     def power(self, value):
-        if not self._running:
+        if not self._running and self.config.paired:
             try:
                 self.open()
             except RuntimeError:
@@ -176,6 +176,7 @@ class RemoteEncrypted(object):
 
             self.close_pin_page()
             logger.info("Authorization successful :)\n")
+            self.config.paired = True
 
         millis = int(round(time.time() * 1000))
         step4_url = (
@@ -185,7 +186,16 @@ class RemoteEncrypted(object):
             str(millis)
         )
 
-        websocket_response = requests.get(step4_url)
+        if not self.power:
+            self.power = True
+
+        try:
+            websocket_response = requests.get(step4_url, timeout=3)
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
+            raise RuntimeError(
+                'Unable to open connection.. Is the TV off?!?'
+            )
+
         websocket_url = (
             'ws://' +
             self.config.host +
@@ -226,8 +236,22 @@ class RemoteEncrypted(object):
 
     @LogItWithReturn
     def check_pin_page(self):
+        if not self.config.paired:
+            if not self.power:
+                self.power = True
+
         full_url = self.get_full_url("/ws/apps/CloudPINPage")
-        page = requests.get(full_url).text
+
+        try:
+            page = requests.get(full_url, timeout=3).text
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
+            if not self.config.paired:
+                raise RuntimeError('Unable to pair with TV.. Is the TV off?!?')
+            else:
+                raise RuntimeError(
+                    'Unable to connect with TV.. Is the TV off?!?'
+                )
+
         output = re.search('state>([^<>]*)</state>', page, flags=re.IGNORECASE)
         if output is not None:
             state = output.group(1)

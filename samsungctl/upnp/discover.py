@@ -1,60 +1,85 @@
 # -*- coding: utf-8 -*-
-import socket
 import requests
+import json
 from lxml import etree
 from .UPNP_Device.discover import discover as _discover
 from .UPNP_Device.xmlns import strip_xmlns
-from . import UPNPTV
 from ..config import Config
-from ..remote import Remote
 
 
-def discover(config=None, log_level=None):
-    if config is None:
-        remotes = []
-        for ip, locations in _discover(5, log_level):
-            location = locations[0]
-            response = requests.get(location)
-            root = etree.fromstring(response.content)
-
-            root = strip_xmlns(root)
-
-            device = root.find('device')
-            mfgr = device.find('manufacturer').text
-            if mfgr == 'Samsung Electronics':
-                upnp_tv = UPNPTV(ip, locations, None)
-                description = socket.gethostname()
-                if hasattr(upnp_tv, 'ScreenSharingService'):
-                    port = 8001
-                    method = 'websocket'
-                else:
-                    port = 55000
-                    method = 'legacy'
-
-                host = ip
-                config = Config(
-                    host=host,
-                    name=upnp_tv.__name__,
-                    description=description,
-                    method=method,
-                    port=port,
-                    upnp_locations=locations
-                )
-
-                remote = Remote(config)
-                remote._upnp_tv = upnp_tv
-                upnp_tv._remote = remote
-                remotes += [remote]
-        return remotes
-
+def discover(config=None, log_level=None, timeout=5):
     if isinstance(config, dict):
         config = Config(**config)
 
-    if config.upnp_locations:
+    if config is None:
+        upnp_locations = None
+        search_ips = ()
 
-        remote = Remote(config)
-        upnp_tv = UPNPTV(config.host, config.upnp_locations, remote)
-        remote._upnp_tv = upnp_tv
-        return remote
     else:
-        return Remote(config)
+        upnp_locations = config.upnp_locations
+        if not upnp_locations:
+            upnp_locations = None
+            config.upnp_locations = None
+
+        search_ips = (config.host,)
+
+    if upnp_locations is None:
+        found = []
+        for ip, locations in _discover(timeout, log_level, search_ips=search_ips):
+            if search_ips:
+                config.upnp_locations = locations
+                found += [config]
+            else:
+                location = locations[0]
+
+                response = requests.get(location)
+                root = etree.fromstring(response.content)
+
+                root = strip_xmlns(root)
+
+                device = root.find('device')
+                mfgr = device.find('manufacturer').text
+
+                if mfgr == 'Samsung Electronics':
+                    try:
+                        response = requests.get(
+                            'http://{0}:8001/api/v2/'.format(ip),
+                            timeout=3
+                        )
+                        is_support = (
+                            json.loads(response.content)['device']['isSupport']
+                        )
+                        token_support = json.loads(is_support)['TokenAuthSupport']
+
+                        if token_support:
+                            port = 8002
+                            method = 'websocket'
+
+                        else:
+                            raise ValueError
+
+
+                    except (requests.HTTPError, requests.exceptions.ConnectTimeout):
+                        port = 55000
+                        method = 'legacy'
+
+                    except (ValueError, KeyError):
+                        port = 8001
+                        method = 'websocket'
+
+                    host = ip
+                    config = Config(
+                        host=host,
+                        method=method,
+                        port=port,
+                        upnp_locations=locations
+                    )
+
+                found += [config]
+    else:
+        found = [config]
+
+    if search_ips and config.upnp_locations is None:
+        config.upnp_locations = []
+
+    return found
