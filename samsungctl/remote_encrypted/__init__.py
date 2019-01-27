@@ -257,7 +257,7 @@ class RemoteEncrypted(object):
         hello_output = crypto.generateServerHello(self.config.id, pin)
 
         if not hello_output:
-            raise RuntimeError('Connection Failure: hello_exchange 1')
+            return False
 
         content = (
             "{\"auth_Data\":{\"auth_type\":\"SPC\",\"GeneratorServerHello\":\""
@@ -277,7 +277,7 @@ class RemoteEncrypted(object):
         )
 
         if output is None:
-            raise RuntimeError('Connection Failure: hello_exchange 2')
+            return False
 
         request_id = output.group(1)
         client_hello = output.group(2)
