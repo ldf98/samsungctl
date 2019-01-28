@@ -12,8 +12,6 @@ https://github.com/eclair4151/SmartCrypto
 
 from __future__ import print_function
 import sys
-import json
-import re
 import requests
 import time
 import websocket
@@ -27,7 +25,6 @@ if sys.version_info[0] < 3:
 from . import crypto # NOQA
 from .command_encryption import AESCipher # NOQA
 from .. import websocket_base # NOQA
-from .. import wake_on_lan # NOQA
 from ..upnp.UPNP_Device.xmlns import strip_xmlns # NOQA
 from ..utils import LogIt, LogItWithReturn # NOQA
 
@@ -88,7 +85,7 @@ class URL(object):
             )
             return None
 
-        print('websocket_response: ' + websocket_response.content)
+        logger.debug('step 4: ' + websocket_response.content)
 
         websocket_url = (
             'ws://{0}:8000/socket.io/1/websocket/{1}'.format(
@@ -191,7 +188,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         requests.post(self.url.cloud_pin_page, "pin4")
 
     @LogItWithReturn
-    def check_pin_page(self):        
+    def check_pin_page(self):
         # <?xml version="1.0" encoding="UTF-8"?>
         # <service xmlns="urn:dial-multiscreen-org:schemas:dial" xmlns:atom="http://www.w3.org/2005/Atom">
         #     <name>CloudPINPage</name>
@@ -214,11 +211,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             pass
 
         return False
-    
+
     @LogIt
     def first_step_of_pairing(self):
-        response = requests.get(self.url.step1).text
-        print('first_step_of_pairing:', response)
+        response = requests.get(self.url.step1)
+        logger.debug('step 1: ' + response.content)
 
     @LogIt
     def start_pairing(self):
@@ -254,7 +251,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         #   }
         # }
 
-        logger.debug('second_step_response:', response.content)
+        logger.debug('step 2: ' + response.content)
 
         try:
             auth_data = response.json()['auth_data']
@@ -266,7 +263,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.last_request_id = int(request_id)
 
         return crypto.parseClientHello(
-            output.group(2),
+            client_hello,
             hello_output['hash'],
             hello_output['AES_key'],
             self.config.id
@@ -295,11 +292,12 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         #   }
         # }
 
+        logger.debug("step 3: " + response.content)
+
         if "secure-mode" in response.content:
             raise RuntimeError(
                 "TODO: Implement handling of encryption flag!!!!"
             )
-
 
         try:
             auth_data = response.json()['auth_data']
