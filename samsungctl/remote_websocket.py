@@ -57,10 +57,9 @@ class RemoteWebsocket(object):
                 ' http://{0}:8001/api/v2/'.format(self.config.host),
                 timeout=3
             )
-            is_support = (
-                json.loads(response.content)['device']['isSupport']
+            return(
+                json.loads(response.content)['device']['TokenAuthSupport']
             )
-            return json.loads(is_support)['TokenAuthSupport']
         except (ValueError, KeyError):
             return False
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
