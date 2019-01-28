@@ -57,17 +57,12 @@ class RemoteWebsocket(object):
                 ' http://{0}:8001/api/v2/'.format(self.config.host),
                 timeout=3
             )
-            print(response.content)
             return(
                 json.loads(response.content)['device']['TokenAuthSupport']
             )
         except (ValueError, KeyError):
-            import traceback
-            traceback.print_exc()
             return False
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
-            import traceback
-            traceback.print_exc()
             return None
 
     @property
