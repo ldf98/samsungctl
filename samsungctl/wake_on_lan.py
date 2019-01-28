@@ -24,29 +24,41 @@ else:
 
 
 def get_mac_address(ip):
-    if not PY2 and isinstance(ip, bytes):
-        ip = str(ip, 'utf-8')
+    if not PY2:
+        ip = ip.encode()
 
     if WINDOWS:
         try:
+            from ctypes.wintypes import DWORD, ULONG
+            IPAddr = ULONG
+            PULONG = ctypes.POINTER(ULONG)
+            PVOID = ctypes.c_void_p
+            INADDR_ANY = 0x00000000
+
             SendARP = ctypes.windll.Iphlpapi.SendARP
+            SendARP.argtype = [IPAddr, IPAddr, PVOID, PULONG]
+            SendARP.restype = DWORD
+
         except AttributeError:
             return None
 
         try:
-            inet_addr = ctypes.windll.wsock32.inet_addr(ip)
-            if inet_addr in (0, -1):
+            dst_addr = ctypes.windll.wsock32.inet_addr(ip)
+            if dst_addr in (0, -1):
                 raise ValueError
         except:
-            host_ip = socket.gethostbyname(ip)
-            inet_addr = ctypes.windll.wsock32.inet_addr(host_ip)
+            dst_ip = socket.gethostbyname(ip)
+            dst_addr = ctypes.windll.wsock32.inet_addr(dst_ip)
 
-        buf = ctypes.c_buffer(6)
+        src_addr = ULONG(INADDR_ANY)
+        buf = (ctypes.c_ubyte * 6)()
+
         add_len = ctypes.c_ulong(ctypes.sizeof(buf))
-        if SendARP(inet_addr, 0, ctypes.byref(buf), ctypes.byref(add_len)) != 0:
+
+        res = SendARP(dst_addr, src_addr, ctypes.byref(buf), ctypes.byref(add_len))
+        if res != 0:
             return None
 
-        # Convert binary data into a string.
         mac_addr = ''
         for int_val in struct.unpack('BBBBBB', buf):
             if int_val > 15:
