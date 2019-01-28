@@ -35,7 +35,6 @@ class RemoteWebsocket(object):
         self._thread = None
         self._mac_address = None
         self.sock = None
-        self._running = False
         self.send_event = threading.Event()
         self._starting = True
 
@@ -74,13 +73,6 @@ class RemoteWebsocket(object):
     @property
     @LogItWithReturn
     def power(self):
-        if not self._starting and not self._running and self.config.paired:
-            try:
-                self.open()
-                return True
-            except RuntimeError:
-                return False
-
         try:
             requests.get(
                 ' http://{0}:8001/api/v2/'.format(self.config.host),
@@ -93,44 +85,26 @@ class RemoteWebsocket(object):
     @power.setter
     @LogIt
     def power(self, value):
-        if not self._starting and not self._running and self.config.paired:
-            try:
-                self.open()
-            except RuntimeError:
-                pass
-
-        if value and self.sock is None:
+        if value and not self.power:
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
                 self._power_event.wait(10)
 
-                try:
-                    self.open()
-                except:
-                    while not self._power_event.isSet() and count < 6:
-                        wake_on_lan.send_wol(self.mac_address)
-                        self._power_event.wait(2)
-                        try:
-                            self.open()
-                            break
-                        except:
-                            count += 1
+                while not self.power and count < 10:
+                    wake_on_lan.send_wol(self.mac_address)
+                    self._power_event.wait(2.0)
 
-                    if count == 6:
-                        logger.error(
-                            'Unable to power on the TV, '
-                            'check network connectivity'
-                        )
+                if count == 10:
+                    logger.error(
+                        'Unable to power on the TV, '
+                        'check network connectivity'
+                    )
 
-        elif not value and self.sock is not None:
+        elif not value and self.power:
             with self.receive_lock:
                 count = 0
-                while (
-                    not self._power_event.isSet() and
-                    self.sock is not None and
-                    count < 6
-                ):
+                while self.power and count < 10:
                     params = dict(
                         Cmd='Click',
                         DataOfCmd='KEY_POWER',
@@ -152,11 +126,10 @@ class RemoteWebsocket(object):
                     self.send("ms.remote.control", **params)
                     self._power_event.wait(2.0)
 
-                if count == 6:
+                if count == 10:
                     logger.info('Unable to power off the TV')
 
     def loop(self):
-
         while not self._loop_event.isSet():
             try:
                 data = self.sock.recv()
@@ -165,7 +138,6 @@ class RemoteWebsocket(object):
             except:
                 self._loop_event.set()
 
-        self._power_event.set()
         self.sock = None
         del self._registered_callbacks[:]
         logger.info('Websocket closed')
@@ -214,7 +186,11 @@ class RemoteWebsocket(object):
             try:
                 self.sock = websocket.create_connection(url, sslopt=sslopt)
             except:
-                raise RuntimeError('Unable to connect to the TV')
+                if not self.config.paired:
+                    raise RuntimeError('Unable to connect to the TV')
+                logger.info('Is the TV off?!?')
+                self._starting = False
+                return False
 
             auth_event = threading.Event()
 
@@ -285,13 +261,18 @@ class RemoteWebsocket(object):
                 auth_event.wait(30.0)
 
             if not auth_event.isSet():
-                self.close()
-                raise RuntimeError('Auth Failure')
+                if not self.config.paired and self.config.port == 8001:
+                    self.config.port = 8002
+                    return self.open()
+                else:
+                    self.close()
+                    raise RuntimeError('Auth Failure')
 
-            self._running = True
             self._starting = False
+            return True
 
     def __enter__(self):
+        self.open()
         return self
 
     def __exit__(self, *_):
@@ -311,16 +292,9 @@ class RemoteWebsocket(object):
     @LogIt
     def send(self, method, **params):
         if self.sock is None:
-            if method != 'ms.remote.control':
-                if not self._running:
-                    try:
-                        self.open()
-
-                        return self.send(method, **params)
-                    except RuntimeError:
-                        pass
-
-            logger.info('Is the TV on???')
+            if method != 'ms.remote.control' and self.power:
+                self.open()
+                return self.send(method, **params)
             return
 
         payload = dict(
@@ -340,25 +314,11 @@ class RemoteWebsocket(object):
         'Release'
         """
 
-        if not self._running:
-            try:
-                self.open()
-            except RuntimeError:
-                if key in ('KEY_POWERON', 'KEY_POWER'):
-                    self.power = True
-                    return
-                else:
-                    raise
-
-        if key == 'KEY_POWER':
-            if self.power:
-                self.power = False
-            else:
-                self.power = True
-            return
-
-        if key == 'KEY_POWERON':
+        if key in ('KEY_POWERON', 'KEY_POWER'):
             self.power = True
+            self.open()
+            return
+        elif not self.power:
             return
 
         with self.receive_lock:
