@@ -257,6 +257,9 @@ class RemoteWebsocket(object):
 
             if not auth_event.isSet():
                 if not self.config.paired and self.config.port == 8001:
+                    logger.debug(
+                        "Websocket connection failed. Trying ssl connection"
+                    )
                     self.config.port = 8002
                     return self.open()
                 else:

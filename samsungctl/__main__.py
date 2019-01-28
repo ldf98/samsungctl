@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import socket
+import sys
 
 try:
     from . import __doc__ as doc
