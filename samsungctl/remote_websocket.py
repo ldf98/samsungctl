@@ -277,13 +277,6 @@ class RemoteWebsocket(object):
             self._starting = False
             return True
 
-    def __enter__(self):
-        self.open()
-        return self
-
-    def __exit__(self, *_):
-        self.close()
-
     @LogIt
     def close(self):
         """Close the connection."""
