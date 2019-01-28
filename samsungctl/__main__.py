@@ -48,6 +48,9 @@ def _read_config():
         )
     )
 
+    if sys.platform.startswith('win'):
+        return config
+
     directories = []
 
     xdg_config = os.getenv("XDG_CONFIG_HOME")
