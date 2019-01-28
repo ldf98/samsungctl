@@ -74,9 +74,9 @@ class RemoteLegacy(object):
             self.sock.connect((self.config.host, self.config.port))
         except socket.error:
             if not self.config.paired:
-                raise RuntimeError('Unable to pair with TV.. Is the TV off?!?')
+                raise RuntimeError('Unable to pair with TV.. Is the TV on?!?')
             else:
-                logger.info('Is the TV off?!?')
+                logger.info('Is the TV on?!?')
                 self.sock = None
                 return
 
@@ -105,7 +105,7 @@ class RemoteLegacy(object):
     def control(self, key):
         """Send a control command."""
         if not self.sock:
-            logger.info('Is the TV off?!?')
+            logger.info('Is the TV on?!?')
             return
 
         payload = b"\x00\x00\x00" + self._serialize_string(key)

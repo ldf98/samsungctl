@@ -12,6 +12,7 @@ import json
 from . import exceptions
 from . import application
 from . import wake_on_lan
+from . import websocket_base
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger('samsungctl')
@@ -21,34 +22,20 @@ URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 
 
-class RemoteWebsocket(object):
+class RemoteWebsocket(websocket_base.WebSocketBase):
     """Object for remote control connection."""
 
     @LogIt
     def __init__(self, config):
-        self.config = config
+        websocket_base.WebSocketBase.__init__(self, config)
         self._loop_event = threading.Event()
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
         self._registered_callbacks = []
         self._thread = None
-        self._mac_address = None
         self.sock = None
         self.send_event = threading.Event()
         self._starting = True
-
-    @property
-    @LogItWithReturn
-    def mac_address(self):
-        if self._mac_address is None:
-            _mac_address = wake_on_lan.get_mac_address(self.config.host)
-            print(_mac_address)
-            if _mac_address is None:
-                _mac_address = ''
-
-            self._mac_address = _mac_address
-
-        return self._mac_address
 
     @property
     def has_ssl(self):
@@ -64,67 +51,6 @@ class RemoteWebsocket(object):
             return False
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return None
-
-    @property
-    @LogItWithReturn
-    def power(self):
-        try:
-            requests.get(
-                ' http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=3
-            )
-            return True
-        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
-            return False
-
-    @power.setter
-    @LogIt
-    def power(self, value):
-        event = threading.Event()
-
-        if value and not self.power:
-            if self.mac_address:
-                count = 0
-                wake_on_lan.send_wol(self.mac_address)
-                event.wait(10)
-
-                while not self.power and count < 10:
-                    wake_on_lan.send_wol(self.mac_address)
-                    event.wait(2.0)
-
-                if count == 10:
-                    logger.error(
-                        'Unable to power on the TV, '
-                        'check network connectivity'
-                    )
-
-        elif not value and self.power:
-            with self.receive_lock:
-                count = 0
-                while self.power and count < 10:
-                    params = dict(
-                        Cmd='Click',
-                        DataOfCmd='KEY_POWER',
-                        Option="false",
-                        TypeOfRemote="SendRemoteKey"
-                    )
-
-                    logger.info("Sending control command: " + str(params))
-                    self.send("ms.remote.control", **params)
-
-                    params = dict(
-                        Cmd='Click',
-                        DataOfCmd='KEY_POWEROFF',
-                        Option="false",
-                        TypeOfRemote="SendRemoteKey"
-                    )
-
-                    logger.info("Sending control command: " + str(params))
-                    self.send("ms.remote.control", **params)
-                    event.wait(2.0)
-
-                if count == 10:
-                    logger.info('Unable to power off the TV')
 
     def loop(self):
         while not self._loop_event.isSet():
@@ -188,7 +114,7 @@ class RemoteWebsocket(object):
             except:
                 if not self.config.paired:
                     raise RuntimeError('Unable to connect to the TV')
-                logger.info('Is the TV off?!?')
+                logger.info('Is the TV on?!?')
                 self._starting = False
                 return False
 
@@ -291,10 +217,11 @@ class RemoteWebsocket(object):
     @LogIt
     def send(self, method, **params):
         if self.sock is None:
-            if method != 'ms.remote.control' and self.power:
-                self.open()
-                return self.send(method, **params)
-            return
+            if method != 'ms.remote.control':
+                if self.power:
+                    self.open()
+                else:
+                    logger.info('Is the TV on?!?')
 
         payload = dict(
             method=method,
@@ -313,12 +240,17 @@ class RemoteWebsocket(object):
         'Release'
         """
 
-        if key in ('KEY_POWERON', 'KEY_POWER'):
+        if key == 'KEY_POWERON':
             self.power = True
             self.open()
             return
-        elif not self.power:
-            return
+
+        elif self.sock is None:
+            if not self.power:
+                logger.info('Is the TV on?!?')
+                return
+
+            self.open()
 
         with self.receive_lock:
             params = dict(

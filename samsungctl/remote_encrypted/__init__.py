@@ -12,11 +12,11 @@ https://github.com/eclair4151/SmartCrypto
 
 from __future__ import print_function
 import sys
-from lxml import etree
 import requests
 import time
 import websocket
-import threading
+from lxml import etree
+
 import logging
 
 if sys.version_info[0] < 3:
@@ -24,18 +24,90 @@ if sys.version_info[0] < 3:
 
 from . import crypto # NOQA
 from .command_encryption import AESCipher # NOQA
-from .. import wake_on_lan # NOQA
+from .. import websocket_base # NOQA
 from ..upnp.UPNP_Device.xmlns import strip_xmlns # NOQA
 from ..utils import LogIt, LogItWithReturn # NOQA
 
 logger = logging.getLogger('samsungctl')
 
 
-class RemoteEncrypted(object):
+class URL(object):
+
+    def __init__(self, config):
+        self.config = config
+
+    @property
+    def base_url(self):
+        return 'http://{0}'.format(self.config.host)
+
+    @property
+    def full_url(self):
+        return "{0}:{1}".format(self.base_url, self.config.port)
+
+    @LogItWithReturn
+    @property
+    def request(self):
+        return "{0}/ws/pairing?step={{0}}&app_id={1}&device_id={2}".format(
+            self.full_url,
+            self.config.app_id,
+            self.config.device_id
+        )
+
+    @LogItWithReturn
+    @property
+    def step1(self):
+        return self.request.format(0) + "&type=1"
+
+    @LogItWithReturn
+    @property
+    def step2(self):
+        return self.request.format(1)
+
+    @LogItWithReturn
+    @property
+    def step3(self):
+        return self.request.format(2)
+
+    @LogItWithReturn
+    @property
+    def step4(self):
+        millis = int(round(time.time() * 1000))
+        return '{0}:8000/socket.io/1/?t={1}'.format(self.base_url, millis)
+
+    @LogItWithReturn
+    @property
+    def websocket(self):
+        try:
+            websocket_response = requests.get(self.step4, timeout=3)
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
+            logger.info(
+                'Unable to open connection.. Is the TV on?!?'
+            )
+            return None
+
+        logger.debug('step 4: ' + websocket_response.content)
+
+        websocket_url = (
+            'ws://{0}:8000/socket.io/1/websocket/{1}'.format(
+                self.config.host,
+                websocket_response.text.split(':')[0]
+            )
+        )
+
+        return websocket_url
+
+    @LogItWithReturn
+    @property
+    def cloud_pin_page(self):
+        return "{0}/ws/apps/CloudPINPage".format(self.full_url)
+
+
+class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogIt
     def __init__(self, config):
-
+        websocket_base.WebSocketBase.__init__(self, config)
+        self.url = URL(config)
         if config.token:
             self.ctx, self.current_session_id = config.token.rsplit(':', 1)
 
@@ -51,90 +123,6 @@ class RemoteEncrypted(object):
         self.last_request_id = 0
         self.aes_lib = None
         self.sock = None
-        self.config = config
-        self._running = False
-        self._mac_address = None
-        self._power_event = threading.Event()
-        self._starting = True
-
-    @property
-    @LogItWithReturn
-    def mac_address(self):
-        if self._mac_address is None:
-            _mac_address = wake_on_lan.get_mac_address(self.config.host)
-            if _mac_address is None:
-                _mac_address = ''
-
-            self._mac_address = _mac_address
-
-        return self._mac_address
-
-    @property
-    @LogItWithReturn
-    def power(self):
-        if not self._starting and not self._running and self.config.paired:
-            try:
-                self.open()
-                return True
-            except RuntimeError:
-                return False
-
-        try:
-            requests.get(
-                ' http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=2
-            )
-            return True
-        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
-            return False
-
-    @power.setter
-    @LogIt
-    def power(self, value):
-        if not self._starting and not self._running and self.config.paired:
-            try:
-                self.open()
-            except RuntimeError:
-                pass
-
-        if value and self.sock is None:
-            if self.mac_address:
-                count = 0
-                wake_on_lan.send_wol(self.mac_address)
-                self._power_event.wait(10)
-
-                try:
-                    self.open()
-                except:
-                    while not self._power_event.isSet() and count < 6:
-                        wake_on_lan.send_wol(self.mac_address)
-                        self._power_event.wait(2)
-                        try:
-                            self.open()
-                            break
-                        except:
-                            count += 1
-
-                    if count == 6:
-                        logger.error(
-                            'Unable to power on the TV, '
-                            'check network connectivity'
-                        )
-
-        elif not value and self.sock is not None:
-            count = 0
-            while (
-                not self._power_event.isSet() and
-                self.sock is not None and
-                count < 6
-            ):
-                self.control('KEY_POWER')
-                self.control('KEY_POWEROFF')
-                self._power_event.wait(2.0)
-                count += 1
-
-            if count == 6:
-                logger.info('Unable to power off the TV')
 
     @LogIt
     def close(self):
@@ -142,15 +130,23 @@ class RemoteEncrypted(object):
             self.sock.close()
             self.sock = None
 
-    @LogIt
+    @LogItWithReturn
     def open(self):
-        self._starting = True
+        power = self.power
+        paired = self.config.paired
+
         if self.ctx is None:
+            if not power:
+                self.power = True
+
+            if not self.power:
+                raise RuntimeError('Unable to pair with TV.')
+
             self.start_pairing()
             while self.ctx is None:
                 tv_pin = input("Please enter pin from tv: ")
 
-                logger.info("Got pin: '" + tv_pin + "'\n")
+                logger.info("Got pin: '{0}'".format(tv_pin))
 
                 self.first_step_of_pairing()
                 output = self.hello_exchange(tv_pin)
@@ -158,90 +154,41 @@ class RemoteEncrypted(object):
                     self.ctx = output['ctx'].hex()
                     self.sk_prime = output['SKPrime']
                     logger.debug("ctx: " + self.ctx)
-                    logger.info("Pin accepted :)\n")
+                    logger.info("Pin accepted")
                 else:
-                    logger.info("Pin incorrect. Please try again...\n")
+                    logger.info("Pin incorrect. Please try again...")
 
             self.current_session_id = self.acknowledge_exchange()
             self.config.token = (
                 str(self.ctx) + ':' + str(self.current_session_id)
             )
 
-            logger.info('***************************************')
-            logger.info('USE THE FOLLOWING NEXT TIME YOU CONNECT')
-            logger.info('***************************************')
-            logger.info(
-                '--host {0} '
-                '--method encryption '
-                '--token {1}'.format(self.config.host, self.config.token)
-            )
-
             self.close_pin_page()
-            logger.info("Authorization successful :)\n")
+            logger.info("Authorization successful.")
             self.config.paired = True
 
-        millis = int(round(time.time() * 1000))
-        step4_url = (
-            'http://' +
-            self.config.host +
-            ':8000/socket.io/1/?t=' +
-            str(millis)
-        )
-
-        if not self.power:
-            self.power = True
-
-        try:
-            websocket_response = requests.get(step4_url, timeout=3)
-        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
-            raise RuntimeError(
-                'Unable to open connection.. Is the TV off?!?'
-            )
-
-        # websocket_response: Nfzt3klmFoqY1m99wOBH:60:60:websocket,htmlfile,xhr-polling,jsonp-polling
-
-        websocket_url = (
-            'ws://' +
-            self.config.host +
-            ':8000/socket.io/1/websocket/' +
-            websocket_response.text.split(':')[0]
-        )
+        websocket_url = self.url.websocket
+        if websocket_url is None:
+            return False
 
         logger.debug(websocket_url)
 
         self.aes_lib = AESCipher(self.ctx.upper(), self.current_session_id)
         self.sock = websocket.create_connection(websocket_url)
         time.sleep(0.35)
-        self._starting = False
 
-    @LogItWithReturn
-    def get_full_url(self, url_path):
-        return (
-            "http://{0}:{1}{2}".format(
-                self.config.host,
-                self.config.port,
-                url_path
-            )
-        )
+        if not paired and not power:
+            self.power = False
+            return False
 
-    @LogItWithReturn
-    def get_request_url(self, step):
-        return self.get_full_url(
-            "/ws/pairing?step=" +
-            str(step) +
-            "&app_id=" +
-            self.config.app_id +
-            "&device_id=" +
-            self.config.device_id
-        )
+        return True
 
     @LogIt
     def show_pin_page(self):
-        requests.post(self.get_full_url("/ws/apps/CloudPINPage"), "pin4")
+        requests.post(self.url.cloud_pin_page, "pin4")
 
     @LogItWithReturn
     def check_pin_page(self):
-        full_url = self.get_full_url("/ws/apps/CloudPINPage")
         # <?xml version="1.0" encoding="UTF-8"?>
         # <service xmlns="urn:dial-multiscreen-org:schemas:dial" xmlns:atom="http://www.w3.org/2005/Atom">
         #     <name>CloudPINPage</name>
@@ -250,7 +197,7 @@ class RemoteEncrypted(object):
         #     <atom:link rel="run" href="run"/>
         # </service>
 
-        response = requests.get(full_url, timeout=3)
+        response = requests.get(self.url.cloud_pin_page, timeout=3)
 
         root = etree.fromstring(response.content)
         root = strip_xmlns(root)
@@ -267,9 +214,8 @@ class RemoteEncrypted(object):
 
     @LogIt
     def first_step_of_pairing(self):
-        first_step_url = self.get_request_url(0)
-        first_step_url += "&type=1"
-        _ = requests.get(first_step_url).text
+        response = requests.get(self.url.step1)
+        logger.debug('step 1: ' + response.content)
 
     @LogIt
     def start_pairing(self):
@@ -286,17 +232,16 @@ class RemoteEncrypted(object):
         hello_output = crypto.generateServerHello(self.config.id, pin)
 
         if not hello_output:
-            return False
+            return {}
 
         content = dict(
-            auth_data=dict(
-                auth_type="SPC",
+            auth_Data=dict(
+                auth_type='SPC',
                 GeneratorServerHello=hello_output['serverHello'].hex().upper()
             )
         )
 
-        second_step_url = self.get_request_url(1)
-        response = requests.post(second_step_url, json=content)
+        response = requests.post(self.url.step2, json=content)
 
         # {
         #   "auth_data": {
@@ -306,7 +251,7 @@ class RemoteEncrypted(object):
         #   }
         # }
 
-        logger.debug('second_step_response:', response.content)
+        logger.debug('step 2: ' + response.content)
 
         try:
             auth_data = response.json()['auth_data']
@@ -327,17 +272,16 @@ class RemoteEncrypted(object):
     @LogItWithReturn
     def acknowledge_exchange(self):
         server_ack_message = crypto.generateServerAcknowledge(self.sk_prime)
-
         content = dict(
-            auth_data=dict(
-                auth_type="SPC",
+            auth_Data=dict(
+                auth_type='SPC',
+
                 request_id=str(self.last_request_id),
                 ServerAckMsg=server_ack_message
             )
         )
 
-        third_step_url = self.get_request_url(2)
-        response = requests.post(third_step_url, json=content)
+        response = requests.post(self.url.step3, json=content)
 
         # {
         #   "auth_data":"{
@@ -347,6 +291,8 @@ class RemoteEncrypted(object):
         #       "session_id":"1"
         #   }
         # }
+
+        logger.debug("step 3: " + response.content)
 
         if "secure-mode" in response.content:
             raise RuntimeError(
@@ -371,28 +317,28 @@ class RemoteEncrypted(object):
 
     @LogIt
     def close_pin_page(self):
-        full_url = self.get_full_url("/ws/apps/CloudPINPage/run")
-        requests.delete(full_url)
+        requests.delete(self.url.cloud_pin_page + '/run')
         return False
 
-    @LogIt
+    @LogItWithReturn
     def control(self, key):
         if self.sock is None:
-            if not self._running:
+            if not self.config.paired:
+                self.open()
+                if not self.power:
+                    return False
+            elif self.power:
                 self.open()
             else:
-                logger.info('Is thee TV on?!?')
-                return
+                logger.info('Is the TV on?!?')
+                return False
         try:
-
-            # need sleeps cuz if you send commands to quick it fails
             self.sock.send('1::/com.samsung.companion')
-            # pairs to this app with this command.
             time.sleep(0.35)
 
             self.sock.send(self.aes_lib.generate_command(key))
             time.sleep(0.35)
             return True
         except:
-            self.sock = None
+            self.close()
             return False
