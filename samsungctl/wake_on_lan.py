@@ -75,7 +75,7 @@ def get_mac_address(ip):
     else:
         if not PY2 and isinstance(ip, bytes):
             ip = ip.decode('utf-8')
-            
+
         import os
         import re
         import shlex
