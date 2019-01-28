@@ -54,6 +54,7 @@ class RemoteEncrypted(object):
         self._running = False
         self._mac_address = None
         self._power_event = threading.Event()
+        self._starting = True
 
     @property
     @LogItWithReturn
@@ -70,7 +71,7 @@ class RemoteEncrypted(object):
     @property
     @LogItWithReturn
     def power(self):
-        if not self._running and self.config.paired:
+        if not self._starting and not self._running and self.config.paired:
             try:
                 self.open()
                 return True
@@ -89,7 +90,7 @@ class RemoteEncrypted(object):
     @power.setter
     @LogIt
     def power(self, value):
-        if not self._running and self.config.paired:
+        if not self._starting and not self._running and self.config.paired:
             try:
                 self.open()
             except RuntimeError:
@@ -142,6 +143,7 @@ class RemoteEncrypted(object):
 
     @LogIt
     def open(self):
+        self._starting = True
         if self.ctx is None:
             self.start_pairing()
             while self.ctx is None:
@@ -209,6 +211,7 @@ class RemoteEncrypted(object):
         self.aes_lib = AESCipher(self.ctx.upper(), self.current_session_id)
         self.sock = websocket.create_connection(websocket_url)
         time.sleep(0.35)
+        self._starting = False
 
     @LogItWithReturn
     def get_full_url(self, url_path):

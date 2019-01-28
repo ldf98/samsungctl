@@ -37,6 +37,7 @@ class RemoteWebsocket(object):
         self.sock = None
         self._running = False
         self.send_event = threading.Event()
+        self._starting = True
 
     @property
     @LogItWithReturn
@@ -68,7 +69,7 @@ class RemoteWebsocket(object):
     @property
     @LogItWithReturn
     def power(self):
-        if not self._running and self.config.paired:
+        if not self._starting and not self._running and self.config.paired:
             try:
                 self.open()
                 return True
@@ -87,7 +88,7 @@ class RemoteWebsocket(object):
     @power.setter
     @LogIt
     def power(self, value):
-        if not self._running and self.config.paired:
+        if not self._starting and not self._running and self.config.paired:
             try:
                 self.open()
             except RuntimeError:
@@ -168,6 +169,7 @@ class RemoteWebsocket(object):
 
     @LogIt
     def open(self):
+        self._starting = True
         with self.receive_lock:
             if not self.config.paired and not self.power:
                 self.power = True
@@ -282,6 +284,7 @@ class RemoteWebsocket(object):
                 raise RuntimeError('Auth Failure')
 
             self._running = True
+            self._starting = False
 
     def __enter__(self):
         return self
