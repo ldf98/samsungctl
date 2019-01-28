@@ -146,13 +146,15 @@ class RemoteWebsocket(object):
         self._starting = True
         with self.receive_lock:
             power = self.power
-            
+
             if not self.config.paired and not power:
                 self.power = True
                 if not self.power:
                     raise RuntimeError(
                         'Unable to pair with TV.. Is the TV off?!?'
                     )
+
+                self.send_event.wait(3.0)
 
             if self.sock is not None:
                 self.close()
