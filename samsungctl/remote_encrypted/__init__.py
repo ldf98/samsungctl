@@ -17,6 +17,8 @@ import re
 import requests
 import time
 import websocket
+from lxml import etree
+
 import logging
 
 if sys.version_info[0] < 3:
@@ -25,8 +27,9 @@ if sys.version_info[0] < 3:
 from . import crypto # NOQA
 from .command_encryption import AESCipher # NOQA
 from .. import websocket_base # NOQA
+from .. import wake_on_lan # NOQA
+from ..upnp.UPNP_Device.xmlns import strip_xmlns # NOQA
 from ..utils import LogIt, LogItWithReturn # NOQA
-
 
 logger = logging.getLogger('samsungctl')
 
@@ -168,7 +171,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             self.config.paired = True
 
         websocket_url = self.url.websocket
-
         if websocket_url is None:
             return False
 
@@ -186,22 +188,33 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogIt
     def show_pin_page(self):
-        response = requests.post(self.url.cloud_pin_page, "pin4")
-        print('show_pin_page: ' + response.content)
+        requests.post(self.url.cloud_pin_page, "pin4")
 
     @LogItWithReturn
-    def check_pin_page(self):
-        page = requests.get(self.url.cloud_pin_page, timeout=3).text
-        print('page: ' + page)
+    def check_pin_page(self):        
+        # <?xml version="1.0" encoding="UTF-8"?>
+        # <service xmlns="urn:dial-multiscreen-org:schemas:dial" xmlns:atom="http://www.w3.org/2005/Atom">
+        #     <name>CloudPINPage</name>
+        #     <options allowStop="true"/>
+        #     <state>running</state>
+        #     <atom:link rel="run" href="run"/>
+        # </service>
 
-        output = re.search('state>([^<>]*)</state>', page, flags=re.IGNORECASE)
-        if output is not None:
-            state = output.group(1)
-            logger.debug("Current state: " + state)
-            if state == "stopped":
+        response = requests.get(self.url.cloud_pin_page, timeout=3)
+
+        root = etree.fromstring(response.content)
+        root = strip_xmlns(root)
+
+        try:
+            state = root.find('service').find('state')
+            logger.debug("Current state: " + state.text)
+            if state.text == 'stopped':
                 return True
-        return False
+        except:
+            pass
 
+        return False
+    
     @LogIt
     def first_step_of_pairing(self):
         response = requests.get(self.url.step1).text
@@ -231,21 +244,26 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             )
         )
 
-        second_step = requests.post(self.url.step2, json.dumps(content)).text
+        response = requests.post(self.url.step2, json=content)
 
-        print('second_step_response:', second_step)
-        logger.debug('second_step_response: ' + second_step)
+        # {
+        #   "auth_data": {
+        #       "auth_type":"SPC",
+        #       "request_id":"1",
+        #       "GeneratorClientHello":"010100000000000000009E00000006363534333231081C35EB8DB247EB574DAB5FC569464739E34CC3D57892D5436A8D3A288F10645368E76CE0FAF609C302F6B488D5CA00CE7E22825D32C8DCE40AD1EE62DBCD90513972F38BB87A7BDD574EEE679661D117A9513189754142A421805840F2C3247C0F940A4B981C7348211CB422045A9DDCDB2F37FCF0D854701E5FD9B0F55BE94855E546C87859BAAF8825ECD0447A7AC506CC160000000000"
+        #   }
+        # }
 
-        output = re.search(
-            'request_id.*?(\d).*?GeneratorClientHello.*?:.*?(\d[0-9a-zA-Z]*)',
-            second_step,
-            flags=re.IGNORECASE
-        )
+        logger.debug('second_step_response:', response.content)
 
-        if output is None:
+        try:
+            auth_data = response.json()['auth_data']
+            client_hello = auth_data['GeneratorClientHello']
+            request_id = auth_data['request_id']
+        except (ValueError, KeyError):
             return {}
 
-        self.last_request_id = int(output.group(1))
+        self.last_request_id = int(request_id)
 
         return crypto.parseClientHello(
             output.group(2),
@@ -260,37 +278,42 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         content = dict(
             auth_Data=dict(
                 auth_type='SPC',
+
                 request_id=str(self.last_request_id),
                 ServerAckMsg=server_ack_message
             )
         )
 
-        third_step = requests.post(self.url.step3, json.dumps(content)).text
+        response = requests.post(self.url.step3, json=content)
 
-        print('third_step_response:', third_step)
+        # {
+        #   "auth_data":"{
+        #       "auth_type":"SPC",
+        #       "request_id":"1",
+        #       "ClientAckMsg":"0104000000000000000014CEA0857A91E9B9511CC1453433CE79BE222FF32A0000000000",
+        #       "session_id":"1"
+        #   }
+        # }
 
-        if "secure-mode" in third_step:
+        if "secure-mode" in response.content:
             raise RuntimeError(
                 "TODO: Implement handling of encryption flag!!!!"
             )
 
-        output = re.search(
-            'ClientAckMsg.*?:.*?(\d[0-9a-zA-Z]*).*?session_id.*?(\d)',
-            third_step,
-            flags=re.IGNORECASE
-        )
 
-        if output is None:
+        try:
+            auth_data = response.json()['auth_data']
+            client_ack = auth_data['ClientAckMsg']
+            session_id = auth_data['session_id']
+        except (ValueError, KeyError):
             raise RuntimeError(
                 "Unable to get session_id and/or ClientAckMsg!!!"
             )
 
-        client_ack = output.group(1)
+        logger.debug("session_id: " + session_id)
+
         if not crypto.parseClientAcknowledge(client_ack, self.sk_prime):
             raise RuntimeError("Parse client ack message failed.")
-
-        session_id = output.group(2)
-        logger.debug("session_id: " + session_id)
 
         return session_id
 

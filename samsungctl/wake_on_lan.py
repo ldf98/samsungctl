@@ -24,10 +24,10 @@ else:
 
 
 def get_mac_address(ip):
-    if not PY2:
-        ip = ip.encode()
 
     if WINDOWS:
+        if not PY2:
+            ip = ip.encode()
         try:
             from ctypes.wintypes import DWORD, ULONG
             IPAddr = ULONG
@@ -73,6 +73,9 @@ def get_mac_address(ip):
         ).upper()
 
     else:
+        if not PY2 and isinstance(ip, bytes):
+            ip = ip.decode('utf-8')
+
         import os
         import re
         import shlex
