@@ -19,7 +19,6 @@ try:
     from .config import Config
 
 except ValueError:
-    import sys
     path = os.path.dirname(__file__)
     if not path:
         path = os.path.dirname(sys.argv[0])
