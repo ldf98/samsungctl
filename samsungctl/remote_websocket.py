@@ -42,6 +42,7 @@ class RemoteWebsocket(object):
     def mac_address(self):
         if self._mac_address is None:
             _mac_address = wake_on_lan.get_mac_address(self.config.host)
+            print(_mac_address)
             if _mac_address is None:
                 _mac_address = ''
 
@@ -83,7 +84,6 @@ class RemoteWebsocket(object):
 
         if value and not self.power:
             if self.mac_address:
-
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
                 event.wait(10)
@@ -149,12 +149,11 @@ class RemoteWebsocket(object):
 
             if not self.config.paired and not power:
                 self.power = True
+
                 if not self.power:
                     raise RuntimeError(
                         'Unable to pair with TV.. Is the TV off?!?'
                     )
-
-                self.send_event.wait(3.0)
 
             if self.sock is not None:
                 self.close()
