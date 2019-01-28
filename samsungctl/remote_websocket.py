@@ -29,7 +29,6 @@ class RemoteWebsocket(object):
         self.config = config
         self._loop_event = threading.Event()
         self.receive_lock = threading.Lock()
-        self._power_event = threading.Event()
         self.send_event = threading.Event()
         self._registered_callbacks = []
         self._thread = None
@@ -80,15 +79,18 @@ class RemoteWebsocket(object):
     @power.setter
     @LogIt
     def power(self, value):
+        event = threading.Event()
+
         if value and not self.power:
             if self.mac_address:
+
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
-                self._power_event.wait(10)
+                event.wait(10)
 
                 while not self.power and count < 10:
                     wake_on_lan.send_wol(self.mac_address)
-                    self._power_event.wait(2.0)
+                    event.wait(2.0)
 
                 if count == 10:
                     logger.error(
@@ -119,7 +121,7 @@ class RemoteWebsocket(object):
 
                     logger.info("Sending control command: " + str(params))
                     self.send("ms.remote.control", **params)
-                    self._power_event.wait(2.0)
+                    event.wait(2.0)
 
                 if count == 10:
                     logger.info('Unable to power off the TV')
@@ -143,7 +145,9 @@ class RemoteWebsocket(object):
     def open(self):
         self._starting = True
         with self.receive_lock:
-            if not self.config.paired and not self.power:
+            power = self.power
+            
+            if not self.config.paired and not power:
                 self.power = True
                 if not self.power:
                     raise RuntimeError(
@@ -213,8 +217,6 @@ class RemoteWebsocket(object):
                     self.config.token = data['data']["token"]
 
                     logger.debug('new token: ' + self.config.token)
-                    if self.config.path:
-                        self.config.save()
 
                 logger.debug("Access granted.")
                 auth_event.set()
@@ -230,10 +232,15 @@ class RemoteWebsocket(object):
                     logger.debug('new token: ' + self.config.token)
 
                 logger.debug("Access granted.")
-                self.config.paired = True
-                auth_event.set()
 
-                self._power_event.set()
+                if not power and not self.config.paired:
+                    self.power = False
+
+                self.config.paired = True
+                if self.config.path:
+                    self.config.save()
+
+                auth_event.set()
 
             self.register_receive_callback(
                 auth_callback,
