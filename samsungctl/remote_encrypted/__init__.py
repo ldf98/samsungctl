@@ -44,8 +44,8 @@ class URL(object):
     def full_url(self):
         return "{0}:{1}".format(self.base_url, self.config.port)
 
-    @LogItWithReturn
     @property
+    @LogItWithReturn
     def request(self):
         return "{0}/ws/pairing?step={{0}}&app_id={1}&device_id={2}".format(
             self.full_url,
@@ -53,29 +53,30 @@ class URL(object):
             self.config.device_id
         )
 
-    @LogItWithReturn
     @property
+    @LogItWithReturn
     def step1(self):
         return self.request.format(0) + "&type=1"
 
-    @LogItWithReturn
+
     @property
+    @LogItWithReturn
     def step2(self):
         return self.request.format(1)
 
-    @LogItWithReturn
     @property
+    @LogItWithReturn
     def step3(self):
         return self.request.format(2)
 
-    @LogItWithReturn
     @property
+    @LogItWithReturn
     def step4(self):
         millis = int(round(time.time() * 1000))
         return '{0}:8000/socket.io/1/?t={1}'.format(self.base_url, millis)
 
-    @LogItWithReturn
     @property
+    @LogItWithReturn
     def websocket(self):
         try:
             websocket_response = requests.get(self.step4, timeout=3)
@@ -96,8 +97,8 @@ class URL(object):
 
         return websocket_url
 
-    @LogItWithReturn
     @property
+    @LogItWithReturn
     def cloud_pin_page(self):
         return "{0}/ws/apps/CloudPINPage".format(self.full_url)
 

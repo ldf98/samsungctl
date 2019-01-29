@@ -37,6 +37,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         self._starting = True
 
     @property
+    @LogItWithReturn
     def has_ssl(self):
         try:
             response = requests.get(
@@ -388,7 +389,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         )
 
         self.send('ms.remote.control', **params)
-    
+
     @LogIt
     def start_voice_recognition(self):
         """Activates voice recognition."""

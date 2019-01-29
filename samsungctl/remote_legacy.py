@@ -24,6 +24,7 @@ class RemoteLegacy(object):
         self._starting = True
 
     @property
+    @LogItWithReturn
     def power(self):
         if self.sock is None and not self._starting:
             try:
@@ -51,6 +52,7 @@ class RemoteLegacy(object):
         return False
 
     @power.setter
+    @LogIt
     def power(self, value):
         if value and not self.power:
             logger.info('Power on is not supported for legacy TV\'s')
