@@ -334,6 +334,9 @@ def main():
 
     config.log_level = log_level
 
+    if config.upnp_locations is None:
+        config.upnp_locations = []
+
     try:
         with Remote(config) as remote:
             if args.interactive:
