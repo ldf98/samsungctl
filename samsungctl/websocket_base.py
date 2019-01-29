@@ -36,7 +36,7 @@ class WebSocketBase(object):
     def power(self):
         try:
             requests.get(
-                ' http://{0}:8001/api/v2/'.format(self.config.host),
+                'http://{0}:8001/api/v2/'.format(self.config.host),
                 timeout=3
             )
             return True

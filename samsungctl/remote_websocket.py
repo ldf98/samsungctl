@@ -45,7 +45,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 timeout=3
             )
             return(
-                json.loads(response.content)['device']['TokenAuthSupport']
+                json.loads(response.content.decode('utf-8'))['device']['TokenAuthSupport']
             )
         except (ValueError, KeyError):
             return False
