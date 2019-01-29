@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import six
 import requests
 import os
 from lxml import etree
@@ -28,8 +27,8 @@ class UPNPObject(object):
         self.ip_address = ip
 
         cls_name = None
-        self.__devices = {}
-        self.__services = {}
+        self._devices = {}
+        self._services = {}
         for location in locations:
             parsed_url = urlparse(location)
 
@@ -103,7 +102,7 @@ class UPNPObject(object):
                 )
                 name = service_id.split(':')[-1]
                 service.__name__ = name
-                self.__services[name] = service
+                self._services[name] = service
 
             for device in devices:
                 device = EmbeddedDevice(
@@ -112,7 +111,7 @@ class UPNPObject(object):
                     parent=self,
                     dump=dump
                 )
-                self.__devices[device.__name__] = device
+                self._devices[device.__name__] = device
 
             if cls_name is None:
                 cls_name = node.find('modelName')
@@ -125,11 +124,11 @@ class UPNPObject(object):
         if item in self.__dict__:
             return self.__dict__[item]
 
-        if item in self.__devices:
-            return self.__devices[item]
+        if item in self._devices:
+            return self._devices[item]
 
-        if item in self.__services:
-            return self.__services[item]
+        if item in self._services:
+            return self._services[item]
 
         if item in self.__class__.__dict__:
             if hasattr(self.__class__.__dict__[item], 'fget'):
@@ -151,11 +150,11 @@ class UPNPObject(object):
 
     @property
     def services(self):
-        return list(self.__services.values())[:]
+        return list(self._services.values())[:]
 
     @property
     def devices(self):
-        return list(self.__devices.values())[:]
+        return list(self._devices.values())[:]
 
     def __str__(self):
         output = '\n\n' + str(self.__name__) + '\n'
