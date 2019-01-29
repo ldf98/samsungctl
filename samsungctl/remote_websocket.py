@@ -11,7 +11,6 @@ import time
 import json
 from . import exceptions
 from . import application
-from . import wake_on_lan
 from . import websocket_base
 from .utils import LogIt, LogItWithReturn
 
@@ -379,6 +378,17 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self._registered_callbacks.remove([callback, key, data])
                 break
 
+    @LogIt
+    def input_text(self, text):
+
+        params = dict(
+            Cmd=self._serialize_string(text),
+            TypeOfRemote="SendInputString",
+            DataOfCmd="base64"
+        )
+
+        self.send('ms.remote.control', **params)
+    
     @LogIt
     def start_voice_recognition(self):
         """Activates voice recognition."""
