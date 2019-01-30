@@ -1,4 +1,13 @@
 
+
+The library has be updated and added to. There is a plethora of new
+features as well as some changed to the old ones. The API command line
+and by use as a library work the same as they did in the past. Be sure
+to read this documentation in it's entirety If you ask a question and
+the answer is in this documentation the only thing I am going to say is
+`Read the documentation`
+
+
 **SAMSUNGCTL**
 ==========
 BIG NEWS!!!!
@@ -36,58 +45,24 @@ missed expanding one or 2 of the sections.
 Onto the library.
 
 samsungctl is a library and a command line tool for remote controlling Samsung
-televisions via a TCP/IP connection. It currently supports both pre-2014 and
-2016+ TVs as well most of the modern Tizen-OS TVs with Ethernet or Wi-Fi
-connectivity.
+televisions via a TCP/IP connection. It currently supports 2008+ TVs
+with Ethernet or Wi-Fi connectivity. That includes the H and J model
+year TV's as well as the TV's that have the latest Samsung firmware
+that makes use of an SSL based websocket connection.
 
-UPDATE: This library supports 2016+ TV's running the latest firmware. Samsung
-has changed it's websocket connection to now use SSL encryption. We have this
-all sorted out.
-
-If the TV kicks back an error when connecting the program will then try the
-SSL connection. The SSL connection uses a token based system. What this
-means is, there will be only one thing you need to do if your TV uses this
-kind of a connection. You will get a message on the TV to pair a remote. You
-will need to click on the "Accept" button. You have 30 seconds to do this
-before the program will error out.
-
-There is a flat text file that is used to store the token between uses of the
-program. This is so that you will not have to go through the above process
-each and every time you use the program. This file is going to be different
-for each user that can be logged into the computer.micro controller.
-
-On NIX systems the file is stored in
-```~/.samsungctl```
-
-On Windows the file is stored in
-```%appdata%\samsungctl```
-
-Both of the locations are specific to the profile of the user that is logged
-in. I placed the file in these locations as to avoid any permissions related
-issues.
+On all TV's you will be prompted to accept the connection ON THE TV.
+You will have 30 seconds to do this before it errors out. There is a
+slight variation to this when using this library on 2014 and 2015 year
+TV's (H and J). a pin will be displayed on the TV that will have to be
+entered when prompted to by the library.
 
 This program IS NOT the same one that is available on the
-Python Packaging Index (Pypi). I do not have access to that and unfortunatly
-the original author Ape has been on hiatus for some time. He may no longer
-be maintaining the library.
+Python Packaging Index (Pypi). I do not have access to that and
+unfortunately the original author Ape has been on hiatus for some time.
+He may no longer be maintaining the library.
 
-
-So for the time being you will need to clone this repository and install it
-using the directions below.
-
-
-More Changes:
-
-Python 2.7+ compatible
-Better logging
-Adds additional keycodes (A LOT)
-The websocket-client library a requirement not an option
-
-
-Things to come
-Expanded control and notifications from the TV
-Automatic discovery of the TV
-Support for other Samsung devices
+So for the time being you will need to clone this repository and
+install it using the directions below.
 
 <br></br>
 ***Dependencies***
@@ -95,7 +70,13 @@ Support for other Samsung devices
 
 - Python 2.7+
 - `websocket-client`
+- `requests`
+- `pycryptodome`
+- `lxml`
+- `ifaddr`
+- `six`
 - `curses` (optional, for the interactive mode)
+
 
 <br></br>
 ***Installation***
@@ -185,6 +166,8 @@ You can also get help on a specific key
 or if you wanted to list more then one key
 ```samsungctl --key-help KEY_16_9 KEY_TTX_MIX```
 
+
+***depreciated***
 The settings can be loaded from a configuration file. The file is searched from
 
 * `$XDG_CONFIG_HOME/samsungctl.conf`
@@ -226,14 +209,10 @@ constructed using the `with` statement:
         # Use the remote object
 ```
 
-
-<br></br>
-***Config Class***
-__________________
-
 ***Depreciated***
 The constructor takes a configuration dictionary as a parameter. All
 configuration items must be specified.
+
 <br></br>
 
 Key|Type|Description
@@ -247,6 +226,9 @@ id|string|Additional remote controller ID.
 token|string|Authentication token
 timeout|int|Timeout in seconds. `0` means no timeout.
 <br></br>
+
+***Config Class***
+__________________
 
 I have put into place a class that handles all of the configuration
 information. It makes it easier for saving and loading config data.
@@ -357,7 +339,7 @@ config = samsungctl.Config.load('path/to/save/file')
 If you load a file the path is saved so you can simply call save to
 save any new data. If you constructed the Config class manually you will
 need to pass a path when calling save. and that path is then saved so
-any subsequent calls to save will not require you to pass thee path
+any subsequent calls to save will not require you to pass the path
 <br></br>
 ```python
 import samsungctl
@@ -393,7 +375,7 @@ remote.config.save()
 <br></br>
 
 I also gave a little twist on the loading of the config file. I did
-this so there would not need to be 2 different code block one for
+this so there would not need to be 2 different code blocks one for
 initial setup and another for loading a saved file.
 <br></br>
 ```python
@@ -1121,7 +1103,7 @@ KEY_EXT41|
 Please note that some codes are different on the 2016+ TVs. For example,
 `KEY_POWEROFF` is `KEY_POWER` on the newer TVs.
 
-I also added all of th keys as methods. so you havee the choice of using
+I also added all of the keys as methods. so you have the choice of using
 the method for sending a key
 
 ```python
