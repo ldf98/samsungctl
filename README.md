@@ -3,8 +3,13 @@
 ==========
 BIG NEWS!!!!
 samsungctl now supports the ever elusive H and J model year (2014 and 2015) TV's
-
-
+<br></br>
+<br></br>
+\*\*\*\*\*\*\*LEGACY TV OWNERS (TV's older then 2014) PLEASE READ\*\*\*\*\*\*\*
+<br></br>
+DO NOT POST AN ISSUE ABOUT THE TV NOT POWERING ON THE TV DOES NOT SUPPORT IT!!!!
+<br></br>
+<br></br>
 OK so first thing is first.
 I want to give a special thanks to the people that helped in the bug testing
 of this version. It has been a bit of a challenge because of the different
@@ -24,6 +29,8 @@ missed expanding one or 2 of the sections.
 * @dcorsus
 * @xxKeoxx
 * @iAbadia
+* @raydog153
+* @
 
 
 Onto the library.
@@ -227,22 +234,22 @@ __________________
 ***Depreciated***
 The constructor takes a configuration dictionary as a parameter. All
 configuration items must be specified.
-
+<br></br>
 
 Key|Type|Description
 ---|----|-----------
 host|string|Hostname or IP address of the TV.
 port|int|TCP port number. \(Default: `55000`\)
-method|string|Connection method \(`legacy` or `websocket`\)
+method|string|Connection method \(`"legacy"`, `"websocket"` or `"encrypted"`\)
 name|string|Name of the remote controller.
 description|string|Remote controller description.
 id|string|Additional remote controller ID.
 token|string|Authentication token
 timeout|int|Timeout in seconds. `0` means no timeout.
+<br></br>
 
-
-I have put into place a class that handlees all of thee configuration
-information. It makes it easier for saving and loading confiig data.
+I have put into place a class that handles all of the configuration
+information. It makes it easier for saving and loading config data.
 
 ```python
 import samsungctl
@@ -255,25 +262,74 @@ config = samsungctl.Config(
     port=8001
 )
 ```
+<br></br>
+The constructor for the Config class takes these parameters
+<br></br>
+I added a new parameter to the config class.
+This will allow for user entry of the mac address if there are issues
+with detecting it.
+<br></br>
 
-The constrictor for the Config class takes these parameters
+Param Name|Default value|Param Type|Use
+----------|-------------|----------|---
+name|`"samsungctl"`|`str`|Name of the "remote" this is the name that is going to appear on the TV
+description|HOSTNAME of local PC|`str`|Only used in the legacy connection (pre 2014  TVs)
+host|`None`|`str`|The ip address of the TV `"192.168.1.1"`
+port|`None`|`int`|The port to connect to. choices aree 55000 (< 2014), 8080 (2014 & 2015), 8001 & 8002 (>= 2016) or `None` \*
+method|`None`|`str`|Connection method \(`"legacy"`, `"websocket"`, `"encrypted"` or `None` \* \)
+id|`None`|`str`|This is an identifier that you can set. when using the "encrypted" method this should be left out
+timeout|`0`|`int`|socket timeout, only used for the legacy method
+token|`None`|`str`|Authentication token that is used for 2014 & 2015 and some 2016+ TV's
+device_id|`None`|`str`|Internal Use
+upnp_locations|`None`|`list`|Future Use
+mac|`None`|`str`|MAC address of the TV `"00:00:00:00:00"` or `None` \*\*.
 
-Param Name|Default value|Use
-----------|-------------|---
-name|None|Name of the "remote" this is the name that is going to appear on the TV
-description|None|Only used in the legacy connection (pre 2014  TVs)
-host|None|The ip address of the TV
-port|None|The port to connect to. choices aree 55000 (< 2014), 8080 (2014 & 2015), 8001 & 8002 (>= 2016)
-method|None|The connection method. legacy, websocket or encrypted
-id|None|This is an identifier that you can set. when using the "encrypted" method this should be left out
-timeout|0|socket timeout, only used for the legacy method
-token|None|Authentication token that is used for 2014 & 2015 and some 2016+ TV's
-device_id|None|Internal Use
-upnp_locations|None|Future Use
+<br></br>
+
+\* I have instituted a detection system that will automatically detect
+what connection type and port to use. In order to have the detection
+system activate the port and the method parameters in the call to
+Config MUST be `None`.
+
+<br></br>
+
+\*\* The `mac` parameter in the config class does not have to be used if
+you are using a legacy connection, <= 2013 TV. if you are using a
+TV that is 2014 and newer if there is no mac address the power on
+feature will not work. If you do not specify a mac address and the TV
+is 2014 or newer the program will attempt to acquire the MAC address of
+the TV for you. in order for this to be successful you need to have
+your TV turned on. This process only needs to be done a single time if
+you are saving the configuration data using the `save` method. If for
+some reason we are unable to locate the MAC address for the TV you have
+the option of manually passing it to the call to Config. If you are
+entering it manually it needs to be formatted `"00:00:00:00:00"`.
+<br></br>
+<br></br>
+Here is a python script example of running samsungctl using all of the
+detection features activated remember in order for this to work you
+need to have the TV powered on. Since we only want to go through this
+process a single time (because it can take an extra second or 2) we want
+to save the configuration information to file. So be sure to enter the
+path and filename into the save method.
+<br></br>
+
+```python
+import samsungctl
 
 
+config = samsungctl.Config(host='192.168.1.100')
+
+with samsungctl.Remote(config) as remote:
+    remote.KEY_MENU()
+
+config.save('PATH/FILE.NAME')
+
+```
+<br></br>
+<br></br>
 the Config class is also where you set your logging level
-
+<br></br>
 ```python
 import logging
 import samsungctl
@@ -287,20 +343,22 @@ config = samsungctl.Config(
 
 config.log_level = logging.DEBUG
 ```
-
+<br></br>
+<br></br>
 There are 2 nice convenience methods for saving and loading a config file.
-
+<br></br>
 ```python
 import samsungctl
 
 config = samsungctl.Config.load('path/to/save/file')
 ```
-
+<br></br>
+<br></br>
 If you load a file the path is saved so you can simply call save to
 save any new data. If you constructed the Config class manually you will
 need to pass a path when calling save. and that path is then saved so
 any subsequent calls to save will not require you to pass thee path
-
+<br></br>
 ```python
 import samsungctl
 
@@ -314,14 +372,16 @@ config = samsungctl.Config(
 
 config.save('path/to/save/file')
 ```
-
+<br></br>
+<br></br>
 when calling save if you pass only a folder path and not a folder/file path
-the name you passed to the constructor will be useed along with the
+the name you passed to the constructor will be used along with the
 extension ".config"
-
+<br></br>
+<br></br>
 You do not need to keep track of the config instance. once it is passed
 to the Remote constructor it is then stored in that instance.
-
+<br></br>
 ```python
 import samsungctl
 
@@ -330,12 +390,9 @@ config = samsungctl.Config.load('path/to/save/file')
 remote = samsungctl.Remote(config)
 remote.config.save()
 ```
-
+<br></br>
+<br></br>
 You are still able to pass a dictionary to the Remote constructor as well.
-
-The only parameters you MUST supply is the method and the host. everything else
-has a default value associated with it.
-
 <br></br>
 ***Power Property***
 ____________________

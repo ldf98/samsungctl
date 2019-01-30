@@ -19,7 +19,6 @@ class UPNPTV(UPNPObject):
 
         UPNPObject.__init__(self, ip, locations)
         self.ip_address = ip
-        self.power = True
         url = 'http://{0}:8001/api/v2'.format(ip)
 
         try:

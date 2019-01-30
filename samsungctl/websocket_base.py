@@ -16,20 +16,16 @@ class WebSocketBase(object):
     @LogIt
     def __init__(self, config):
         self.config = config
-        self._mac_address = None
 
     @property
     @LogItWithReturn
     def mac_address(self):
-        if self._mac_address is None:
-            _mac_address = wake_on_lan.get_mac_address(self.config.host)
-            print(_mac_address)
-            if _mac_address is None:
-                _mac_address = ''
-
-            self._mac_address = _mac_address
-
-        return self._mac_address
+        if self.config.mac is None:
+            self.config.mac = wake_on_lan.get_mac_address(self.config.host)
+            if self.config.mac is None:
+                if not self.power:
+                    logger.error('Unable to acquire MAC address')
+        return self.config.mac
 
     @property
     @LogItWithReturn
@@ -63,6 +59,8 @@ class WebSocketBase(object):
                         'Unable to power on the TV, '
                         'check network connectivity'
                     )
+            else:
+                logging.error('Unable to get TV\'s mac address')
 
         elif not value and self.power:
             count = 0

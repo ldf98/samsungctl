@@ -9,6 +9,10 @@ class SamsungTVError(Exception):
         if self._args:
             return self.__class__.__doc__ % self._args
 
+        elif b'%s' in self.__class__.__doc__:
+            args = tuple([''] * self.__class__.__doc__.count(b'%s'))
+            return self.__class__.__doc__ % args
+
         return self.__class__.__doc__
 
 
@@ -32,8 +36,16 @@ class ConfigError(SamsungTVError):
     """Base class for config exceptions."""
 
 
+class ConfigPortError(ConfigError):
+    """Unknown connection port %s."""
+
+
+class ConfigHostError(ConfigError):
+    """Host (IP) not specified."""
+
+
 class ConfigUnknownMethod(ConfigError):
-    """Unknown connection method."""
+    """Unknown connection method %s."""
 
 
 class ConfigParseError(ConfigError):

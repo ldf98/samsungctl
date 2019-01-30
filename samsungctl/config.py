@@ -4,6 +4,8 @@ import os
 import socket
 import json
 import logging
+import requests
+from . import wake_on_lan
 from . import exceptions
 
 
@@ -21,7 +23,8 @@ DEFAULT_CONFIG = dict(
     token=None,
     device_id=None,
     upnp_locations=None,
-    paired=None
+    paired=None,
+    mac=None
 )
 
 
@@ -35,8 +38,8 @@ class Config(object):
 
     def __init__(
         self,
-        name=None,
-        description=None,
+        name='samsungctl',
+        description=socket.gethostname(),
         host=None,
         port=None,
         id=None,
@@ -46,27 +49,63 @@ class Config(object):
         device_id=None,
         upnp_locations=None,
         paired=False,
+        mac=None,
         **_
     ):
-        if name is None:
-            name = 'samsungctl'
 
-        if description is None:
-            description = socket.gethostname()
+        if host is None:
+            raise exceptions.ConfigHostError
 
-        if method is None and port is not None:
+        if method is None and port is None:
+            try:
+                response = requests.get(
+                    'http://{0}:8001/api/v2/'.format(host),
+                    timeout=3
+                )
+                response = response.json()['device']
+                model = response['modelName']
+                if model[5] in ('H', 'J'):
+                    method = 'encrypted'
+                    port = 8080
+                    app_id = '654321'
+                    id = "654321"
+                    device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
+
+                else:
+                    app_id = ''
+                    method = 'websocket'
+
+            except (
+                ValueError,
+                KeyError,
+                requests.HTTPError,
+                requests.exceptions.ConnectTimeout
+            ):
+                tmp_mac = wake_on_lan.get_mac_address(host)
+                if tmp_mac is not None:
+                    method = 'legacy'
+                    app_id = ''
+                    port = 55000
+                else:
+                    method = None
+                    app_id = ''
+                    port = None
+
+        elif method is None:
             if port == 55000:
                 app_id = ''
                 method = 'legacy'
             elif port in (8001, 8002):
                 app_id = ''
                 method = 'websocket'
-            else:
+            elif port == 8080:
                 app_id = '654321'
                 id = "654321"
                 device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
                 method = 'encrypted'
-        elif port is None and method is not None:
+            else:
+                raise exceptions.ConfigPortError(port)
+        elif port is None:
             if method == 'legacy':
                 app_id = ''
                 port = 55000
@@ -76,14 +115,46 @@ class Config(object):
                     port = 8001
                 else:
                     port = 8002
-            else:
+            elif method == 'encrypted':
                 port = 8080
                 app_id = '654321'
                 id = "654321"
                 device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
-
+            else:
+                raise exceptions.ConfigUnknownMethod(method)
         else:
             app_id = ''
+
+        if method is None:
+            raise exceptions.ConfigUnknownMethod()
+
+        if method not in ('encrypted', 'websocket', 'legacy'):
+            raise exceptions.ConfigUnknownMethod(method)
+
+        if mac is None:
+            if port in (8001, 8002, 8080) and mac is None:
+                try:
+                    response = requests.get(
+                        'http://{0}:8001/api/v2/'.format(host),
+                        timeout=3
+                    )
+                    response = response.json()['device']
+                    if response['networkType'] == 'wired':
+                        mac = wake_on_lan.get_mac_address(host)
+                    else:
+                        mac = response['wifiMac'].upper()
+                except (
+                    ValueError,
+                    KeyError,
+                    requests.HTTPError,
+                    requests.exceptions.ConnectTimeout
+                ):
+                    pass
+            else:
+                mac = wake_on_lan.get_mac_address(host)
+
+        if mac is None and port != 55000:
+            logger.error('Unable to acquire TV\'s mac address')
 
         if paired is None:
             if token is not None:
@@ -105,6 +176,7 @@ class Config(object):
         self.app_id = app_id
 
         self.paired = paired
+        self.mac = mac
 
     @property
     def log_level(self):
@@ -242,6 +314,7 @@ class Config(object):
         yield 'device_id', self.device_id
         yield 'upnp_locations', self.upnp_locations
         yield 'paired', self.paired
+        yield 'mac', self.mac
 
     def __str__(self):
         return TEMPLATE.format(
@@ -255,7 +328,8 @@ class Config(object):
             token=self.token,
             device_id=self.device_id,
             upnp_locations=self.upnp_locations,
-            paired=self.paired
+            paired=self.paired,
+            mac=self.mac
         )
 
 
@@ -270,4 +344,5 @@ token = {token}
 device_id = {device_id}
 upnp_locations = {upnp_locations}
 paired = {paired}
+mac = {mac}
 '''

@@ -182,50 +182,51 @@ class WebSocketTest(unittest.TestCase):
             shutdown_server()
             return 'Server shutting down...'
 
-
         @self.app.route('/api/v2/')
         def api_v2():
             res = dict(
-                FrameTVSupport=False,
-                GamePadSupport=True,
-                ImeSyncedSupport=True,
-                OS="Tizen",
-                VoiceSupport=True,
-                countryCode="IT",
-                description="Samsung DTV RCR",
-                developerIP="192.168.2.180",
-                developerMode="1",
-                duid="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
-                firmwareVersion="Unknown",
-                id="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
-                ip="192.168.2.100",
-                model="18_KANTM2_QTV",
-                modelName="QE55Q6FNA",
-                name="[TV] Samsung Q6 Series (55)",
-                networkType="wired",
-                resolution="3840x2160",
-                smartHubAgreement=True,
-                type="Samsung SmartTV",
-                udn="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
-                wifiMac="70:2a:d5:8f:5a:0d",
-                isSupport=json.dumps(
-                    dict(
-                        DMP_DRM_PLAYREADY=False,
-                        DMP_DRM_WIDEVINE=False,
-                        DMP_available=True,
-                        EDEN_available=True,
-                        FrameTVSupport=False,
-                        ImeSyncedSupport=True,
-                        TokenAuthSupport=True,
-                        remote_available=True,
-                        remote_fourDirections=True,
-                        remote_touchPad=True,
-                        remote_voiceControl=True
-                    )
-                ),
-                remote="1.0",
-                uri="http://192.168.2.100:8001/api/v2/",
-                version="2.0.25"
+                device=dict(
+                    FrameTVSupport=False,
+                    GamePadSupport=True,
+                    ImeSyncedSupport=True,
+                    OS="Tizen",
+                    VoiceSupport=True,
+                    countryCode="IT",
+                    description="Samsung DTV RCR",
+                    developerIP="192.168.2.180",
+                    developerMode="1",
+                    duid="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
+                    firmwareVersion="Unknown",
+                    id="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
+                    ip="192.168.2.100",
+                    model="18_KANTM2_QTV",
+                    modelName="QE55Q6FNA",
+                    name="[TV] Samsung Q6 Series (55)",
+                    networkType="wired",
+                    resolution="3840x2160",
+                    smartHubAgreement=True,
+                    type="Samsung SmartTV",
+                    udn="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
+                    wifiMac="70:2a:d5:8f:5a:0d",
+                    isSupport=json.dumps(
+                        dict(
+                            DMP_DRM_PLAYREADY=False,
+                            DMP_DRM_WIDEVINE=False,
+                            DMP_available=True,
+                            EDEN_available=True,
+                            FrameTVSupport=False,
+                            ImeSyncedSupport=True,
+                            TokenAuthSupport=True,
+                            remote_available=True,
+                            remote_fourDirections=True,
+                            remote_touchPad=True,
+                            remote_voiceControl=True
+                        )
+                    ),
+                    remote="1.0",
+                    uri="http://192.168.2.100:8001/api/v2/",
+                    version="2.0.25"
+                )
             )
 
             return json.dumps(res)
@@ -1332,47 +1333,49 @@ class WebSocketSSLTest(unittest.TestCase):
         @self.app.route('/api/v2/')
         def api_v2():
             res = dict(
-                FrameTVSupport=False,
-                GamePadSupport=True,
-                ImeSyncedSupport=True,
-                OS="Tizen",
-                TokenAuthSupport=True,
-                VoiceSupport=True,
-                countryCode="IT",
-                description="Samsung DTV RCR",
-                developerIP="192.168.2.180",
-                developerMode="1",
-                duid="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
-                firmwareVersion="Unknown",
-                id="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
-                ip="192.168.2.100",
-                model="18_KANTM2_QTV",
-                modelName="QE55Q6FNA",
-                name="[TV] Samsung Q6 Series (55)",
-                networkType="wired",
-                resolution="3840x2160",
-                smartHubAgreement=True,
-                type="Samsung SmartTV",
-                udn="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
-                wifiMac="70:2a:d5:8f:5a:0d",
-                isSupport=json.dumps(
-                    dict(
-                        DMP_DRM_PLAYREADY=False,
-                        DMP_DRM_WIDEVINE=False,
-                        DMP_available=True,
-                        EDEN_available=True,
-                        FrameTVSupport=False,
-                        ImeSyncedSupport=True,
-                        TokenAuthSupport=True,
-                        remote_available=True,
-                        remote_fourDirections=True,
-                        remote_touchPad=True,
-                        remote_voiceControl=True
-                    )
-                ),
-                remote="1.0",
-                uri="http://192.168.2.100:8001/api/v2/",
-                version="2.0.25"
+                device=dict(
+                    FrameTVSupport=False,
+                    GamePadSupport=True,
+                    ImeSyncedSupport=True,
+                    OS="Tizen",
+                    TokenAuthSupport=True,
+                    VoiceSupport=True,
+                    countryCode="IT",
+                    description="Samsung DTV RCR",
+                    developerIP="192.168.2.180",
+                    developerMode="1",
+                    duid="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
+                    firmwareVersion="Unknown",
+                    id="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
+                    ip="192.168.2.100",
+                    model="18_KANTM2_QTV",
+                    modelName="QE55Q6FNA",
+                    name="[TV] Samsung Q6 Series (55)",
+                    networkType="wired",
+                    resolution="3840x2160",
+                    smartHubAgreement=True,
+                    type="Samsung SmartTV",
+                    udn="uuid:df830908-990a-4710-b2c0-5d18c1522f4e",
+                    wifiMac="70:2a:d5:8f:5a:0d",
+                    isSupport=json.dumps(
+                        dict(
+                            DMP_DRM_PLAYREADY=False,
+                            DMP_DRM_WIDEVINE=False,
+                            DMP_available=True,
+                            EDEN_available=True,
+                            FrameTVSupport=False,
+                            ImeSyncedSupport=True,
+                            TokenAuthSupport=True,
+                            remote_available=True,
+                            remote_fourDirections=True,
+                            remote_touchPad=True,
+                            remote_voiceControl=True
+                        )
+                    ),
+                    remote="1.0",
+                    uri="http://192.168.2.100:8001/api/v2/",
+                    version="2.0.25"
+                )
             )
 
             return json.dumps(res)

@@ -296,7 +296,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
         logger.debug("step 3: " + response.content.decode('utf-8'))
 
-        if "secure-mode" in response.content:
+        if "secure-mode" in response.content.decode('utf-8'):
             raise RuntimeError(
                 "TODO: Implement handling of encryption flag!!!!"
             )
