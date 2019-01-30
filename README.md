@@ -1,31 +1,33 @@
 
+\*\*\*\*\*\*\* ALL USERS PLEASE READ \*\*\*\*\*\*\*
 
 The library has be updated and added to. There is a plethora of new
-features as well as some changed to the old ones. The API command line
-and by use as a library work the same as they did in the past. Be sure
-to read this documentation in it's entirety If you ask a question and
-the answer is in this documentation the only thing I am going to say is
-`Read the documentation`
+features as well as some changes to the old ones.
+Be sure to read this documentation in it's entirety.
 
+If you ask a question and the answer is in this documentation the only
+thing I am going to say is `Read the documentation`.
+
+So it is my suggestion that you do exactly that before posting any kind
+of an issue.
+
+<br></br>
+
+\*\*\*\*\*\*\* LEGACY TV OWNERS (TV's older then 2014) PLEASE READ \*\*\*\*\*\*\*
+
+DO NOT POST AN ISSUE ABOUT THE TV NOT POWERING ON THE TV DOES NOT SUPPORT IT!!!!
+<br></br>
 
 **SAMSUNGCTL**
 ==========
 BIG NEWS!!!!
 samsungctl now supports the ever elusive H and J model year (2014 and 2015) TV's
+
 <br></br>
-<br></br>
-\*\*\*\*\*\*\*LEGACY TV OWNERS (TV's older then 2014) PLEASE READ\*\*\*\*\*\*\*
-<br></br>
-DO NOT POST AN ISSUE ABOUT THE TV NOT POWERING ON THE TV DOES NOT SUPPORT IT!!!!
-<br></br>
-<br></br>
-OK so first thing is first.
-I want to give a special thanks to the people that helped in the bug testing
+I want to give a thanks to the people that helped in the bug testing
 of this version. It has been a bit of a challenge because of the different
 devices/OS's that samsungctl is running on. In no special order I want to say
-TY for the help. If I have missed mentioning ya. let me know. That was one
-really long issue thread. and Github likes to collapse the thing. I could have
-missed expanding one or 2 of the sections.
+TY for the help. If I have missed someone please let me know.
 
 * @eclair4151
 * @fluxdigital
@@ -44,22 +46,22 @@ missed expanding one or 2 of the sections.
 
 Onto the library.
 
-samsungctl is a library and a command line tool for remote controlling Samsung
-televisions via a TCP/IP connection. It currently supports 2008+ TVs
-with Ethernet or Wi-Fi connectivity. That includes the H and J model
-year TV's as well as the TV's that have the latest Samsung firmware
-that makes use of an SSL based websocket connection.
+samsungctl is a library and a command line tool for remote controlling
+Samsung televisions via a TCP/IP connection. It currently supports
+2008+ TVs with Ethernet or Wi-Fi connectivity. That includes the
+H and J model year TV's as well as the TV's that have the latest
+Samsung firmware that makes use of an SSL based websocket connection.
 
-On all TV's you will be prompted to accept the connection ON THE TV.
-You will have 30 seconds to do this before it errors out. There is a
-slight variation to this when using this library on 2014 and 2015 year
-TV's (H and J). a pin will be displayed on the TV that will have to be
-entered when prompted to by the library.
+On all TV's you will be prompted to accept the connection this prompt
+gets displayed ON THE TV. You will have 30 seconds to do this before it
+errors out. There is a slight variation to this, on 2014 and 2015 year
+TV's (H and J) a pin will be displayed ON THE TV that will have to be
+entered when prompted to ON YOUR PC.
 
-This program IS NOT the same one that is available on the
-Python Packaging Index (Pypi). I do not have access to that and
-unfortunately the original author Ape has been on hiatus for some time.
-He may no longer be maintaining the library.
+This program IS NOT the same one that is available on the Python
+Packaging Index (Pypi). I do not have access to that and unfortunately
+the original author Ape has been on hiatus for some time. He may no
+longer be maintaining the library.
 
 So for the time being you will need to clone this repository and
 install it using the directions below.
@@ -81,11 +83,10 @@ install it using the directions below.
 <br></br>
 ***Installation***
 ------------------
-
 ```python setup.py install```
-
+<br></br>
 It's possible to use the command line tool without installation:
-
+<br></br>
 ```python -m samsungctl```
 
 <br></br>
@@ -93,19 +94,21 @@ It's possible to use the command line tool without installation:
 ------------------------
 
 You can use `samsungctl` command to send keys to a TV:
-
+<br></br>
 ```samsungctl --host <host> [options] <key> [key ...]```
-
+<br></br>
+<br></br>
 `host` is the hostname or IP address of the TV. `key` is a key code, e.g.
 `KEY_VOLDOWN`. See Key codes.
 
 There is also an interactive mode (ncurses) for sending the key presses:
-
+<br></br>
 ```samsungctl --host <host> [options] --interactive```
-
+<br></br>
+<br></br>
 Use `samsungctl --help` for more information about the command line
 arguments:
-
+<br></br>
 ```
 usage: samsungctl [-h] [--version] [-v] [-q] [-i] [--host HOST] [--port PORT]
                   [--method METHOD] [--name NAME] [--description DESC]
@@ -123,7 +126,9 @@ Remote control Samsung televisions via TCP/IP connection
 positional arguments:
   key                 keys to be sent (e.g. KEY_VOLDOWN)
 ```
-
+<br></br>
+Breakdown of the parameters:
+<br></br>
 
 optional argument|description
 -----------------|-----------
@@ -152,22 +157,54 @@ optional argument|description
 --app-metadata METADATA|string of information the application can use when it starts up. And example would be the browser. To have it open directly to a specific URL you would enter: `"http\/\/www.some-web-address.com"` wrapping the meta data in quotes will reduce the possibility of a command line parser error.
 --key-help {OPTIONAL KEYS}|prints out key help
 
+<br></br>
+Example use:
+<br></br>
 ```
 samsungctl --host 192.168.0.10 --name myremote KEY_VOLDOWN
 ```
 
-
-To obtain a list of all of the known keys.
+<br></br>
+To obtain a list of all of the known keys:
+<br></br>
 ```samsungctl --help-keys```
+<br></br>
 
-You can also get help on a specific key
+You can also get help on a specific key:
+<br></br>
 ```samsungctl --key-help KEY_16_9```
+<br></br>
 
-or if you wanted to list more then one key
+or if you wanted to list more then one key:
+<br></br>
 ```samsungctl --key-help KEY_16_9 KEY_TTX_MIX```
+<br></br>
+<br></br>
 
+***--config-file***
+___________________
+If this is the first time you are using this library on a TV you must
+specify --host and key code for the command you wish to execute along
+with this parameter.
+<br></br>
 
-***depreciated***
+```samsungctl --host 192.168.1.100 --config-file "/PATH/FILE.NAME" KEY_MENU```
+<br></br>
+
+By doing this is will make all of the necessary config file settings that
+are needed to be made for your TV. After the library has sent the command
+to your TV it will then save the file. Any calls there after will only
+need to have --config-file PATH/FILENAME along with the command you
+wish to perform for a command line options.
+<br></br>
+
+```samsungctl --config-file "/PATH/FILE.NAME" KEY_MENU```
+<br></br>
+
+All other information will be retrieved from the file.
+
+***\*\*\* depreciated***
+<br></br>
 The settings can be loaded from a configuration file. The file is searched from
 
 * `$XDG_CONFIG_HOME/samsungctl.conf`
@@ -178,18 +215,6 @@ in this order. A simple default configuration is
 bundled with the source as
 
 * `samsungctl.conf <samsungctl.conf>`
-
-***--config-file***
-___________________
-This is how the --config-file parameter works. If this is the first time
-you are using this library on a TV you must specify --method and --host
-and key code for the command you wish to execute along with this parameter.
-By doing this is will make all of the necessary config file settings that
-are needed to be made for your TV. After the library has sent the command
-to your TV it will then save the file. Any calls there after will only
-need to have --config-file PATH/FILENAME along with the command you
-wish to perform for a command line options.
-All other information will be retrieved from the file.
 
 
 <br></br>
@@ -208,24 +233,6 @@ constructed using the `with` statement:
     with samsungctl.Remote(config) as remote:
         # Use the remote object
 ```
-
-***Depreciated***
-The constructor takes a configuration dictionary as a parameter. All
-configuration items must be specified.
-
-<br></br>
-
-Key|Type|Description
----|----|-----------
-host|string|Hostname or IP address of the TV.
-port|int|TCP port number. \(Default: `55000`\)
-method|string|Connection method \(`"legacy"`, `"websocket"` or `"encrypted"`\)
-name|string|Name of the remote controller.
-description|string|Remote controller description.
-id|string|Additional remote controller ID.
-token|string|Authentication token
-timeout|int|Timeout in seconds. `0` means no timeout.
-<br></br>
 
 ***Config Class***
 __________________
@@ -265,14 +272,12 @@ token|`None`|`str`|Authentication token that is used for 2014 & 2015 and some 20
 device_id|`None`|`str`|Internal Use
 upnp_locations|`None`|`list`|Future Use
 mac|`None`|`str`|MAC address of the TV `"00:00:00:00:00"` or `None` \*\*.
-
 <br></br>
 
 \* I have instituted a detection system that will automatically detect
 what connection type and port to use. In order to have the detection
 system activate the port and the method parameters in the call to
 Config MUST be `None`.
-
 <br></br>
 
 \*\* The `mac` parameter in the config class does not have to be used if
@@ -287,7 +292,7 @@ some reason we are unable to locate the MAC address for the TV you have
 the option of manually passing it to the call to Config. If you are
 entering it manually it needs to be formatted `"00:00:00:00:00"`.
 <br></br>
-<br></br>
+
 Here is a python script example of running samsungctl using all of the
 detection features activated remember in order for this to work you
 need to have the TV powered on. Since we only want to go through this
@@ -309,9 +314,10 @@ config.save('PATH/FILE.NAME')
 
 ```
 <br></br>
-<br></br>
+
 the Config class is also where you set your logging level
 <br></br>
+
 ```python
 import logging
 import samsungctl
@@ -326,21 +332,23 @@ config = samsungctl.Config(
 config.log_level = logging.DEBUG
 ```
 <br></br>
-<br></br>
+
 There are 2 nice convenience methods for saving and loading a config file.
 <br></br>
+
 ```python
 import samsungctl
 
 config = samsungctl.Config.load('path/to/save/file')
 ```
 <br></br>
-<br></br>
+
 If you load a file the path is saved so you can simply call save to
 save any new data. If you constructed the Config class manually you will
 need to pass a path when calling save. and that path is then saved so
 any subsequent calls to save will not require you to pass the path
 <br></br>
+
 ```python
 import samsungctl
 
@@ -355,15 +363,16 @@ config = samsungctl.Config(
 config.save('path/to/save/file')
 ```
 <br></br>
-<br></br>
+
 when calling save if you pass only a folder path and not a folder/file path
 the name you passed to the constructor will be used along with the
 extension ".config"
 <br></br>
-<br></br>
+
 You do not need to keep track of the config instance. once it is passed
 to the Remote constructor it is then stored in that instance.
 <br></br>
+
 ```python
 import samsungctl
 
@@ -378,6 +387,7 @@ I also gave a little twist on the loading of the config file. I did
 this so there would not need to be 2 different code blocks one for
 initial setup and another for loading a saved file.
 <br></br>
+
 ```python
 import samsungctl
 
@@ -392,6 +402,7 @@ config.save()
 
 ```
 <br></br>
+
 The nifty thing about the code above is it allows for several things to happen
 1. It is not going to require 2 different config setup routines. only a single one is needed. If the file exists then it is used.
 2. If you happen to only specify a directory and want samsungctl to use the name parameter for the filename. this is what makes that possible.
@@ -400,12 +411,31 @@ The nifty thing about the code above is it allows for several things to happen
 <br></br>
 You are still able to pass a dictionary to the Remote constructor as well.
 <br></br>
+<br></br>
+
+***\*\*\* Depreciated***
+The constructor takes a configuration dictionary as a parameter. All
+configuration items must be specified.
+
+<br></br>
+
+Key|Type|Description
+---|----|-----------
+host|string|Hostname or IP address of the TV.
+port|int|TCP port number. \(Default: `55000`\)
+method|string|Connection method \(`"legacy"` or `"websocket"`\)
+name|string|Name of the remote controller.
+description|string|Remote controller description.
+id|string|Additional remote controller ID.
+token|string|Authentication token
+timeout|int|Timeout in seconds. `0` means no timeout.
+<br></br>
+
 ***Power Property***
 ____________________
+Power status along with powering off and on 2014+ TV's
 
-I also added power status along with powering off and on 2014+ TV's
-
-
+<br></br>
 ```python
 import samsungctl
 
@@ -424,14 +454,16 @@ remote.power = False
 # toggles the power
 remote.power = not remote.power
 ```
+<br></br>
 
 We do not have the ability to turn on the TV's older then 2014.
-
 <br></br>
+<br></br>
+
 ***Exceptions***
 ________________
-
 When something goes wrong you will receive an exception:
+<br></br>
 
 Exception|Description
 ---------|-----------
@@ -448,12 +480,12 @@ ConfigSavePathError|Config save path is not valid.
 ConfigSaveError|Error saving config.
 ConfigSavePathNotSpecified|Config save path was not specified.
 ConfigParameterError|Parameter is not a config parameter.
-
 <br></br>
+
 ***Example program***
 _____________________
-
 This simple program opens and closes the menu a few times.
+<br></br>
 
 ```python
 import samsungctl
@@ -471,15 +503,16 @@ with samsungctl.Remote(config) as remote:
         time.sleep(0.5)
 ```
 <br></br>
+
 ***Mouse Control***
 ___________________
-
 Mouse control can only be done by using samsungctl as a python module.
 Mouse command are built. this way you can accomplish multiple movements
 in a single "command" and the movement set can be stored for later use.
 depending on how long it takes to accomplish a movement
 (distance traveled) you will need to insert a wait period in between
 each movement.
+<br></br>
 
 ```python
 import samsungctl
@@ -498,12 +531,13 @@ with samsungctl.Remote(config) as remote:
     mouse.run()
     mouse.clear()
 ```
+<br></br>
 
 I designed this to all be thread safe. so only one mouse command set
 can be run at a single time. So if you have the mouse running in a
 thread and you need to stop the movement from another. or you simply
 want to terminate the program gracefully. you would call `mouse.stop()`
-
+<br></br>
 
 I will be at a later date adding the wait periods on the mouse movements
 so it will be done automatically. I do not own one of the TV's so I do
@@ -518,6 +552,7 @@ linear is, if it took 1 second to move the mouse 100 pixels, to move it
 the output to me. that will aide in making this all automatic. I need
 this data form several TV models and years. as Samsung could have
 changed the mouse speed and acceleration between years/models.
+<br></br>
 
 ```python
 import samsungctl
@@ -552,15 +587,14 @@ with samsungctl.Remote(config) as remote:
             move_mouse(x, y)
 ```
 <br></br>
+
 ***Voice Recognition***
 _______________________
-
 If you TV supports voice recognition you have the ability to start and
 stop the voice recognition service on the TV. this can be done only by
 using the samsungctl library as a package to an already existing program.
 example code of how to do this is below.
-
-
+<br></br>
 
 ```python
 import samsungctl
@@ -577,15 +611,15 @@ with samsungctl.Remote(config) as remote:
     time.sleep(5.0)
     remote.stop_voice_recognition()
 ```
-
 <br></br>
+
 ***Applications***
 __________________
-
 This is going to be a wee bit long winded. But here goes
 <br></br>
 
 below is a sample of how to access the applications on the TV
+<br></br>
 
 ```python
 import samsungctl
@@ -605,8 +639,10 @@ with samsungctl.Remote(config) as remote:
         print('version:', app.version)
         print()
 ```
+<br></br>
 
 if you want to access a specific application by name or by the app id
+<br></br>
 
 ```python
 import samsungctl
@@ -627,6 +663,7 @@ with samsungctl.Remote(config) as remote:
         print('version:', app.version)
         print()
 ```
+<br></br>
 
 these are the available properties for an application
 
@@ -646,11 +683,11 @@ these are the available properties for an application
 * is_visible
 * is_running
 
-
+<br></br>
 now here is a little bonus. we can also iterate over an application for
 any content groups. and then we can iterate over the content group for
 the available content in that group
-
+<br></br>
 
 ```python
 import samsungctl
@@ -671,12 +708,13 @@ with samsungctl.Remote(config) as remote:
             for content in content_group:
                 print('       ', content.title)
 ```
-
+<br></br>
 
 here are the available properties for the content group
 
 * title
 
+<br></br>
 here are the available properties for the content
 
 * is_playable
@@ -699,20 +737,20 @@ here are the available properties for the content
 * subtitle3
 * icon
 
+<br></br>
 
 You can also run an application or a piece of content by calling `run()`
 on either an application or on the content.
-
-
 <br></br>
+
 ***Key codes***
 ---------------
 Here is the new list of keycodes that are supported.
-
 <br></br>
+<br></br>
+
 *Power Keys*
 ____________
-
 Key|Description
 ---|-----------
 KEY_POWEROFF|PowerOFF
@@ -722,7 +760,6 @@ KEY_POWER|PowerToggle
 <br></br>
 *Input Keys*
 ____________
-
 Key|Description
 ---|-----------
 KEY_SOURCE|Source
@@ -749,7 +786,6 @@ KEY_DTV|DigitalTV
 <br></br>
 *Number Keys*
 _____________
-
 Key|Description
 ---|-----------
 KEY_1|Key1
@@ -766,7 +802,6 @@ KEY_0|Key0
 <br></br>
 *Misc Keys*
 ___________
-
 Key|Description
 ---|-----------
 KEY_PANNEL_CHDOWN|3D
@@ -778,7 +813,6 @@ KEY_DTV_SIGNAL|DTVSignal
 <br></br>
 *Channel Keys*
 ______________
-
 Key|Description
 ---|-----------
 KEY_CHUP|ChannelUp
@@ -792,7 +826,6 @@ KEY_MAGIC_CHANNEL|MagicChannel
 <br></br>
 *Volume Keys*
 _____________
-
 Key|Description
 ---|-----------
 KEY_VOLUP|VolumeUp
@@ -802,7 +835,6 @@ KEY_MUTE|Mute
 <br></br>
 *Direction Keys*
 ________________
-
 Key|Description
 ---|-----------
 KEY_UP|NavigationUp
@@ -815,7 +847,6 @@ KEY_ENTER|NavigationEnter
 <br></br>
 *Media Keys*
 ____________
-
 Key|Description
 ---|-----------
 KEY_REWIND|Rewind
@@ -832,7 +863,6 @@ KEY_INSTANT_REPLAY|fnKEY_INSTANT_REPLAY
 <br></br>
 *Picture in Picture*
 ____________________
-
 Key|Description
 ---|-----------
 KEY_PIP_ONOFF|PIPOn/Off
@@ -849,7 +879,6 @@ KEY_PIP_SCAN|PIPScan
 <br></br>
 *Modes*
 _______
-
 Key|Description
 ---|-----------
 KEY_VCR_MODE|VCRMode
@@ -863,7 +892,6 @@ KEY_PCMODE|PCMode
 <br></br>
 *Color Keys*
 ____________
-
 Key|Description
 ---|-----------
 KEY_GREEN|Green
@@ -874,7 +902,6 @@ KEY_RED|Red
 <br></br>
 *Teletext*
 __________
-
 Key|Description
 ---|-----------
 KEY_TTX_MIX|TeletextMix
@@ -883,7 +910,6 @@ KEY_TTX_SUBFACE|TeletextSubface
 <br></br>
 *AspectRatio*
 ______________
-
 Key|Description
 ---|-----------
 KEY_ASPECT|AspectRatio
@@ -896,7 +922,6 @@ KEY_EXT15|AspectRatio16:9(Alt)
 
 *Picture Mode*
 ______________
-
 Key|Description
 ---|-----------
 KEY_PMODE|PictureMode
@@ -912,7 +937,6 @@ KEY_EXT10|PictureModeStandard(Alt)
 <br></br>
 *Menus*
 _______
-
 Key|Description
 ---|-----------
 KEY_MENU|Menu
@@ -928,7 +952,6 @@ KEY_HELP|Help
 <br></br>
 *OSD*
 _____
-
 Key|Description
 ---|-----------
 KEY_INFO|Info
@@ -940,7 +963,6 @@ KEY_SUB_TITLE|Subtitle
 <br></br>
 *Zoom*
 ______
-
 Key|Description
 ---|-----------
 KEY_ZOOM_MOVE|ZoomMove
@@ -952,7 +974,6 @@ KEY_ZOOM2|Zoom2
 <br></br>
 *Other Keys*
 ____________
-
 Key|Description
 ---|-----------
 KEY_WHEEL_LEFT|WheelLeft
@@ -1013,7 +1034,6 @@ KEY_DNET|DNET
 <br></br>
 *Auto Arc Keys*
 _______________
-
 Key|Description
 ---|-----------
 KEY_AUTO_ARC_C_FORCE_AGING|
@@ -1043,7 +1063,6 @@ KEY_AUTO_ARC_ANTENNA_SATELLITE|
 <br></br>
 *Panel Keys*
 ____________
-
 Key|Description
 ---|-----------
 KEY_PANNEL_POWER|
@@ -1058,7 +1077,6 @@ KEY_PANNEL_ENTER|
 <br></br>
 *Extended Keys*
 _______________
-
 Key|Description
 ---|-----------
 KEY_EXT1|
@@ -1099,12 +1117,15 @@ KEY_EXT39|
 KEY_EXT40|
 KEY_EXT41|
 
-
+<br></br>
+<br></br>
 Please note that some codes are different on the 2016+ TVs. For example,
 `KEY_POWEROFF` is `KEY_POWER` on the newer TVs.
+<br></br>
 
 I also added all of the keys as methods. so you have the choice of using
 the method for sending a key
+<br></br>
 
 ```python
 import samsungctl
@@ -1119,8 +1140,10 @@ with samsungctl.Remote(config) as remote:
     remote.command("KEY_VOLUP")
 
 ```
+<br></br>
 
 or you can also use this
+<br></br>
 
 ```python
 import samsungctl
@@ -1135,10 +1158,10 @@ with samsungctl.Remote(config) as remote:
     remote.KEY_VOLUP()
 
 ```
-
-
-
 <br></br>
+<br></br>
+<br></br>
+
 ***References***
 ----------------
 
