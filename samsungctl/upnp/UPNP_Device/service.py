@@ -54,6 +54,7 @@ class Service(object):
             location = '/' + location
 
         response = requests.get(url + location)
+        content = response.content.decode('utf-8')
         if dump:
             path = location
             if path.startswith('/'):
@@ -71,22 +72,12 @@ class Service(object):
             if not file_name.endswith('.xml'):
                 file_name += '.xml'
 
-            if isinstance(response.content, bytes):
-                content = response.content.decode('utf-8')
-            else:
-                content = response.content
-
             with open(os.path.join(path, file_name), 'w') as f:
                 f.write(content)
 
         try:
             root = etree.fromstring(response.content)
-        except:
-            import traceback
-
-            print(repr(response.content))
-
-            traceback.print_exc()
+        except etree.XMLSyntaxError:
             return
 
         root = strip_xmlns(root)

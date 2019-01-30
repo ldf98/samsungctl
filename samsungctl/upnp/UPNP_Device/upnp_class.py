@@ -35,6 +35,8 @@ class UPNPObject(object):
             url = parsed_url.scheme + '://' + parsed_url.netloc
             response = requests.get(location)
 
+            content = response.content.decode('utf-8')
+
             if dump:
                 path = location
                 if path.startswith('/'):
@@ -53,17 +55,15 @@ class UPNPObject(object):
                 if not file_name.endswith('.xml'):
                     file_name += '.xml'
 
-                if isinstance(response.content, bytes):
-                    content = response.content.decode('utf-8')
-                else:
-                    content = response.content
-
                 with open(os.path.join(path, file_name), 'w') as f:
                     f.write(content)
 
-            root = etree.fromstring(response.content)
-            root = strip_xmlns(root)
+            try:
+                root = etree.fromstring(content)
+            except etree.XMLSyntaxError:
+                continue
 
+            root = strip_xmlns(root)
             node = root.find('device')
 
             services = node.find('serviceList')
