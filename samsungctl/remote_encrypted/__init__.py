@@ -15,6 +15,7 @@ import sys
 import requests
 import time
 import websocket
+import json
 from lxml import etree
 
 import logging
@@ -86,7 +87,7 @@ class URL(object):
             )
             return None
 
-        logger.debug('step 4: ' + websocket_response.content)
+        logger.debug('step 4: ' + websocket_response.content.decode('utf-8'))
 
         websocket_url = (
             'ws://{0}:8000/socket.io/1/websocket/{1}'.format(
@@ -256,7 +257,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         logger.debug('step 2: ' + response.content.decode('utf-8'))
 
         try:
-            auth_data = response.json()['auth_data']
+            auth_data = json.loads(response.json()['auth_data'])
             client_hello = auth_data['GeneratorClientHello']
             request_id = auth_data['request_id']
         except (ValueError, KeyError):
@@ -302,7 +303,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             )
 
         try:
-            auth_data = response.json()['auth_data']
+            auth_data = json.loads(response.json()['auth_data'])
             client_ack = auth_data['ClientAckMsg']
             session_id = auth_data['session_id']
         except (ValueError, KeyError):
