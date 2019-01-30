@@ -202,9 +202,12 @@ class Config(object):
 
         return False
 
+    def __call__(self, **_):
+        return self
+
     @staticmethod
     def load(path):
-        if os.path.exists(path):
+        if os.path.isfile(path):
             config = dict(
                 list(item for item in DEFAULT_CONFIG.items())
             )
@@ -248,12 +251,59 @@ class Config(object):
                                 raise exceptions.ConfigParameterError(key)
 
                         config[key] = value
-        else:
-            raise exceptions.ConfigLoadError
 
-        self = Config(**config)
-        self.path = path
-        return self
+            self = Config(**config)
+            self.path = path
+            return self
+
+        else:
+            pth = path
+
+            def wrapper(
+                name='samsungctl',
+                description=socket.gethostname(),
+                host=None,
+                port=None,
+                id=None,
+                method=None,
+                timeout=0,
+                token=None,
+                device_id=None,
+                upnp_locations=None,
+                paired=False,
+                mac=None,
+                **_
+            ):
+                if os.path.isdir(pth):
+                    cfg_path = os.path.join(pth, name + '.config')
+                    if os.path.exists(cfg_path):
+                        return Config.load(cfg_path)
+                else:
+                    dirs, file_name = os.path.split(pth)
+
+                    if not os.path.exists(dirs):
+                        os.makedirs(dirs)
+
+                    cfg_path = pth
+
+                self = Config(
+                    name=name,
+                    description=description,
+                    host=host,
+                    port=port,
+                    id=id,
+                    method=method,
+                    timeout=timeout,
+                    token=token,
+                    device_id=device_id,
+                    upnp_locations=upnp_locations,
+                    paired=paired,
+                    mac=mac
+                )
+                self.path = cfg_path
+
+                return self
+        return wrapper
 
     def save(self, path=None):
         if path is None:

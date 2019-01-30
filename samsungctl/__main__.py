@@ -305,19 +305,9 @@ def main():
     if args.key_help:
         keys_help(args.key)
 
-    if args.config_file is None:
-        config = _read_config()
-        config.update(
-            {
-                k: v for k, v in vars(args).items()
-                if v is not None
-            }
-        )
-        config = Config(**config)
-    else:
-        if os.path.isfile(args.config_file):
-            config = Config.load(args.config_file)
-        else:
+    try:
+
+        if args.config_file is None:
             config = _read_config()
             config.update(
                 {
@@ -326,10 +316,17 @@ def main():
                 }
             )
             config = Config(**config)
-            config.path = args.config_file
+        else:
+            config = {
+                k: v for k, v in vars(args).items()
+                if v is not None
+            }
 
-    if not config.host:
-        logging.error("Error: --host must be set")
+            config = Config.load(args.config_file)(**config)
+    except exceptions.ConfigError:
+        import traceback
+        traceback.print_exc()
+
         return
 
     config.log_level = log_level

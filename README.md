@@ -30,7 +30,7 @@ missed expanding one or 2 of the sections.
 * @xxKeoxx
 * @iAbadia
 * @raydog153
-* @
+* @andreas-bulling
 
 
 Onto the library.
@@ -390,6 +390,30 @@ config = samsungctl.Config.load('path/to/save/file')
 remote = samsungctl.Remote(config)
 remote.config.save()
 ```
+<br></br>
+
+I also gave a little twist on the loading of the config file. I did
+this so there would not need to be 2 different code block one for
+initial setup and another for loading a saved file.
+<br></br>
+```python
+import samsungctl
+
+config = samsungctl.Config.load('PATH/FILE.NAME')(
+    name='samsungctl',
+    description='samsungctl-library',
+    method='websocket',
+    host='192.168.1.100'
+)
+
+config.save()
+
+```
+<br></br>
+The nifty thing about the code above is it allows for several things to happen
+1. It is not going to require 2 different config setup routines. only a single one is needed. If the file exists then it is used.
+2. If you happen to only specify a directory and want samsungctl to use the name parameter for the filename. this is what makes that possible.
+3. If the path does not exist. then it will create a new configuration with the supplied arguments and set the save of that config data.
 <br></br>
 <br></br>
 You are still able to pass a dictionary to the Remote constructor as well.
