@@ -134,7 +134,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
         return tv_pin
-        
+
     @LogItWithReturn
     def open(self):
         power = self.power
@@ -227,7 +227,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     @LogIt
     def first_step_of_pairing(self):
         response = requests.get(self.url.step1)
-        logger.debug('step 1: ' + response.content)
+        logger.debug('step 1: ' + response.content.decode('utf-8'))
 
     @LogItWithReturn
     def hello_exchange(self, pin):
@@ -253,7 +253,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         #   }
         # }
 
-        logger.debug('step 2: ' + response.content)
+        logger.debug('step 2: ' + response.content.decode('utf-8'))
 
         try:
             auth_data = response.json()['auth_data']
@@ -294,7 +294,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         #   }
         # }
 
-        logger.debug("step 3: " + response.content)
+        logger.debug("step 3: " + response.content.decode('utf-8'))
 
         if "secure-mode" in response.content:
             raise RuntimeError(
