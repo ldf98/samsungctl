@@ -131,6 +131,10 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             self.sock.close()
             self.sock = None
 
+    def get_pin(self):
+        tv_pin = input("Please enter pin from tv: ")
+        return tv_pin
+        
     @LogItWithReturn
     def open(self):
         power = self.power
@@ -143,9 +147,16 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if not self.power:
                 raise RuntimeError('Unable to pair with TV.')
 
-            self.start_pairing()
+            self.last_request_id = 0
+
+            if self.check_pin_page():
+                logger.debug("Pin NOT on TV")
+                self.show_pin_page()
+            else:
+                logger.debug("Pin ON TV")
+
             while self.ctx is None:
-                tv_pin = input("Please enter pin from tv: ")
+                tv_pin = self.get_pin()
 
                 logger.info("Got pin: '{0}'".format(tv_pin))
 
@@ -204,7 +215,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         root = strip_xmlns(root)
 
         try:
-            state = root.find('service').find('state')
+            state = root.find('state')
             logger.debug("Current state: " + state.text)
             if state.text == 'stopped':
                 return True
@@ -217,16 +228,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     def first_step_of_pairing(self):
         response = requests.get(self.url.step1)
         logger.debug('step 1: ' + response.content)
-
-    @LogIt
-    def start_pairing(self):
-        self.last_request_id = 0
-
-        if self.check_pin_page():
-            logger.debug("Pin NOT on TV")
-            self.show_pin_page()
-        else:
-            logger.debug("Pin ON TV")
 
     @LogItWithReturn
     def hello_exchange(self, pin):
