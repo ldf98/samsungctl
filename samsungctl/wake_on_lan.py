@@ -24,6 +24,18 @@ else:
 
 
 def get_mac_address(ip):
+    """
+    Gets the MAC address of the TV.
+
+    This function will use the ARP lookup tables to see if there is an entry
+    for the IP address that was supplied. If no entry is found an APR request
+    is sent in an attempt to populate the TV to the ARP table.
+
+    :param ip: IP address of the TV
+    :type ip: `str`
+    :return: `None` or MAC address of TV formatted ``"00:00:00:00:00"``
+    :rtype: `None`, `str`
+    """
 
     if WINDOWS:
         if not PY2:
@@ -246,6 +258,15 @@ def get_mac_address(ip):
 
 
 def send_wol(mac_address):
+    """
+    Send the WOL "magic" packet to power a TV on.
+
+
+    :param mac_address: MAC address of the TV
+    :type mac_address: `str`
+    :return: `None`
+    :rtype: `None`
+    """
     split_mac = mac_address.split(':')
     hex_mac = list(int(h, 16) for h in split_mac)
     hex_mac = struct.pack('BBBBBB', *hex_mac)

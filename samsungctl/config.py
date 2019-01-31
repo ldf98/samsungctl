@@ -147,7 +147,8 @@ class Config(object):
                     ValueError,
                     KeyError,
                     requests.HTTPError,
-                    requests.exceptions.ConnectTimeout
+                    requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ConnectionError
                 ):
                     pass
             else:
@@ -252,7 +253,7 @@ class Config(object):
                             try:
                                 value = int(value)
                             except ValueError:
-                                raise exceptions.ConfigParameterError(key)
+                                value = 0
                         elif key == 'upnp_locations':
 
                             if value.startswith('['):
