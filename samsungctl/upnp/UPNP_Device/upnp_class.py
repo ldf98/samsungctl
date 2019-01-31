@@ -31,7 +31,6 @@ class UPNPObject(object):
         self._services = {}
         for location in locations:
             parsed_url = urlparse(location)
-
             url = parsed_url.scheme + '://' + parsed_url.netloc
             response = requests.get(location)
 
