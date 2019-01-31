@@ -4,10 +4,10 @@ class PaddingBase:
     def __init__(self, block_size):
         self.block_size = block_size
 
-    def encode(self, source: bytes) -> bytes:  # pragma: nocover
+    def encode(self, source):# -> bytes:  # pragma: nocover
         raise NotImplementedError
 
-    def decode(self, source: bytes) -> bytes:  # pragma: nocover
+    def decode(self, source):# -> bytes:  # pragma: nocover
         raise NotImplementedError
 
 

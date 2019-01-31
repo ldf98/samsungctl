@@ -17,11 +17,17 @@ import time
 import websocket
 import json
 from lxml import etree
-
+from binascii import hexlify as he
 import logging
+import traceback
 
-if sys.version_info[0] < 3:
-    raise ImportError
+# if sys.version_info[0] < 3:
+    # raise ImportError
+    
+try:
+    input = raw_input
+except NameError:
+    pass
 
 from . import crypto # NOQA
 from .command_encryption import AESCipher # NOQA
@@ -164,7 +170,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 self.first_step_of_pairing()
                 output = self.hello_exchange(tv_pin)
                 if output:
-                    self.ctx = output['ctx'].hex()
+                    self.ctx = crypto.bytes2str(he(output['ctx']))
                     self.sk_prime = output['SKPrime']
                     logger.debug("ctx: " + self.ctx)
                     logger.info("Pin accepted")
@@ -240,7 +246,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         content = dict(
             auth_Data=dict(
                 auth_type='SPC',
-                GeneratorServerHello=hello_output['serverHello'].hex().upper()
+                GeneratorServerHello=crypto.bytes2str(he(hello_output['serverHello'])).upper()
             )
         )
 
@@ -343,5 +349,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             time.sleep(0.35)
             return True
         except:
+            traceback.print_exc()
             self.close()
             return False
