@@ -17,7 +17,7 @@ import time
 import websocket
 import json
 from lxml import etree
-from binascii import hexlify as he
+import binascii
 import logging
 import traceback
 
@@ -170,7 +170,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 self.first_step_of_pairing()
                 output = self.hello_exchange(tv_pin)
                 if output:
-                    self.ctx = crypto.bytes2str(he(output['ctx']))
+                    self.ctx = crypto.bytes2str(binascii.hexlify(output['ctx']))
                     self.sk_prime = output['SKPrime']
                     logger.debug("ctx: " + self.ctx)
                     logger.info("Pin accepted")
@@ -246,7 +246,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         content = dict(
             auth_Data=dict(
                 auth_type='SPC',
-                GeneratorServerHello=crypto.bytes2str(he(hello_output['serverHello'])).upper()
+                GeneratorServerHello=crypto.bytes2str(binascii.hexlify(hello_output['serverHello'])).upper()
             )
         )
 
