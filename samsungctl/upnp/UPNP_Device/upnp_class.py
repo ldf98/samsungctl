@@ -33,6 +33,8 @@ class UPNPObject(object):
             parsed_url = urlparse(location)
 
             url = parsed_url.scheme + '://' + parsed_url.netloc
+
+            print(url, location)
             response = requests.get(location)
 
             content = response.content.decode('utf-8')
