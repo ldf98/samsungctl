@@ -203,7 +203,13 @@ wish to perform for a command line options.
 
 All other information will be retrieved from the file.
 
-***\*\*\* depreciated***
+<br></br>
+<br></br>
+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+<br></br>
+***depreciated***
+<br></br>
+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
 <br></br>
 The settings can be loaded from a configuration file. The file is searched from
 
