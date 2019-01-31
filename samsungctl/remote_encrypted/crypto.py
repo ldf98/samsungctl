@@ -82,7 +82,9 @@ def parseClientHello(clientHello, dataHash, aesKey, gUserId):
     bnPGx = int(pGx.hex(),16)
     bnPrime = int(keys.prime,16)
     bnPrivateKey = int(keys.privateKey,16)
-    secret = bytes.fromhex(hex(pow(bnPGx, bnPrivateKey, bnPrime)).rstrip("L").lstrip("0x"))
+    secret = hex(pow(bnPGx, bnPrivateKey, bnPrime)).rstrip("L").lstrip("0x")
+    secret = ((len(secret)%2)*'0')+secret
+    secret = bytes.fromhex(secret)
     logger.debug("secret: " + secret.hex())
     dataHash2 = data[USER_ID_POS+userIdLen+GX_SIZE:USER_ID_POS+userIdLen+GX_SIZE+SHA_DIGEST_LENGTH]
     logger.debug("hash2: " + dataHash2.hex())
