@@ -248,12 +248,21 @@ class Config(object):
                             value = None
                         elif not value:
                             value = None
-
                         elif key in ('port', 'timeout'):
                             try:
                                 value = int(value)
                             except ValueError:
                                 raise exceptions.ConfigParameterError(key)
+                        elif key == 'upnp_locations':
+
+                            if value.startswith('['):
+                                value = value.replace("'", '').replace('"', '')
+                                value = value[1:-1]
+
+                            value = list(
+                                val.strip() for val in value.split(',')
+                                if val.strip()
+                            )
 
                         config[key] = value
 
@@ -372,6 +381,13 @@ class Config(object):
         yield 'mac', self.mac
 
     def __str__(self):
+        upnp_locations = self.upnp_locations
+
+        if upnp_locations:
+            upnp_locations = ', '.join(upnp_locations)
+        else:
+            upnp_locations = None
+
         return TEMPLATE.format(
             name=self.name,
             description=self.description,
@@ -382,7 +398,7 @@ class Config(object):
             timeout=self.timeout,
             token=self.token,
             device_id=self.device_id,
-            upnp_locations=self.upnp_locations,
+            upnp_locations=upnp_locations,
             paired=self.paired,
             mac=self.mac
         )
