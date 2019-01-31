@@ -207,6 +207,11 @@ class Config(object):
 
     @staticmethod
     def load(path):
+        if '~' in path:
+            path.replace('~', os.path.expanduser('~'))
+        if '%' in path:
+            path = os.path.expandvars(path)
+
         if os.path.isfile(path):
             config = dict(
                 list(item for item in DEFAULT_CONFIG.items())
