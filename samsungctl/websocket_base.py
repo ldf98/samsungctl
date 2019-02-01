@@ -65,7 +65,7 @@ class WebSocketBase(object):
                 timeout=3
             )
             return True
-        except (requests.HTTPError, requests.exceptions.ConnectTimeout):
+        except (requests.HTTPError, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
             return False
 
     def control(self, *_):
