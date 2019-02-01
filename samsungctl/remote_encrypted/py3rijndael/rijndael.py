@@ -202,7 +202,7 @@ class Rijndael:
 class RijndaelCbc(Rijndael):
 
     def __init__(self, key, iv, padding, block_size=16):
-        super().__init__(key=key, block_size=block_size)
+        super(RijndaelCbc, self).__init__(key=key, block_size=block_size)
         self.iv = iv
         self.padding = padding
 
@@ -215,7 +215,7 @@ class RijndaelCbc(Rijndael):
         while offset < len(ppt):
             block = ppt[offset:offset + self.block_size]
             block = self.x_or_block(block, v)
-            block = super().encrypt(block)
+            block = super(RijndaelCbc, self).encrypt(block)
             ct += block
             offset += self.block_size
             v = block
@@ -228,7 +228,7 @@ class RijndaelCbc(Rijndael):
         v = self.iv
         while offset < len(cipher):
             block = cipher[offset:offset + self.block_size]
-            decrypted = super().decrypt(block)
+            decrypted = super(RijndaelCbc, self).decrypt(block)
             ppt += self.x_or_block(decrypted, v)
             offset += self.block_size
             v = block
