@@ -37,6 +37,7 @@ def mul(a, b):
         return 0
     return a_log[(log[a & 0xFF] + log[b & 0xFF]) % 255]
 
+
 # substitution box based on F^{-1}(x)
 box = [[0] * 8 for i in range(256)]
 box[1][7] = 1
@@ -83,7 +84,9 @@ for i in range(4):
     pivot = AA[i][i]
     for j in range(8):
         if AA[i][j] != 0:
-            AA[i][j] = a_log[(255 + log[AA[i][j] & 0xFF] - log[pivot & 0xFF]) % 255]
+            AA[i][j] = a_log[
+                (255 + log[AA[i][j] & 0xFF] - log[pivot & 0xFF]) % 255
+            ]
     for t in range(4):
         if i != t:
             for j in range(i+1, 8):
@@ -106,6 +109,7 @@ def mul4(a, bs):
         if b != 0:
             rr = rr | mul(a, b)
     return rr
+
 
 T1 = []
 T2 = []

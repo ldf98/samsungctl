@@ -8,10 +8,8 @@ library to support H and J (2014, 2015) model TV's
 https://github.com/eclair4151/SmartCrypto
 """
 
-# TODO: Python 2 compatibility
 
 from __future__ import print_function
-import sys
 import requests
 import time
 import websocket
@@ -21,9 +19,7 @@ import binascii
 import logging
 import traceback
 
-# if sys.version_info[0] < 3:
-    # raise ImportError
-    
+
 try:
     input = raw_input
 except NameError:
@@ -64,7 +60,6 @@ class URL(object):
     @LogItWithReturn
     def step1(self):
         return self.request.format(0) + "&type=1"
-
 
     @property
     @LogItWithReturn
@@ -170,7 +165,9 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 self.first_step_of_pairing()
                 output = self.hello_exchange(tv_pin)
                 if output:
-                    self.ctx = crypto.bytes2str(binascii.hexlify(output['ctx']))
+                    self.ctx = crypto.bytes2str(
+                        binascii.hexlify(output['ctx'])
+                    )
                     self.sk_prime = output['SKPrime']
                     logger.debug("ctx: " + self.ctx)
                     logger.info("Pin accepted")
@@ -208,26 +205,20 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogItWithReturn
     def check_pin_page(self):
-        # <?xml version="1.0" encoding="UTF-8"?>
-        # <service xmlns="urn:dial-multiscreen-org:schemas:dial" xmlns:atom="http://www.w3.org/2005/Atom">
-        #     <name>CloudPINPage</name>
-        #     <options allowStop="true"/>
-        #     <state>running</state>
-        #     <atom:link rel="run" href="run"/>
-        # </service>
-
         response = requests.get(self.url.cloud_pin_page, timeout=3)
 
-        root = etree.fromstring(response.content)
+        try:
+            root = etree.fromstring(response.content)
+        except etree.LxmlSyntaxError:
+            return False
+
         root = strip_xmlns(root)
 
-        try:
-            state = root.find('state')
+        state = root.find('state')
+        if state is not None:
             logger.debug("Current state: " + state.text)
             if state.text == 'stopped':
                 return True
-        except:
-            pass
 
         return False
 
@@ -246,20 +237,13 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         content = dict(
             auth_Data=dict(
                 auth_type='SPC',
-                GeneratorServerHello=crypto.bytes2str(binascii.hexlify(hello_output['serverHello'])).upper()
+                GeneratorServerHello=crypto.bytes2str(
+                    binascii.hexlify(hello_output['serverHello'])
+                ).upper()
             )
         )
 
         response = requests.post(self.url.step2, json=content)
-
-        # {
-        #   "auth_data": {
-        #       "auth_type":"SPC",
-        #       "request_id":"1",
-        #       "GeneratorClientHello":"010100000000000000009E00000006363534333231081C35EB8DB247EB574DAB5FC569464739E34CC3D57892D5436A8D3A288F10645368E76CE0FAF609C302F6B488D5CA00CE7E22825D32C8DCE40AD1EE62DBCD90513972F38BB87A7BDD574EEE679661D117A9513189754142A421805840F2C3247C0F940A4B981C7348211CB422045A9DDCDB2F37FCF0D854701E5FD9B0F55BE94855E546C87859BAAF8825ECD0447A7AC506CC160000000000"
-        #   }
-        # }
-
         logger.debug('step 2: ' + response.content.decode('utf-8'))
 
         try:
@@ -291,16 +275,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         )
 
         response = requests.post(self.url.step3, json=content)
-
-        # {
-        #   "auth_data":"{
-        #       "auth_type":"SPC",
-        #       "request_id":"1",
-        #       "ClientAckMsg":"0104000000000000000014CEA0857A91E9B9511CC1453433CE79BE222FF32A0000000000",
-        #       "session_id":"1"
-        #   }
-        # }
-
         logger.debug("step 3: " + response.content.decode('utf-8'))
 
         if "secure-mode" in response.content.decode('utf-8'):

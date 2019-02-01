@@ -6,9 +6,10 @@ from .constants import (
     T1, T2, T3, T4, T5, T6, T7, T8
 )
 
-class Rijndael:
 
-    def __init__(self, key, block_size = 16):
+class Rijndael(object):
+
+    def __init__(self, key, block_size=16):
 
         if block_size not in (16, 24, 32):
             raise ValueError('Invalid block size: %s' % str(block_size))
@@ -31,8 +32,12 @@ class Rijndael:
         # copy user material bytes into temporary ints
         tk = []
         for i in range(0, k_c):
-            tk.append((ord(key[i * 4:i * 4 + 1]) << 24) | (ord(key[i * 4 + 1:i * 4 + 1 + 1]) << 16) |
-                      (ord(key[i * 4 + 2: i * 4 + 2 + 1]) << 8) | ord(key[i * 4 + 3:i * 4 + 3 + 1]))
+            tk.append(
+                (ord(key[i * 4:i * 4 + 1]) << 24) |
+                (ord(key[i * 4 + 1:i * 4 + 1 + 1]) << 16) |
+                (ord(key[i * 4 + 2: i * 4 + 2 + 1]) << 8) |
+                ord(key[i * 4 + 3:i * 4 + 3 + 1])
+            )
 
         # copy values into round key arrays
         t = 0
@@ -46,11 +51,13 @@ class Rijndael:
         while t < round_key_count:
             # extrapolate using phi (the round key evolution function)
             tt = tk[k_c - 1]
-            tk[0] ^= (S[(tt >> 16) & 0xFF] & 0xFF) << 24 ^ \
-                     (S[(tt >> 8) & 0xFF] & 0xFF) << 16 ^ \
-                     (S[tt & 0xFF] & 0xFF) << 8 ^ \
-                     (S[(tt >> 24) & 0xFF] & 0xFF) ^ \
-                     (r_con[r_con_pointer] & 0xFF) << 24
+            tk[0] ^= (
+                (S[(tt >> 16) & 0xFF] & 0xFF) << 24 ^
+                (S[(tt >> 8) & 0xFF] & 0xFF) << 16 ^
+                (S[tt & 0xFF] & 0xFF) << 8 ^
+                (S[(tt >> 24) & 0xFF] & 0xFF) ^
+                (r_con[r_con_pointer] & 0xFF) << 24
+            )
             r_con_pointer += 1
             if k_c != 8:
                 for i in range(1, k_c):
@@ -59,10 +66,13 @@ class Rijndael:
                 for i in range(1, k_c // 2):
                     tk[i] ^= tk[i - 1]
                 tt = tk[k_c // 2 - 1]
-                tk[k_c // 2] ^= (S[tt & 0xFF] & 0xFF) ^ \
-                                (S[(tt >> 8) & 0xFF] & 0xFF) << 8 ^ \
-                                (S[(tt >> 16) & 0xFF] & 0xFF) << 16 ^ \
-                                (S[(tt >> 24) & 0xFF] & 0xFF) << 24
+                tk[k_c // 2] ^= (
+                    (S[tt & 0xFF] & 0xFF) ^
+                    (S[(tt >> 8) & 0xFF] & 0xFF) << 8 ^
+                    (S[(tt >> 16) & 0xFF] & 0xFF) << 16 ^
+                    (S[(tt >> 24) & 0xFF] & 0xFF) << 24
+                )
+
                 for i in range(k_c // 2 + 1, k_c):
                     tk[i] ^= tk[i - 1]
             # copy values into round key arrays
@@ -113,30 +123,41 @@ class Rijndael:
         t = []
         # source to ints + key
         for i in range(b_c):
-            t.append((ord(source[i * 4: i * 4 + 1]) << 24 |
-                      ord(source[i * 4 + 1: i * 4 + 1 + 1]) << 16 |
-                      ord(source[i * 4 + 2: i * 4 + 2 + 1]) << 8 |
-                      ord(source[i * 4 + 3: i * 4 + 3 + 1])) ^ k_e[0][i])
+            t.append(
+                (
+                    ord(source[i * 4: i * 4 + 1]) << 24 |
+                    ord(source[i * 4 + 1: i * 4 + 1 + 1]) << 16 |
+                    ord(source[i * 4 + 2: i * 4 + 2 + 1]) << 8 |
+                    ord(source[i * 4 + 3: i * 4 + 3 + 1])
+                ) ^ k_e[0][i]
+            )
         # apply round transforms
         for r in range(1, rounds):
             for i in range(b_c):
-                a[i] = (T1[(t[i] >> 24) & 0xFF] ^
-                        T2[(t[(i + s1) % b_c] >> 16) & 0xFF] ^
-                        T3[(t[(i + s2) % b_c] >> 8) & 0xFF] ^
-                        T4[t[(i + s3) % b_c] & 0xFF]) ^ k_e[r][i]
+                a[i] = (
+                    T1[(t[i] >> 24) & 0xFF] ^
+                    T2[(t[(i + s1) % b_c] >> 16) & 0xFF] ^
+                    T3[(t[(i + s2) % b_c] >> 8) & 0xFF] ^
+                    T4[t[(i + s3) % b_c] & 0xFF]
+                ) ^ k_e[r][i]
+
             t = copy.copy(a)
         # last round is special
         result = []
         for i in range(b_c):
             tt = k_e[rounds][i]
             result.append((S[(t[i] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF)
-            result.append((S[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF)
-            result.append((S[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF)
+            result.append(
+                (S[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF
+            )
+            result.append(
+                (S[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF
+            )
             result.append((S[t[(i + s3) % b_c] & 0xFF] ^ tt) & 0xFF)
 
         out = bytes()
-        
-        if isinstance(out,str):
+
+        if isinstance(out, str):
             out = b''.join([chr(x) for x in result])
         else:
             for xx in result:
@@ -169,29 +190,39 @@ class Rijndael:
         t = [0] * b_c
         # cipher to ints + key
         for i in range(b_c):
-            t[i] = (ord(cipher[i * 4: i * 4 + 1]) << 24 |
-                    ord(cipher[i * 4 + 1: i * 4 + 1 + 1]) << 16 |
-                    ord(cipher[i * 4 + 2: i * 4 + 2 + 1]) << 8 |
-                    ord(cipher[i * 4 + 3: i * 4 + 3 + 1])) ^ k_d[0][i]
+            t[i] = (
+                ord(cipher[i * 4: i * 4 + 1]) << 24 |
+                ord(cipher[i * 4 + 1: i * 4 + 1 + 1]) << 16 |
+                ord(cipher[i * 4 + 2: i * 4 + 2 + 1]) << 8 |
+                ord(cipher[i * 4 + 3: i * 4 + 3 + 1])
+            ) ^ k_d[0][i]
+
         # apply round transforms
         for r in range(1, rounds):
             for i in range(b_c):
-                a[i] = (T5[(t[i] >> 24) & 0xFF] ^
-                        T6[(t[(i + s1) % b_c] >> 16) & 0xFF] ^
-                        T7[(t[(i + s2) % b_c] >> 8) & 0xFF] ^
-                        T8[t[(i + s3) % b_c] & 0xFF]) ^ k_d[r][i]
+                a[i] = (
+                    T5[(t[i] >> 24) & 0xFF] ^
+                    T6[(t[(i + s1) % b_c] >> 16) & 0xFF] ^
+                    T7[(t[(i + s2) % b_c] >> 8) & 0xFF] ^
+                    T8[t[(i + s3) % b_c] & 0xFF]
+                ) ^ k_d[r][i]
+
             t = copy.copy(a)
         # last round is special
         result = []
         for i in range(b_c):
             tt = k_d[rounds][i]
             result.append((Si[(t[i] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF)
-            result.append((Si[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF)
-            result.append((Si[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF)
+            result.append(
+                (Si[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF
+            )
+            result.append(
+                (Si[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF
+            )
             result.append((Si[t[(i + s3) % b_c] & 0xFF] ^ tt) & 0xFF)
-            
+
         out = bytes()
-        if isinstance(out,str):
+        if isinstance(out, str):
             out = b''.join([chr(x) for x in result])
         else:
             for xx in result:
@@ -239,6 +270,6 @@ class RijndaelCbc(Rijndael):
         i = 0
         r = bytes()
         while i < self.block_size:
-            r += bytes([ord(b1[i:i+1]) ^ ord(b2[i:i+1])])
+            r += bytes([ord(b1[i:i + 1]) ^ ord(b2[i:i + 1])])
             i += 1
         return r

@@ -4,20 +4,26 @@ class PaddingBase:
     def __init__(self, block_size):
         self.block_size = block_size
 
-    def encode(self, source):# -> bytes:  # pragma: nocover
+    def encode(self, source):
         raise NotImplementedError
 
-    def decode(self, source):# -> bytes:  # pragma: nocover
+    def decode(self, source):
         raise NotImplementedError
 
 
 class ZeroPadding(PaddingBase):
     """
-    Specified for hashes and MACs as Padding Method 1 in ISO/IEC 10118-1 and ISO/IEC 9797-1.
+    Specified for hashes and MACs as Padding Method 1 in ISO/IEC 10118-1 and
+    ISO/IEC 9797-1.
     """
 
     def encode(self, source):
-        pad_size = self.block_size - ((len(source) + self.block_size - 1) % self.block_size + 1)
+        pad_size = (
+            self.block_size -
+            (
+                (len(source) + self.block_size - 1) % self.block_size + 1
+            )
+        )
         return source + b'\0' * pad_size
 
     def decode(self, source):
@@ -41,7 +47,9 @@ class Pkcs7Padding(PaddingBase):
 
     def encode(self, source):
         amount_to_pad = self.block_size - (len(source) % self.block_size)
-        amount_to_pad = self.block_size if amount_to_pad == 0 else amount_to_pad
+        amount_to_pad = (
+            self.block_size if amount_to_pad == 0 else amount_to_pad
+        )
         pad = chr(amount_to_pad).encode()
         return source + pad * amount_to_pad
 
