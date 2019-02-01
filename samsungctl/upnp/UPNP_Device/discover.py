@@ -138,7 +138,7 @@ def discover(timeout=5, log_level=None, search_ips=(), dump=''):
     def do(local_address, target_ips):
         try:
             sock = send_to(local_address)
-        except OSError:
+        except:
             threads.remove(threading.current_thread())
 
             if not threads:

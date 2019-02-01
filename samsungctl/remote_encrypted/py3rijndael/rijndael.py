@@ -6,10 +6,9 @@ from .constants import (
     T1, T2, T3, T4, T5, T6, T7, T8
 )
 
-
 class Rijndael:
 
-    def __init__(self, key, block_size: int = 16):
+    def __init__(self, key, block_size = 16):
 
         if block_size not in (16, 24, 32):
             raise ValueError('Invalid block size: %s' % str(block_size))
@@ -134,9 +133,14 @@ class Rijndael:
             result.append((S[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF)
             result.append((S[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF)
             result.append((S[t[(i + s3) % b_c] & 0xFF] ^ tt) & 0xFF)
+
         out = bytes()
-        for xx in result:
-            out += bytes([xx])
+        
+        if isinstance(out,str):
+            out = b''.join([chr(x) for x in result])
+        else:
+            for xx in result:
+                out += bytes([xx])
         return out
 
     def decrypt(self, cipher):
@@ -185,20 +189,24 @@ class Rijndael:
             result.append((Si[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF)
             result.append((Si[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF)
             result.append((Si[t[(i + s3) % b_c] & 0xFF] ^ tt) & 0xFF)
+            
         out = bytes()
-        for xx in result:
-            out += bytes([xx])
+        if isinstance(out,str):
+            out = b''.join([chr(x) for x in result])
+        else:
+            for xx in result:
+                out += bytes([xx])
         return out
 
 
 class RijndaelCbc(Rijndael):
 
-    def __init__(self, key: bytes, iv: bytes, padding: PaddingBase, block_size: int=16):
-        super().__init__(key=key, block_size=block_size)
+    def __init__(self, key, iv, padding, block_size=16):
+        super(RijndaelCbc, self).__init__(key=key, block_size=block_size)
         self.iv = iv
         self.padding = padding
 
-    def encrypt(self, source: bytes):
+    def encrypt(self, source):
         ppt = self.padding.encode(source)
         offset = 0
 
@@ -207,7 +215,7 @@ class RijndaelCbc(Rijndael):
         while offset < len(ppt):
             block = ppt[offset:offset + self.block_size]
             block = self.x_or_block(block, v)
-            block = super().encrypt(block)
+            block = super(RijndaelCbc, self).encrypt(block)
             ct += block
             offset += self.block_size
             v = block
@@ -220,7 +228,7 @@ class RijndaelCbc(Rijndael):
         v = self.iv
         while offset < len(cipher):
             block = cipher[offset:offset + self.block_size]
-            decrypted = super().decrypt(block)
+            decrypted = super(RijndaelCbc, self).decrypt(block)
             ppt += self.x_or_block(decrypted, v)
             offset += self.block_size
             v = block

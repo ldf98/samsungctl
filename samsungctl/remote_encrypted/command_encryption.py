@@ -27,12 +27,15 @@ class AESCipher:
 
     def encrypt(self, raw):
         cipher = AES.new(self.key, AES.MODE_ECB)
-        return cipher.encrypt(bytes(pad(raw), encoding="utf8"))
+        return cipher.encrypt(pad(raw).encode("utf8"))
 
     def generate_command(self, key_press):
         command_bytes = self.encrypt(self.generate_json(key_press))
-
-        int_array = ','.join((list(map(str, command_bytes))))
+        if isinstance(command_bytes,str):
+            int_array = ','.join([str(ord(x)) for x in command_bytes])
+        else:
+            int_array = ','.join((list(map(str, command_bytes))))
+            
         return '5::/com.samsung.companion:{"name":"callCommon","args":[{"Session_Id":' + str(self.session_id) + ',"body":"[' + int_array + ']"}]}'
 
     def generate_json(self, key_press):
