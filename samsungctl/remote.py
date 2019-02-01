@@ -60,7 +60,7 @@ class RemoteMeta(type):
                     and not config.upnp_locations
                 ):
                     discover(config)
-                
+
                 if config.upnp_locations:
                     UPNPTV.__init__(
                         self,
