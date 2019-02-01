@@ -44,16 +44,16 @@ class AESCipher:
         command_bytes = self.encrypt(self.generate_json(key_press))
 
         if isinstance(command_bytes, str):
-            int_array = ','.join([str(ord(x)) for x in command_bytes])
+            int_array = [ord(x) for x in command_bytes]
         else:
-            int_array = ','.join((list(map(str, command_bytes))))
+            int_array = list(command_bytes)
 
         res = dict(
             name="callCommon",
             args=[
                 dict(
                     Session_Id=self.session_id,
-                    body=[int_array]
+                    body=int_array
                 )
             ]
         )
