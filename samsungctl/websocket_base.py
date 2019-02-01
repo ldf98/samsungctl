@@ -42,7 +42,6 @@ class WebSocketBase(object):
                     logger.error('Unable to acquire MAC address')
         return self.config.mac
 
-    @property
     @LogItWithReturn
     def power(self):
         """
@@ -68,39 +67,6 @@ class WebSocketBase(object):
             return True
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return False
-
-    @power.setter
-    @LogIt
-    def power(self, value):
-        event = threading.Event()
-
-        if value and not self.power:
-            if self.mac_address:
-                count = 0
-                wake_on_lan.send_wol(self.mac_address)
-                event.wait(10)
-
-                while not self.power and count < 10:
-                    wake_on_lan.send_wol(self.mac_address)
-                    event.wait(2.0)
-
-                if count == 10:
-                    logger.error(
-                        'Unable to power on the TV, '
-                        'check network connectivity'
-                    )
-            else:
-                logging.error('Unable to get TV\'s mac address')
-
-        elif not value and self.power:
-            count = 0
-            while self.power and count < 10:
-                self.control('KEY_POWER')
-                self.control('KEY_POWEROFF')
-                event.wait(2.0)
-
-            if count == 10:
-                logger.info('Unable to power off the TV')
 
     def control(self, *_):
         raise NotImplementedError

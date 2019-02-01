@@ -13,11 +13,13 @@ from __future__ import print_function
 import requests
 import time
 import websocket
+import threading
 import json
 from lxml import etree
 import binascii
 import logging
 import traceback
+from .. import wake_on_lan
 
 
 try:
@@ -303,9 +305,74 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         requests.delete(self.url.cloud_pin_page + '/run')
         return False
 
+    @LogIt
+    def power(self, value):
+        event = threading.Event()
+
+        if value and not self.power:
+            if self.mac_address:
+                count = 0
+                wake_on_lan.send_wol(self.mac_address)
+                event.wait(10)
+
+                while not self.power and count < 10:
+                    wake_on_lan.send_wol(self.mac_address)
+                    event.wait(2.0)
+
+                if count == 10:
+                    logger.error(
+                        'Unable to power on the TV, '
+                        'check network connectivity'
+                    )
+            else:
+                logging.error('Unable to get TV\'s mac address')
+
+        elif not value and self.power:
+            if self.sock is None:
+                self.open()
+
+            count = 0
+
+            while self.power and count < 10:
+                self.sock.send('1::/com.samsung.companion')
+                time.sleep(0.35)
+
+                self.sock.send(self.aes_lib.generate_command('KEY_POWEROFF'))
+                time.sleep(0.35)
+
+                self.sock.send('1::/com.samsung.companion')
+                time.sleep(0.35)
+
+                self.sock.send(self.aes_lib.generate_command('KEY_POWER'))
+                time.sleep(0.35)
+                event.wait(2.0)
+
+            if count == 10:
+                logger.info('Unable to power off the TV')
+
+    power = property(fget=websocket_base.WebSocketBase.power, fset=power)
+
     @LogItWithReturn
     def control(self, key):
-        if self.sock is None:
+        if key == 'KEY_POWERON':
+            if not self.power:
+                self.power = True
+                self.open()
+            return
+        elif key == 'KEY_POWEROFF':
+            if self.power:
+                self.power = False
+                self.close()
+            return
+        elif key == 'KEY_POWER':
+            self.power = not self.power
+
+            if self.power:
+                self.open()
+            else:
+                self.close()
+            return
+        elif self.sock is None:
             if not self.config.paired:
                 self.open()
                 if not self.power:

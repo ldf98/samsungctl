@@ -12,6 +12,7 @@ import json
 from . import exceptions
 from . import application
 from . import websocket_base
+from . import wake_on_lan
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger('samsungctl')
@@ -231,6 +232,59 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         self.send_event.wait(0.2)
 
     @LogIt
+    def power(self, value):
+        event = threading.Event()
+
+        if value and not self.power:
+            if self.mac_address:
+                count = 0
+                wake_on_lan.send_wol(self.mac_address)
+                event.wait(10)
+
+                while not self.power and count < 10:
+                    wake_on_lan.send_wol(self.mac_address)
+                    event.wait(2.0)
+
+                if count == 10:
+                    logger.error(
+                        'Unable to power on the TV, '
+                        'check network connectivity'
+                    )
+            else:
+                logging.error('Unable to get TV\'s mac address')
+
+        elif not value and self.power:
+            if self.sock is None:
+                self.open()
+
+            count = 0
+            power_off = dict(
+                Cmd='Click',
+                DataOfCmd='KEY_POWEROFF',
+                Option="false",
+                TypeOfRemote="SendRemoteKey"
+            )
+            power = dict(
+                Cmd='Click',
+                DataOfCmd='KEY_POWER',
+                Option="false",
+                TypeOfRemote="SendRemoteKey"
+            )
+
+            while self.power and count < 10:
+                logger.info("Sending control command: " + str(power_off))
+                self.send("ms.remote.control", **power_off)
+                logger.info("Sending control command: " + str(power))
+                self.send("ms.remote.control", **power)
+
+                event.wait(2.0)
+
+            if count == 10:
+                logger.info('Unable to power off the TV')
+
+    power = property(fget=websocket_base.WebSocketBase.power, fset=power)
+
+    @LogIt
     def control(self, key, cmd='Click'):
         """
         Send a control command.
@@ -241,10 +295,24 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         """
 
         if key == 'KEY_POWERON':
-            self.power = True
-            self.open()
+            if not self.power:
+                self.power = True
+            if self.sock is None:
+                self.open()
             return
+        elif key == 'KEY_POWEROFF':
+            if self.power:
+                self.power = False
+                self.close()
+            return
+        elif key == 'KEY_POWER':
+            self.power = not self.power
+            if self.power:
+                self.open()
+            else:
+                self.close()
 
+            return
         elif self.sock is None:
             if not self.power:
                 logger.info('Is the TV on?!?')

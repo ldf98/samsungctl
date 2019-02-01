@@ -1,6 +1,29 @@
 
 \*\*\*\*\*\*\* ALL USERS PLEASE READ \*\*\*\*\*\*\*
 
+UPDATE TO POWER KEYS..
+In order to remove confusion of what TV supports what power keys.
+I have decided to alter the Samsung handling of keys. The way Samsung
+had them set up seemed to cause to much confusion. I think that everyone
+will like this way better.
+
+KEY_POWER = toggle. This is going to toggle the power. so if the TV is
+off it will turn it on. and if it is on it will turn it off.
+
+KEY_POWERON = Discrete power on. this will always turn the TV on
+if it is off.
+
+KEY_POWEROFF = You guessed it. Discrete power off. If the TV is on
+this will turn it off.
+
+
+This is a much easier mechanism and a whole lot easier to grasp. so no
+matter what TV you have and what key it supports no longer matters.
+This is what these keys will do. plain and simple.
+
+
+PLEASE READ
+
 The library has be updated and added to. There is a plethora of new
 features as well as some changes to the old ones.
 Be sure to read this documentation in it's entirety.
