@@ -202,6 +202,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     raise RuntimeError('Auth Failure')
 
             self._starting = False
+            self.send_event.wait(0.5)
             return True
 
     @LogIt
@@ -229,7 +230,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             params=params
         )
         self.sock.send(json.dumps(payload))
-        self.send_event.wait(0.2)
+        self.send_event.wait(0.3)
 
     @LogIt
     def power(self, value):
