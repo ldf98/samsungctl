@@ -134,5 +134,3 @@ class Interactive(object):
         except KeyboardInterrupt:
             self.remote.close()
             sys.exit()
-
-
