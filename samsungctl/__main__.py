@@ -346,7 +346,9 @@ def main():
             if args.interactive:
                 logging.getLogger().setLevel(logging.ERROR)
                 from . import interactive
-                interactive.run(remote)
+                inter = interactive.Interactive(remote)
+                inter.run()
+                
             elif config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:

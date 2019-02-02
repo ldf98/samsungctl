@@ -31,7 +31,7 @@ class UPNPObject(object):
             parsed_url = urlparse(location)
             url = parsed_url.scheme + '://' + parsed_url.netloc
             response = requests.get(location)
-         
+
             content = response.content.decode('utf-8')
 
             if dump:
