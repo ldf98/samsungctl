@@ -27,10 +27,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def __init__(self, config):
-        websocket_base.WebSocketBase.__init__(self, config)
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
-        self.send_event = threading.Event()
+        websocket_base.WebSocketBase.__init__(self, config)
 
     @property
     @LogItWithReturn
@@ -50,6 +49,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def open(self):
+        if self.sock is not None:
+            return True
         self._starting = True
         with self.receive_lock:
             power = self.power

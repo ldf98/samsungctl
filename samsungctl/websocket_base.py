@@ -29,6 +29,19 @@ class WebSocketBase(object):
         self._running = False
         self._thread = None
 
+        try:
+            requests.get(
+                'http://{0}:8001/api/v2/'.format(self.config.host),
+                timeout=3
+            )
+            self.open()
+        except (
+            requests.HTTPError,
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ConnectionError
+        ):
+            pass
+
     @property
     @LogItWithReturn
     def mac_address(self):
@@ -82,6 +95,7 @@ class WebSocketBase(object):
                             self._loop_event.wait(1.0)
                     else:
                         self._loop_event.wait(1.0)
+
         self._running = False
         self._loop_event.clear()
         self._thread = None
@@ -89,31 +103,6 @@ class WebSocketBase(object):
     @LogItWithReturn
     def power(self):
         return self.sock is not None
-
-    # def power(self):
-    #     """
-    #     Power State.
-    #
-    #     **Get:** Gets the power state.
-    #
-    #         *Returns:* ``True``, ``False``
-    #
-    #         *Return type:* `bool`
-    #
-    #     **Set:** Sets the power state.
-    #
-    #         *Accepted values:``True``, ``False``
-    #
-    #         *Value type:* `bool`
-    #     """
-    #     try:
-    #         requests.get(
-    #             'http://{0}:8001/api/v2/'.format(self.config.host),
-    #             timeout=3
-    #         )
-    #         return True
-    #     except (requests.HTTPError, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
-    #         return False
 
     def control(self, *_):
         raise NotImplementedError
