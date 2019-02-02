@@ -249,13 +249,14 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 TypeOfRemote="SendRemoteKey"
             )
 
-            while self.power and count < 10:
-                logger.info("Sending control command: " + str(power_off))
-                self.send("ms.remote.control", **power_off)
-                logger.info("Sending control command: " + str(power))
-                self.send("ms.remote.control", **power)
+            logger.info("Sending control command: " + str(power))
+            self.send("ms.remote.control", **power)
+            logger.info("Sending control command: " + str(power_off))
+            self.send("ms.remote.control", **power_off)
 
-                event.wait(2.0)
+            while self.power and count < 10:
+                event.wait(1.0)
+                count += 1
 
             if count == 10:
                 logger.info('Unable to power off the TV')
