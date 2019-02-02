@@ -4,15 +4,11 @@ import six
 from . import exceptions
 from .remote_legacy import RemoteLegacy
 from .remote_websocket import RemoteWebsocket
+from .remote_encrypted import RemoteEncrypted
 from .config import Config
 from .key_mappings import KEYS
 from .upnp import UPNPTV
 from .upnp.discover import discover
-
-try:
-    from .remote_encrypted import RemoteEncrypted
-except ImportError:
-    RemoteEncrypted = None
 
 
 class KeyWrapper(object):
@@ -36,12 +32,6 @@ class RemoteMeta(type):
         elif conf.method == "websocket":
             remote = RemoteWebsocket
         elif conf.method == "encrypted":
-            if RemoteEncrypted is None:
-                raise RuntimeError(
-                    'Python 2 is not currently supported '
-                    'for H and J model year TV\'s'
-                )
-
             remote = RemoteEncrypted
         else:
             raise exceptions.ConfigUnknownMethod()
@@ -51,7 +41,7 @@ class RemoteMeta(type):
 
             def __init__(self, config):
                 self.__name__ = config.name
-                
+
                 for name, key in KEYS.items():
                     self.__dict__[name] = KeyWrapper(self, key)
 
