@@ -16,13 +16,21 @@ class Interactive(object):
         self.remote = remote
 
     def run(self):
+        print('"help" to get a list of available commands')
+        print('"quit" or ctrl+c to exit the interactive mode')
+        print()
 
         try:
             while True:
-                command = input('help to get help\nPlease enter command:')
+                command = input('Please enter command:')
+
+                if command == 'quit':
+                    raise KeyboardInterrupt
 
                 if command == 'help':
+
                     for group in KEY_MAPPINGS:
+                        print()
                         print(group[0])
                         for description, key in group[1]:
                             print(
@@ -37,23 +45,23 @@ class Interactive(object):
                     print("volume [value]")
                     print("    Sets the TV volume to the entered value,\n")
                     print("    a value of -1 will display the volume level")
-
+                    print()
                     print("brightness [value]")
                     print("    Sets the TV brightness to the entered value,\n")
                     print("    a value of -1 will display the brightness level")
-
+                    print()
                     print("contrast [value]")
                     print("    Sets the TV contrast to the entered value,\n")
                     print("    a value of -1 will display the contrast level")
-
+                    print()
                     print("sharpness [value]")
                     print("    Sets the TV sharpness to the entered value,\n")
                     print("    a value of -1 will display the sharpness level")
-
+                    print()
                     print("mute [off, on, state]")
                     print("    Sets the mute on or off (not a toggle),\n")
                     print("    state displays if the mute if on or off")
-
+                    print()
                     print("source [source name/label]")
                     print(
                         "    Changes the input source to the one specified.\n"
@@ -64,9 +72,40 @@ class Interactive(object):
                         "    will print out the currently active source name\n"
                         "    and label.\n"
                     )
+
+                    print()
+                    print('"quit" or ctrl+c to exit the interactive mode')
+                    print()
+                    print(
+                        'To set the logging level:\n'
+                        '    LOG_OFF, LOG_CRITICAL, LOG_ERROR,\n'
+                        '    LOG_WARNING, LOG_INFO, LOG_DEBUG'
+                    )
+                    print()
                     continue
 
                 try:
+                    if command.upper().startswith('LOG'):
+                        logging_commands = (
+                            'LOG_OFF',
+                            'LOG_CRITICAL',
+                            'LOG_ERROR',
+                            'LOG_WARNING',
+                            'LOG_INFO',
+                            'LOG_DEBUG'
+                        )
+
+                        for log_level in logging_commands:
+                            if command.upper() == log_level:
+                                self.remote.config.log_level = getattr(
+                                    self.remote.config,
+                                    log_level
+                                )
+                                break
+                        else:
+                            print('Invalid log level')
+                        continue
+                        
                     commands = (
                         'volume'
                         'brightness'
@@ -91,13 +130,18 @@ class Interactive(object):
                                                 source.label
                                             )
                                             break
-                                    elif value in (source.name, source.label):
+                                    elif value in (
+                                        source.name,
+                                        source.label
+                                    ):
                                         source.activate()
                                         break
 
                             elif command == 'mute':
                                 if value == 'state':
-                                    print('on' if self.remote.mute else 'off')
+                                    print(
+                                        'on' if self.remote.mute else 'off'
+                                    )
                                 else:
                                     self.remote.mute = (
                                         True if value == 'on' else False
@@ -132,5 +176,6 @@ class Interactive(object):
                     traceback.print_exc()
 
         except KeyboardInterrupt:
+            print('closing remote connection')
             self.remote.close()
             sys.exit()
