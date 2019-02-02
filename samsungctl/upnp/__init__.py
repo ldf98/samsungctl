@@ -22,15 +22,6 @@ class UPNPTV(UPNPObject):
         self._locations = locations
         self._connect_upnp()
 
-
-    def __getattr__(self, item):
-
-        if item in self.__dict__:
-            return self.__dict__[item]
-
-        if item == 'connected':
-            return self.__class__.__dict__[item].fget(self)
-
     @property
     def connected(self):
         if self.power:
