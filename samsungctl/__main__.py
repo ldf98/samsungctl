@@ -348,7 +348,7 @@ def main():
                 from . import interactive
                 inter = interactive.Interactive(remote)
                 inter.run()
-                
+
             elif config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
