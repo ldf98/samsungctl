@@ -22,9 +22,6 @@ except ImportError:
 
 
 class UPNPObject(object):
-    ip_address = None
-    _devices = {}
-    _services = {}
 
     def __init__(self, ip, locations, dump=''):
         self.ip_address = ip

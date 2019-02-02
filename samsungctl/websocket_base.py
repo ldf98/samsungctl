@@ -12,14 +12,7 @@ logger = logging.getLogger('samsungctl')
 
 class WebSocketBase(object):
     """Base class for TV's with websocket connection."""
-    config = None
-    sock = None
-    _loop_event = None
-    _registered_callbacks = None
-    _starting = False
-    _running = None
-    _thread = None
-    
+
     @LogIt
     def __init__(self, config):
         """

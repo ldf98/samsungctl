@@ -12,12 +12,6 @@ logger = logging.getLogger('samsungctl')
 
 
 class UPNPTV(UPNPObject):
-    _dtv_information = None
-    _tv_options = None
-    name = None
-    ip_address = None
-    _connected = False
-    _locations = None
 
     def __init__(self, ip, locations):
         self._dtv_information = None
@@ -26,7 +20,7 @@ class UPNPTV(UPNPObject):
         self.ip_address = ip
         self._connected = False
         self._locations = locations
-        self.connect_upnp()
+        self._connect_upnp()
 
     @property
     def connected(self):
