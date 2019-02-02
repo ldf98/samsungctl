@@ -218,11 +218,19 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(10)
+                event.wait(5.0)
+                try:
+                    self.open()
+                except:
+                    pass
 
-                while not self.power and count < 10:
+                while not self._running and count < 10:
                     wake_on_lan.send_wol(self.mac_address)
                     event.wait(2.0)
+                    try:
+                        self.open()
+                    except:
+                        pass
 
                 if count == 10:
                     logger.error(
