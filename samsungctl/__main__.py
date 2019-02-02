@@ -226,7 +226,17 @@ def main():
         choices=['off', 'on', 'state'],
         help=(
             "sets the mute on or off (not a toggle), "
-            "state displays if the mute if on or off"
+            "state displays if the mute is on or off"
+        )
+    )
+    parser.add_argument(
+        "--artmode",
+        type=str,
+        default=None,
+        choices=['off', 'on', 'state'],
+        help=(
+            "sets the art mode for Frame TV's, "
+            "state displays if the art mode is on or off"
         )
     )
 
@@ -372,6 +382,12 @@ def main():
                     print('Mute:', 'ON' if remote.mute else 'OFF')
                 else:
                     remote.mute = args.mute == 'on'
+
+            elif args.artmode is not None:
+                if args.artmode == 'state':
+                    print('Art Mode:', 'ON' if remote.artmode else 'OFF')
+                else:
+                    remote.artmode = args.artmode == 'on'
 
             if args.brightness is not None:
                 if args.brightness == -1:

@@ -100,6 +100,14 @@ class WebSocketBase(object):
         self._loop_event.clear()
         self._thread = None
 
+    @property
+    def artmode(self):
+        return None
+
+    @artmode.setter
+    def artmode(self, value):
+        pass
+
     @LogItWithReturn
     def power(self):
         return self.sock is not None

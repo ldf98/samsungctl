@@ -9,6 +9,7 @@ import websocket
 import requests
 import time
 import json
+import socket
 from . import exceptions
 from . import application
 from . import websocket_base
@@ -425,6 +426,144 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 callback(response)
                 self._registered_callbacks.remove([callback, key, data])
                 break
+
+        else:
+            if 'params' in response and 'event' in response['params']:
+                event = response['params']['event']
+
+                if event == 'd2d_service_message':
+                    data = json.loads(response['params']['data'])
+
+                    if 'event' in data:
+                        for callback, key, _ in self._registered_callbacks[:]:
+                            if key == data['event']:
+                                callback(data)
+                                self._registered_callbacks.remove(
+                                    [callback, key, None]
+                                )
+                                break
+
+    @property
+    def artmode(self):
+        """
+        {
+            "method":"",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_artmode_status\",
+                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }"
+        """
+
+        params = dict(
+            clientIp=socket.gethostbyname(socket.gethostname()),
+            data=json.dumps(
+                dict(
+                    request='get_artmode_status',
+                    id=self.config.id
+                )
+            ),
+            deviceName=self._serialize_string(self.config.name),
+            event='art_app_request',
+            to='host'
+
+        )
+
+        response = []
+        event = threading.Event()
+
+        def artmode_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+                        \"event\":\"artmode_status\",
+                        \"value\":\"off\",
+                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+                }
+            }
+            """
+
+            if data['value'] == 'on':
+                response.append(True)
+            else:
+                response.append(False)
+
+            event.set()
+
+        self.register_receive_callback(
+            artmode_callback,
+            'artmode_status',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            artmode_callback,
+            'artmode_status',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_artmode_status: timed out')
+        else:
+            return response[0]
+
+    @artmode.setter
+    def artmode(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"on\",
+                    \"request\":\"set_artmode_status\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+        if value:
+            value = 'on'
+
+        else:
+            value = 'off'
+
+        params = dict(
+            clientIp=socket.gethostbyname(socket.gethostname()),
+            data=json.dumps(
+                dict(
+                    request='set_artmode_status',
+                    value=value,
+                    id=self.config.id
+                )
+            ),
+            deviceName=self._serialize_string(self.config.name),
+            event='art_app_request',
+            to='host'
+
+        )
+        self.send('ms.channel.emit', **params)
 
     @LogIt
     def input_text(self, text):

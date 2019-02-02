@@ -62,6 +62,10 @@ class Interactive(object):
                     print("    Sets the mute on or off (not a toggle),\n")
                     print("    state displays if the mute if on or off")
                     print()
+                    print("artmode [off, on, state]")
+                    print("    Sets the art mode on a Frame TV,\n")
+                    print("    state displays if the art mode is on or off")
+                    print()
                     print("source [source name/label]")
                     print(
                         "    Changes the input source to the one specified.\n"
@@ -105,61 +109,27 @@ class Interactive(object):
                         else:
                             print('Invalid log level')
                         continue
-                        
+
                     commands = (
-                        'volume'
-                        'brightness'
-                        'contrast'
-                        'sharpness'
-                        'mute'
-                        'source'
+                        'volume',
+                        'brightness',
+                        'contrast',
+                        'sharpness',
+                        'mute',
+                        'artmode',
+                        'source',
                     )
 
-                    for com in commands:
-                        if command.startswith(com):
-                            value = command.replace(com, '')
-                            command = com
+                    try:
+                        command, value = command.split(' ', 1)
+                    except ValueError:
+                        value = None
 
-                            if command == 'source':
-                                for source in self.remote.sources:
-                                    if value == 'state':
-                                        if source.is_active:
-                                            print(
-                                                source.name,
-                                                ':',
-                                                source.label
-                                            )
-                                            break
-                                    elif value in (
-                                        source.name,
-                                        source.label
-                                    ):
-                                        source.activate()
-                                        break
-
-                            elif command == 'mute':
-                                if value == 'state':
-                                    print(
-                                        'on' if self.remote.mute else 'off'
-                                    )
-                                else:
-                                    self.remote.mute = (
-                                        True if value == 'on' else False
-                                    )
-
-                            else:
-                                if value == '-1':
-                                    print(getattr(self.remote, command))
-                                else:
-                                    value = int(value)
-                                    setattr(self.remote, command, value)
-
-                            break
-                    else:
+                    if value is None:
                         for group in KEY_MAPPINGS:
                             for _, key in group[1]:
                                 if command.upper() == key:
-                                    self.remote.control(command)
+                                    self.remote.control(key)
                                     break
 
                                 if command.upper() == key.split('_', 1)[-1]:
@@ -171,6 +141,63 @@ class Interactive(object):
                             break
                         else:
                             print('command not found')
+
+                    else:
+                        for com in commands:
+                            if command.startswith(com):
+                                value = command.replace(com, '')
+                                command = com
+
+                                if command == 'source':
+                                    for source in self.remote.sources:
+                                        if value == 'state':
+                                            if source.is_active:
+                                                print(
+                                                    source.name,
+                                                    ':',
+                                                    source.label
+                                                )
+                                                break
+                                        elif value in (
+                                            source.name,
+                                            source.label
+                                        ):
+                                            source.activate()
+                                            break
+                                    else:
+                                        print(
+                                            'source does not exist'
+                                        )
+
+                                elif command == 'mute':
+                                    if value == 'state':
+                                        print(
+                                            'on' if self.remote.mute else 'off'
+                                        )
+                                    elif value == 'on':
+                                        self.remote.mute = True
+
+                                    elif value == 'off':
+                                        self.remote.mute = False
+
+                                    else:
+                                        print('not a valid mute setting')
+                                else:
+                                    if value == '-1':
+                                        print(getattr(self.remote, command))
+                                    else:
+                                        try:
+                                            value = int(value)
+                                            setattr(self.remote, command, value)
+                                        except ValueError:
+                                            print(
+                                                'Not a correct value '
+                                                'for the command.'
+                                            )
+                                break
+                        else:
+                            print('command not found')
+
                 except:
                     import traceback
                     traceback.print_exc()
