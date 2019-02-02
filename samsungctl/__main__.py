@@ -186,6 +186,7 @@ def main():
     parser.add_argument(
         "--volume",
         type=int,
+        default=None,
         help=(
             "sets the TV volume to the entered value, a value of -1 will "
             "display the volume level"
@@ -194,6 +195,7 @@ def main():
     parser.add_argument(
         "--brightness",
         type=int,
+        default=None,
         help=(
             "sets the TV brightness level to the entered value, "
             "a value of -1 will display the brightness level"
@@ -202,6 +204,7 @@ def main():
     parser.add_argument(
         "--contrast",
         type=int,
+        default=None,
         help=(
             "sets the TV contrast level to the entered value, "
             "a value of -1 will display the contrast level"
@@ -210,6 +213,7 @@ def main():
     parser.add_argument(
         "--sharpness",
         type=int,
+        default=None,
         help=(
             "sets the TV sharpness level to the entered value, "
             "a value of -1 will display the sharpness level"
@@ -218,6 +222,7 @@ def main():
     parser.add_argument(
         "--mute",
         type=str,
+        default=None,
         choices=['off', 'on', 'state'],
         help=(
             "sets the mute on or off (not a toggle), "
@@ -228,6 +233,7 @@ def main():
     parser.add_argument(
         "--source",
         type=str,
+        default=None,
         help=(
             "changes the input source to the one specified. "
             "You can either enter the TV source name "
@@ -243,6 +249,7 @@ def main():
     parser.add_argument(
         "--source-label",
         type=str,
+        default=None,
         help=(
             "changes the label for a source. "
             "If you do not use --source to specify the source to change the "
