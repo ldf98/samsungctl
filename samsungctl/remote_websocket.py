@@ -228,6 +228,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     except:
                         pass
 
+                    count += 1
+
                 if count == 10:
                     logger.error(
                         'Unable to power on the TV, '
