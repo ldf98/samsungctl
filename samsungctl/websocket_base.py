@@ -135,6 +135,3 @@ class WebSocketBase(object):
         :return: `None`
         """
         self.close()
-
-    def close(self):
-        raise NotImplementedError
