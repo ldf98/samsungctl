@@ -22,6 +22,12 @@ class WebSocketBase(object):
         :type config: `dict` or `samsungctl.Config` instance
         """
         self.config = config
+        self.sock = None
+        self._loop_event = threading.Event()
+        self._registered_callbacks = []
+        self._starting = False
+        self._running = False
+        self._thread = None
 
     @property
     @LogItWithReturn
@@ -42,31 +48,72 @@ class WebSocketBase(object):
                     logger.error('Unable to acquire MAC address')
         return self.config.mac
 
+    def on_message(self, _):
+        pass
+
+    @LogIt
+    def close(self):
+        """Close the connection."""
+        if self.sock is not None:
+            self._loop_event.set()
+            self.sock.close()
+            if self._thread is not None:
+                self._thread.join(3.0)
+            if self._thread is not None:
+                raise RuntimeError('Loop thread did not properly terminate')
+
+    def loop(self):
+        self._running = True
+        while not self._loop_event.isSet():
+            try:
+                data = self.sock.recv()
+                if data:
+                    self.on_message(data)
+            except:
+                self.sock = None
+                del self._registered_callbacks[:]
+                logger.info('Websocket closed')
+
+                while self.sock is None and not self._loop_event.isSet():
+                    if not self._starting:
+                        try:
+                            self.open()
+                        except:
+                            self._loop_event.wait(1.0)
+                    else:
+                        self._loop_event.wait(1.0)
+        self._running = False
+        self._loop_event.clear()
+        self._thread = None
+
     @LogItWithReturn
     def power(self):
-        """
-        Power State.
+        return self.sock is not None
 
-        **Get:** Gets the power state.
-
-            *Returns:* ``True``, ``False``
-
-            *Return type:* `bool`
-
-        **Set:** Sets the power state.
-
-            *Accepted values:``True``, ``False``
-
-            *Value type:* `bool`
-        """
-        try:
-            requests.get(
-                'http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=3
-            )
-            return True
-        except (requests.HTTPError, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
-            return False
+    # def power(self):
+    #     """
+    #     Power State.
+    #
+    #     **Get:** Gets the power state.
+    #
+    #         *Returns:* ``True``, ``False``
+    #
+    #         *Return type:* `bool`
+    #
+    #     **Set:** Sets the power state.
+    #
+    #         *Accepted values:``True``, ``False``
+    #
+    #         *Value type:* `bool`
+    #     """
+    #     try:
+    #         requests.get(
+    #             'http://{0}:8001/api/v2/'.format(self.config.host),
+    #             timeout=3
+    #         )
+    #         return True
+    #     except (requests.HTTPError, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+    #         return False
 
     def control(self, *_):
         raise NotImplementedError

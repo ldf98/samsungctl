@@ -65,8 +65,7 @@ class RemoteMeta(type):
                     UPNPTV.__init__(
                         self,
                         config.host,
-                        config.upnp_locations,
-                        self
+                        config.upnp_locations
                     )
 
                 if config.path:

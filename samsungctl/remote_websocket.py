@@ -28,14 +28,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     @LogIt
     def __init__(self, config):
         websocket_base.WebSocketBase.__init__(self, config)
-        self._loop_event = threading.Event()
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
-        self._registered_callbacks = []
-        self._thread = None
-        self.sock = None
         self.send_event = threading.Event()
-        self._starting = True
 
     @property
     @LogItWithReturn
@@ -52,21 +47,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             return False
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return None
-
-    def loop(self):
-        while not self._loop_event.isSet():
-            try:
-                data = self.sock.recv()
-                if data:
-                    self.on_message(data)
-            except:
-                self._loop_event.set()
-
-        self.sock = None
-        del self._registered_callbacks[:]
-        logger.info('Websocket closed')
-        self._loop_event.clear()
-        self._thread = None
 
     @LogIt
     def open(self):
@@ -115,7 +95,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             except:
                 if not self.config.paired:
                     raise RuntimeError('Unable to connect to the TV')
-                logger.info('Is the TV on?!?')
+
+                if not self._running:
+                    logger.info('Is the TV on?!?')
                 self._starting = False
                 return False
 
@@ -182,39 +164,34 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 'ms.channel.unauthorized'
             )
 
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
+            if not self._running:
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
 
-            if self.config.paired:
-                auth_event.wait(5.0)
-            else:
-                auth_event.wait(30.0)
-
-            if not auth_event.isSet():
-                if not self.config.paired and self.config.port == 8001:
-                    logger.debug(
-                        "Websocket connection failed. Trying ssl connection"
-                    )
-                    self.config.port = 8002
-                    return self.open()
+                if self.config.paired:
+                    auth_event.wait(5.0)
                 else:
-                    self.close()
-                    raise RuntimeError('Auth Failure')
+                    auth_event.wait(30.0)
 
-            self._starting = False
-            self.send_event.wait(0.5)
-            return True
+                if not auth_event.isSet():
+                    if not self.config.paired and self.config.port == 8001:
+                        logger.debug(
+                            "Websocket connection failed. Trying ssl connection"
+                        )
+                        self.config.port = 8002
+                        return self.open()
+                    else:
+                        self.close()
+                        raise RuntimeError('Auth Failure')
 
-    @LogIt
-    def close(self):
-        """Close the connection."""
-        if self.sock is not None:
-            self._loop_event.set()
-            self.sock.close()
-            if self._thread is not None:
-                self._thread.join(3.0)
-            if self._thread is not None:
-                raise RuntimeError('Loop thread did not properly terminate')
+                self._starting = False
+                self.send_event.wait(0.5)
+                return True
+            else:
+                self._starting = False
+                return True
+
+
 
     @LogIt
     def send(self, method, **params):

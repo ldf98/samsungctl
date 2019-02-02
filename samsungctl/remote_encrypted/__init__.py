@@ -127,13 +127,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.sk_prime = False
         self.last_request_id = 0
         self.aes_lib = None
-        self.sock = None
-
-    @LogIt
-    def close(self):
-        if self.sock is not None:
-            self.sock.close()
-            self.sock = None
 
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
@@ -141,6 +134,8 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogItWithReturn
     def open(self):
+        self._starting = True
+
         power = self.power
         paired = self.config.paired
 
@@ -195,10 +190,16 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.sock = websocket.create_connection(websocket_url)
         time.sleep(0.35)
 
+        if not self._running:
+            self._thread = threading.Thread(target=self.loop)
+            self._thread.start()
+
         if not paired and not power:
             self.power = False
+            self.close()
             return False
 
+        self._starting = False
         return True
 
     @LogIt
@@ -328,24 +329,25 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 logging.error('Unable to get TV\'s mac address')
 
         elif not value and self.power:
-            if self.sock is None:
-                self.open()
-
             count = 0
+            event = threading.Event()
+
+            self.sock.send('1::/com.samsung.companion')
+            time.sleep(0.35)
+
+            self.sock.send(self.aes_lib.generate_command('KEY_POWER'))
+            time.sleep(0.35)
+            event.wait(2.0)
+
+            self.sock.send('1::/com.samsung.companion')
+            time.sleep(0.35)
+
+            self.sock.send(self.aes_lib.generate_command('KEY_POWEROFF'))
+            time.sleep(0.35)
 
             while self.power and count < 10:
-                self.sock.send('1::/com.samsung.companion')
-                time.sleep(0.35)
-
-                self.sock.send(self.aes_lib.generate_command('KEY_POWEROFF'))
-                time.sleep(0.35)
-
-                self.sock.send('1::/com.samsung.companion')
-                time.sleep(0.35)
-
-                self.sock.send(self.aes_lib.generate_command('KEY_POWER'))
-                time.sleep(0.35)
-                event.wait(2.0)
+                event.wait(1.0)
+                count += 1
 
             if count == 10:
                 logger.info('Unable to power off the TV')
@@ -372,12 +374,9 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             else:
                 self.close()
             return
+
         elif self.sock is None:
             if not self.config.paired:
-                self.open()
-                if not self.power:
-                    return False
-            elif self.power:
                 self.open()
             else:
                 logger.info('Is the TV on?!?')
