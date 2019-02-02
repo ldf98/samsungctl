@@ -318,11 +318,21 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(10)
+                event.wait(2.0)
 
-                while not self.power and count < 10:
+                try:
+                    self.open()
+                except:
+                    pass
+
+                while not self._running and count < 10:
                     wake_on_lan.send_wol(self.mac_address)
                     event.wait(2.0)
+                    try:
+                        self.open()
+                    except:
+                        pass
+                    count += 1
 
                 if count == 10:
                     logger.error(
@@ -363,20 +373,13 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         if key == 'KEY_POWERON':
             if not self.power:
                 self.power = True
-                self.open()
             return
         elif key == 'KEY_POWEROFF':
             if self.power:
                 self.power = False
-                self.close()
             return
         elif key == 'KEY_POWER':
             self.power = not self.power
-
-            if self.power:
-                self.open()
-            else:
-                self.close()
             return
 
         elif self.sock is None:

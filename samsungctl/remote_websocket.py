@@ -51,6 +51,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     def open(self):
         if self.sock is not None:
             return True
+
         self._starting = True
         with self.receive_lock:
             power = self.power
@@ -192,8 +193,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self._starting = False
                 return True
 
-
-
     @LogIt
     def send(self, method, **params):
         if self.sock is None:
@@ -283,22 +282,15 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         if key == 'KEY_POWERON':
             if not self.power:
                 self.power = True
-            if self.sock is None:
-                self.open()
             return
         elif key == 'KEY_POWEROFF':
             if self.power:
                 self.power = False
-                self.close()
             return
         elif key == 'KEY_POWER':
             self.power = not self.power
-            if self.power:
-                self.open()
-            else:
-                self.close()
-
             return
+
         elif self.sock is None:
             if not self.power:
                 logger.info('Is the TV on?!?')
