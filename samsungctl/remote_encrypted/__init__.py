@@ -318,23 +318,20 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(2.0)
+                event.wait(1.0)
 
-                try:
-                    self.open()
-                except:
-                    pass
-
-                while not self._running and count < 10:
+                while not self.power and count < 20:
+                    if not self._running:
+                        try:
+                            self.open()
+                        except:
+                            pass
                     wake_on_lan.send_wol(self.mac_address)
-                    event.wait(2.0)
-                    try:
-                        self.open()
-                    except:
-                        pass
+                    event.wait(1.0)
+
                     count += 1
 
-                if count == 10:
+                if count == 20:
                     logger.error(
                         'Unable to power on the TV, '
                         'check network connectivity'
