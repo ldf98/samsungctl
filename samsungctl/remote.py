@@ -50,6 +50,8 @@ class RemoteMeta(type):
         class RemoteWrapper(remote, UPNPTV):
 
             def __init__(self, config):
+                self.__name__ = config.name
+                
                 for name, key in KEYS.items():
                     self.__dict__[name] = KeyWrapper(self, key)
 
