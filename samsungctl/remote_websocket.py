@@ -9,6 +9,7 @@ import websocket
 import requests
 import time
 import json
+import socket
 from . import exceptions
 from . import application
 from . import websocket_base
@@ -27,15 +28,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def __init__(self, config):
-        websocket_base.WebSocketBase.__init__(self, config)
-        self._loop_event = threading.Event()
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
-        self._registered_callbacks = []
-        self._thread = None
-        self.sock = None
-        self.send_event = threading.Event()
-        self._starting = True
+        websocket_base.WebSocketBase.__init__(self, config)
 
     @property
     @LogItWithReturn
@@ -53,23 +48,11 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             return None
 
-    def loop(self):
-        while not self._loop_event.isSet():
-            try:
-                data = self.sock.recv()
-                if data:
-                    self.on_message(data)
-            except:
-                self._loop_event.set()
-
-        self.sock = None
-        del self._registered_callbacks[:]
-        logger.info('Websocket closed')
-        self._loop_event.clear()
-        self._thread = None
-
     @LogIt
     def open(self):
+        if self.sock is not None:
+            return True
+
         self._starting = True
         with self.receive_lock:
             power = self.power
@@ -115,7 +98,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             except:
                 if not self.config.paired:
                     raise RuntimeError('Unable to connect to the TV')
-                logger.info('Is the TV on?!?')
+
+                if not self._running:
+                    logger.info('Is the TV on?!?')
                 self._starting = False
                 return False
 
@@ -182,39 +167,32 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 'ms.channel.unauthorized'
             )
 
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
+            if not self._running:
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
 
-            if self.config.paired:
-                auth_event.wait(5.0)
-            else:
-                auth_event.wait(30.0)
-
-            if not auth_event.isSet():
-                if not self.config.paired and self.config.port == 8001:
-                    logger.debug(
-                        "Websocket connection failed. Trying ssl connection"
-                    )
-                    self.config.port = 8002
-                    return self.open()
+                if self.config.paired:
+                    auth_event.wait(5.0)
                 else:
-                    self.close()
-                    raise RuntimeError('Auth Failure')
+                    auth_event.wait(30.0)
 
-            self._starting = False
-            self.send_event.wait(0.5)
-            return True
+                if not auth_event.isSet():
+                    if not self.config.paired and self.config.port == 8001:
+                        logger.debug(
+                            "Websocket connection failed. Trying ssl connection"
+                        )
+                        self.config.port = 8002
+                        return self.open()
+                    else:
+                        self.close()
+                        raise RuntimeError('Auth Failure')
 
-    @LogIt
-    def close(self):
-        """Close the connection."""
-        if self.sock is not None:
-            self._loop_event.set()
-            self.sock.close()
-            if self._thread is not None:
-                self._thread.join(3.0)
-            if self._thread is not None:
-                raise RuntimeError('Loop thread did not properly terminate')
+                self._starting = False
+                self.send_event.wait(0.5)
+                return True
+            else:
+                self._starting = False
+                return True
 
     @LogIt
     def send(self, method, **params):
@@ -240,13 +218,20 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(10)
+                event.wait(1.0)
 
-                while not self.power and count < 10:
+                while not self.power and count < 20:
+                    if not self._running:
+                        try:
+                            self.open()
+                        except:
+                            pass
                     wake_on_lan.send_wol(self.mac_address)
-                    event.wait(2.0)
+                    event.wait(1.0)
 
-                if count == 10:
+                    count += 1
+
+                if count == 20:
                     logger.error(
                         'Unable to power on the TV, '
                         'check network connectivity'
@@ -272,13 +257,14 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 TypeOfRemote="SendRemoteKey"
             )
 
-            while self.power and count < 10:
-                logger.info("Sending control command: " + str(power_off))
-                self.send("ms.remote.control", **power_off)
-                logger.info("Sending control command: " + str(power))
-                self.send("ms.remote.control", **power)
+            logger.info("Sending control command: " + str(power))
+            self.send("ms.remote.control", **power)
+            logger.info("Sending control command: " + str(power_off))
+            self.send("ms.remote.control", **power_off)
 
-                event.wait(2.0)
+            while self.power and count < 10:
+                event.wait(1.0)
+                count += 1
 
             if count == 10:
                 logger.info('Unable to power off the TV')
@@ -298,22 +284,15 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         if key == 'KEY_POWERON':
             if not self.power:
                 self.power = True
-            if self.sock is None:
-                self.open()
             return
         elif key == 'KEY_POWEROFF':
             if self.power:
                 self.power = False
-                self.close()
             return
         elif key == 'KEY_POWER':
             self.power = not self.power
-            if self.power:
-                self.open()
-            else:
-                self.close()
-
             return
+
         elif self.sock is None:
             if not self.power:
                 logger.info('Is the TV on?!?')
@@ -447,6 +426,144 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 callback(response)
                 self._registered_callbacks.remove([callback, key, data])
                 break
+
+        else:
+            if 'params' in response and 'event' in response['params']:
+                event = response['params']['event']
+
+                if event == 'd2d_service_message':
+                    data = json.loads(response['params']['data'])
+
+                    if 'event' in data:
+                        for callback, key, _ in self._registered_callbacks[:]:
+                            if key == data['event']:
+                                callback(data)
+                                self._registered_callbacks.remove(
+                                    [callback, key, None]
+                                )
+                                break
+
+    @property
+    def artmode(self):
+        """
+        {
+            "method":"",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_artmode_status\",
+                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }"
+        """
+
+        params = dict(
+            clientIp=socket.gethostbyname(socket.gethostname()),
+            data=json.dumps(
+                dict(
+                    request='get_artmode_status',
+                    id=self.config.id
+                )
+            ),
+            deviceName=self._serialize_string(self.config.name),
+            event='art_app_request',
+            to='host'
+
+        )
+
+        response = []
+        event = threading.Event()
+
+        def artmode_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+                        \"event\":\"artmode_status\",
+                        \"value\":\"off\",
+                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+                }
+            }
+            """
+
+            if data['value'] == 'on':
+                response.append(True)
+            else:
+                response.append(False)
+
+            event.set()
+
+        self.register_receive_callback(
+            artmode_callback,
+            'artmode_status',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            artmode_callback,
+            'artmode_status',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_artmode_status: timed out')
+        else:
+            return response[0]
+
+    @artmode.setter
+    def artmode(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"on\",
+                    \"request\":\"set_artmode_status\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+        if value:
+            value = 'on'
+
+        else:
+            value = 'off'
+
+        params = dict(
+            clientIp=socket.gethostbyname(socket.gethostname()),
+            data=json.dumps(
+                dict(
+                    request='set_artmode_status',
+                    value=value,
+                    id=self.config.id
+                )
+            ),
+            deviceName=self._serialize_string(self.config.name),
+            event='art_app_request',
+            to='host'
+
+        )
+        self.send('ms.channel.emit', **params)
 
     @LogIt
     def input_text(self, text):

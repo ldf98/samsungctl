@@ -111,7 +111,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogIt
     def __init__(self, config):
-        websocket_base.WebSocketBase.__init__(self, config)
         self.url = URL(config)
         if config.token:
             self.ctx, self.current_session_id = config.token.rsplit(':', 1)
@@ -127,13 +126,8 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.sk_prime = False
         self.last_request_id = 0
         self.aes_lib = None
-        self.sock = None
 
-    @LogIt
-    def close(self):
-        if self.sock is not None:
-            self.sock.close()
-            self.sock = None
+        websocket_base.WebSocketBase.__init__(self, config)
 
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
@@ -141,6 +135,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogItWithReturn
     def open(self):
+        if self.sock is not None:
+            return True
+
+        self._starting = True
+
         power = self.power
         paired = self.config.paired
 
@@ -195,10 +194,16 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.sock = websocket.create_connection(websocket_url)
         time.sleep(0.35)
 
+        if not self._running:
+            self._thread = threading.Thread(target=self.loop)
+            self._thread.start()
+
         if not paired and not power:
             self.power = False
+            self.close()
             return False
 
+        self._starting = False
         return True
 
     @LogIt
@@ -313,13 +318,20 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(10)
+                event.wait(1.0)
 
-                while not self.power and count < 10:
+                while not self.power and count < 20:
+                    if not self._running:
+                        try:
+                            self.open()
+                        except:
+                            pass
                     wake_on_lan.send_wol(self.mac_address)
-                    event.wait(2.0)
+                    event.wait(1.0)
 
-                if count == 10:
+                    count += 1
+
+                if count == 20:
                     logger.error(
                         'Unable to power on the TV, '
                         'check network connectivity'
@@ -328,24 +340,25 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 logging.error('Unable to get TV\'s mac address')
 
         elif not value and self.power:
-            if self.sock is None:
-                self.open()
-
             count = 0
+            event = threading.Event()
+
+            self.sock.send('1::/com.samsung.companion')
+            time.sleep(0.35)
+
+            self.sock.send(self.aes_lib.generate_command('KEY_POWER'))
+            time.sleep(0.35)
+            event.wait(2.0)
+
+            self.sock.send('1::/com.samsung.companion')
+            time.sleep(0.35)
+
+            self.sock.send(self.aes_lib.generate_command('KEY_POWEROFF'))
+            time.sleep(0.35)
 
             while self.power and count < 10:
-                self.sock.send('1::/com.samsung.companion')
-                time.sleep(0.35)
-
-                self.sock.send(self.aes_lib.generate_command('KEY_POWEROFF'))
-                time.sleep(0.35)
-
-                self.sock.send('1::/com.samsung.companion')
-                time.sleep(0.35)
-
-                self.sock.send(self.aes_lib.generate_command('KEY_POWER'))
-                time.sleep(0.35)
-                event.wait(2.0)
+                event.wait(1.0)
+                count += 1
 
             if count == 10:
                 logger.info('Unable to power off the TV')
@@ -357,27 +370,17 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         if key == 'KEY_POWERON':
             if not self.power:
                 self.power = True
-                self.open()
             return
         elif key == 'KEY_POWEROFF':
             if self.power:
                 self.power = False
-                self.close()
             return
         elif key == 'KEY_POWER':
             self.power = not self.power
-
-            if self.power:
-                self.open()
-            else:
-                self.close()
             return
+
         elif self.sock is None:
             if not self.config.paired:
-                self.open()
-                if not self.power:
-                    return False
-            elif self.power:
                 self.open()
             else:
                 logger.info('Is the TV on?!?')

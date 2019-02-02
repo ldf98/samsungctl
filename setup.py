@@ -35,9 +35,6 @@ setuptools.setup(
         'ifaddr',
         'pycryptodome'
     ],
-    extras_require={
-        "interactive_ui": ["curses"],
-    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",

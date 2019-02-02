@@ -25,8 +25,6 @@ class UPNPObject(object):
 
     def __init__(self, ip, locations, dump=''):
         self.ip_address = ip
-
-        cls_name = None
         self._devices = {}
         self._services = {}
         for location in locations:
@@ -111,13 +109,6 @@ class UPNPObject(object):
                     dump=dump
                 )
                 self._devices[device.__name__] = device
-
-            if cls_name is None:
-                cls_name = node.find('modelName')
-                if cls_name is not None and cls_name.text:
-                    cls_name = cls_name.text.replace(' ', '_').replace('-', '')
-
-        self.__name__ = cls_name
 
     def __getattr__(self, item):
         if item in self.__dict__:

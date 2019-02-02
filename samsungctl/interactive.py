@@ -1,104 +1,208 @@
 # -*- coding: utf-8 -*-
 
-import curses
+import sys
+
+from .key_mappings import KEY_MAPPINGS
+
+try:
+    input = raw_input
+except NameError:
+    pass
 
 
-_mappings = [
-    ["p",             "KEY_POWEROFF",      "P",         "Power off"],
-    ["KEY_UP",        "KEY_UP",            "Up",        "Up"],
-    ["KEY_DOWN",      "KEY_DOWN",          "Down",      "Down"],
-    ["KEY_LEFT",      "KEY_LEFT",          "Left",      "Left"],
-    ["KEY_RIGHT",     "KEY_RIGHT",         "Right",     "Right"],
-    ["KEY_PPAGE",     "KEY_CHUP",          "Page Up",   "P Up"],
-    ["KEY_NPAGE",     "KEY_CHDOWN",        "Page Down", "P Down"],
-    ["\n",            "KEY_ENTER",         "Enter",     "Enter"],
-    ["KEY_BACKSPACE", "KEY_RETURN",        "Backspace", "Return"],
-    ["e",             "KEY_EXIT",          "E",         "Exit"],
-    ["h",             "KEY_CONTENTS",      "H",         "Smart Hub"],
-    ["l",             "KEY_CH_LIST",       "L",         "Channel List"],
-    ["m",             "KEY_MENU",          "M",         "Menu"],
-    ["s",             "KEY_SOURCE",        "S",         "Source"],
-    ["g",             "KEY_GUIDE",         "G",         "Guide"],
-    ["t",             "KEY_TOOLS",         "T",         "Tools"],
-    ["i",             "KEY_INFO",          "I",         "Info"],
-    ["z",             "KEY_RED",           "Z",         "A / Red"],
-    ["x",             "KEY_GREEN",         "X",         "B / Green"],
-    ["c",             "KEY_YELLOW",        "C",         "C / Yellow"],
-    ["v",             "KEY_BLUE",          "V",         "D / Blue"],
-    ["d",             "KEY_PANNEL_CHDOWN", "D",         "3D"],
-    ["+",             "KEY_VOLUP",         "+",         "Volume Up"],
-    ["-",             "KEY_VOLDOWN",       "-",         "Volume Down"],
-    ["*",             "KEY_MUTE",          "*",         "Mute"],
-    ["0",             "KEY_0",             "0",         "0"],
-    ["1",             "KEY_1",             "1",         "1"],
-    ["2",             "KEY_2",             "2",         "2"],
-    ["3",             "KEY_3",             "3",         "3"],
-    ["4",             "KEY_4",             "4",         "4"],
-    ["5",             "KEY_5",             "5",         "5"],
-    ["6",             "KEY_6",             "6",         "6"],
-    ["7",             "KEY_7",             "7",         "7"],
-    ["8",             "KEY_8",             "8",         "8"],
-    ["9",             "KEY_9",             "9",         "9"],
-    ["KEY_F(1)",      "KEY_TV",            "F1",        "TV Source"],
-    ["KEY_F(2)",      "KEY_HDMI",          "F2",        "HDMI Source"],
-    ["KEY_F(3)",      "KEY_DVI",           "F3",        "DVI Source"],
-    ["KEY_F(4)",      "KEY_DVR",           "F4",        "DVR Source"],
-    ["KEY_F(5)",      "KEY_DTV",           "F5",        "Digital TV Source"],
-    ["KEY_F(6)",      "KEY_ANTENA",        "F6",        "Analog TV Source"],
-    ["KEY_F(7)",      "KEY_FM_RADIO",      "F7",        "FM Radio Source"],
-    ["KEY_F(9)",      "KEY_HDMI1",         "F9",        "HDMI 1 Source"],
-    ["KEY_F(10)",     "KEY_HDMI2",         "F10",       "HDMI 2 Source"],
-    ["KEY_F(11)",     "KEY_HDMI3",         "F11",       "HDMI 3 Source"],
-    ["KEY_F(12)",     "KEY_HDMI4",         "F12",       "HDMI 4 Source"],
-    ["KEY_F(25)",     "KEY_AV1",           "CTRL+F1",   "AV 1 Source"],
-    ["KEY_F(26)",     "KEY_AV2",           "CTRL+F2",   "AV 2 Source"],
-    ["KEY_F(27)",     "KEY_AV3",           "CTRL+F3",   "AV 3 Source"],
-    ["KEY_F(29)",     "KEY_SVIDEO1",       "CTRL+F5",   "S Video 1 Source"],
-    ["KEY_F(30)",     "KEY_SVIDEO2",       "CTRL+F6",   "S Video 2 Source"],
-    ["KEY_F(31)",     "KEY_SVIDEO3",       "CTRL+F7",   "S Video 3 Source"],
-    ["KEY_F(33)",     "KEY_COMPONENT1",    "CTRL+F9",   "Component 1 Source"],
-    ["KEY_F(34)",     "KEY_COMPONENT2",    "CTRL+F10",  "Component 2 Source"],
-]
+class Interactive(object):
 
+    def __init__(self, remote):
+        self.remote = remote
 
-def run(remote):
-    """Run interactive remote control application."""
-    curses.wrapper(_control, remote)
+    def run(self):
+        print('"help" to get a list of available commands')
+        print('"quit" or ctrl+c to exit the interactive mode')
+        print()
 
+        try:
+            while True:
+                command = input('Please enter command:')
 
-def _control(stdscr, remote):
-    height, width = stdscr.getmaxyx()
+                if command == 'quit':
+                    raise KeyboardInterrupt
 
-    stdscr.addstr("Interactive mode, press 'Q' to exit.\n")
-    stdscr.addstr("Key mappings:\n")
+                if command == 'help':
 
-    column_len = max(len(mapping[2]) for mapping in _mappings) + 1
-    mappings_dict = {}
-    for mapping in _mappings:
-        mappings_dict[mapping[0]] = mapping[1]
+                    for group in KEY_MAPPINGS:
+                        print()
+                        print(group[0])
+                        for description, key in group[1]:
+                            print(
+                                '   ',
+                                description,
+                                ':',
+                                key,
+                                'or',
+                                key.split('_', 1)[-1]
+                            )
 
-        row = stdscr.getyx()[0] + 2
-        if row < height:
-            line = "  {}= {} ({})\n".format(mapping[2].ljust(column_len),
-                                            mapping[3], mapping[1])
-            stdscr.addstr(line)
-        elif row == height:
-            stdscr.addstr("[Terminal is too small to show all keys]\n")
+                    print("volume [value]")
+                    print("    Sets the TV volume to the entered value,\n")
+                    print("    a value of -1 will display the volume level")
+                    print()
+                    print("brightness [value]")
+                    print("    Sets the TV brightness to the entered value,\n")
+                    print("    a value of -1 will display the brightness level")
+                    print()
+                    print("contrast [value]")
+                    print("    Sets the TV contrast to the entered value,\n")
+                    print("    a value of -1 will display the contrast level")
+                    print()
+                    print("sharpness [value]")
+                    print("    Sets the TV sharpness to the entered value,\n")
+                    print("    a value of -1 will display the sharpness level")
+                    print()
+                    print("mute [off, on, state]")
+                    print("    Sets the mute on or off (not a toggle),\n")
+                    print("    state displays if the mute if on or off")
+                    print()
+                    print("artmode [off, on, state]")
+                    print("    Sets the art mode on a Frame TV,\n")
+                    print("    state displays if the art mode is on or off")
+                    print()
+                    print("source [source name/label]")
+                    print(
+                        "    Changes the input source to the one specified.\n"
+                        "      eg: HDMI1 HDMI2, USB, PC....\n"
+                        "    You also have the option of entering the OSD \n"
+                        "    label for the source.\n"
+                        "    If you enter 'state' for the source name it\n"
+                        "    will print out the currently active source name\n"
+                        "    and label.\n"
+                    )
 
-    running = True
-    while running:
-        key = stdscr.getkey()
+                    print()
+                    print('"quit" or ctrl+c to exit the interactive mode')
+                    print()
+                    print(
+                        'To set the logging level:\n'
+                        '    LOG_OFF, LOG_CRITICAL, LOG_ERROR,\n'
+                        '    LOG_WARNING, LOG_INFO, LOG_DEBUG'
+                    )
+                    print()
+                    continue
 
-        if key == "q":
-            running = False
+                try:
+                    if command.upper().startswith('LOG'):
+                        logging_commands = (
+                            'LOG_OFF',
+                            'LOG_CRITICAL',
+                            'LOG_ERROR',
+                            'LOG_WARNING',
+                            'LOG_INFO',
+                            'LOG_DEBUG'
+                        )
 
-        if key in mappings_dict:
-            remote.control(mappings_dict[key])
+                        for log_level in logging_commands:
+                            if command.upper() == log_level:
+                                self.remote.config.log_level = getattr(
+                                    self.remote.config,
+                                    log_level
+                                )
+                                break
+                        else:
+                            print('Invalid log level')
+                        continue
 
-            try:
-                stdscr.addstr(".")
-            except curses.error:
-                stdscr.deleteln()
-                stdscr.move(stdscr.getyx()[0], 0)
+                    commands = (
+                        'volume',
+                        'brightness',
+                        'contrast',
+                        'sharpness',
+                        'mute',
+                        'artmode',
+                        'source',
+                    )
 
-    stdscr.addstr(".")
+                    try:
+                        command, value = command.split(' ', 1)
+                    except ValueError:
+                        value = None
+
+                    if value is None:
+                        for group in KEY_MAPPINGS:
+                            for _, key in group[1]:
+                                if command.upper() == key:
+                                    self.remote.control(key)
+                                    break
+
+                                if command.upper() == key.split('_', 1)[-1]:
+                                    self.remote.control(key)
+                                    break
+                            else:
+                                continue
+
+                            break
+                        else:
+                            print('command not found')
+
+                    else:
+                        for com in commands:
+                            if command.startswith(com):
+                                value = command.replace(com, '')
+                                command = com
+
+                                if command == 'source':
+                                    for source in self.remote.sources:
+                                        if value == 'state':
+                                            if source.is_active:
+                                                print(
+                                                    source.name,
+                                                    ':',
+                                                    source.label
+                                                )
+                                                break
+                                        elif value in (
+                                            source.name,
+                                            source.label
+                                        ):
+                                            source.activate()
+                                            break
+                                    else:
+                                        print(
+                                            'source does not exist'
+                                        )
+
+                                elif command == 'mute':
+                                    if value == 'state':
+                                        print(
+                                            'on' if self.remote.mute else 'off'
+                                        )
+                                    elif value == 'on':
+                                        self.remote.mute = True
+
+                                    elif value == 'off':
+                                        self.remote.mute = False
+
+                                    else:
+                                        print('not a valid mute setting')
+                                else:
+                                    if value == '-1':
+                                        print(getattr(self.remote, command))
+                                    else:
+                                        try:
+                                            value = int(value)
+                                            setattr(self.remote, command, value)
+                                        except ValueError:
+                                            print(
+                                                'Not a correct value '
+                                                'for the command.'
+                                            )
+                                break
+                        else:
+                            print('command not found')
+
+                except:
+                    import traceback
+                    traceback.print_exc()
+
+        except KeyboardInterrupt:
+            print('closing remote connection')
+            self.remote.close()
+            sys.exit()

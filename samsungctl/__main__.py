@@ -186,6 +186,7 @@ def main():
     parser.add_argument(
         "--volume",
         type=int,
+        default=None,
         help=(
             "sets the TV volume to the entered value, a value of -1 will "
             "display the volume level"
@@ -194,6 +195,7 @@ def main():
     parser.add_argument(
         "--brightness",
         type=int,
+        default=None,
         help=(
             "sets the TV brightness level to the entered value, "
             "a value of -1 will display the brightness level"
@@ -202,6 +204,7 @@ def main():
     parser.add_argument(
         "--contrast",
         type=int,
+        default=None,
         help=(
             "sets the TV contrast level to the entered value, "
             "a value of -1 will display the contrast level"
@@ -210,6 +213,7 @@ def main():
     parser.add_argument(
         "--sharpness",
         type=int,
+        default=None,
         help=(
             "sets the TV sharpness level to the entered value, "
             "a value of -1 will display the sharpness level"
@@ -218,16 +222,28 @@ def main():
     parser.add_argument(
         "--mute",
         type=str,
+        default=None,
         choices=['off', 'on', 'state'],
         help=(
             "sets the mute on or off (not a toggle), "
-            "state displays if the mute if on or off"
+            "state displays if the mute is on or off"
+        )
+    )
+    parser.add_argument(
+        "--artmode",
+        type=str,
+        default=None,
+        choices=['off', 'on', 'state'],
+        help=(
+            "sets the art mode for Frame TV's, "
+            "state displays if the art mode is on or off"
         )
     )
 
     parser.add_argument(
         "--source",
         type=str,
+        default=None,
         help=(
             "changes the input source to the one specified. "
             "You can either enter the TV source name "
@@ -243,6 +259,7 @@ def main():
     parser.add_argument(
         "--source-label",
         type=str,
+        default=None,
         help=(
             "changes the label for a source. "
             "If you do not use --source to specify the source to change the "
@@ -339,7 +356,9 @@ def main():
             if args.interactive:
                 logging.getLogger().setLevel(logging.ERROR)
                 from . import interactive
-                interactive.run(remote)
+                inter = interactive.Interactive(remote)
+                inter.run()
+
             elif config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
@@ -363,6 +382,12 @@ def main():
                     print('Mute:', 'ON' if remote.mute else 'OFF')
                 else:
                     remote.mute = args.mute == 'on'
+
+            elif args.artmode is not None:
+                if args.artmode == 'state':
+                    print('Art Mode:', 'ON' if remote.artmode else 'OFF')
+                else:
+                    remote.artmode = args.artmode == 'on'
 
             if args.brightness is not None:
                 if args.brightness == -1:
