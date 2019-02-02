@@ -30,12 +30,8 @@ class UPNPObject(object):
         for location in locations:
             parsed_url = urlparse(location)
             url = parsed_url.scheme + '://' + parsed_url.netloc
-            try:
-                response = requests.get(location)
-            except requests.exceptions.ConnectionError:
-                print location
-                raise
-
+            response = requests.get(location)
+         
             content = response.content.decode('utf-8')
 
             if dump:
