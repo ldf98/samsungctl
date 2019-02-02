@@ -16,7 +16,7 @@ class UPNPTV(UPNPObject):
     def __init__(self, ip, locations):
         self._dtv_information = None
         self._tv_options = None
-        self.name = self.__name__
+        self.name = self.__class__.__name__
         self.ip_address = ip
         self._connected = False
         self._locations = locations
@@ -34,6 +34,7 @@ class UPNPTV(UPNPObject):
     def _connect_upnp(self):
         if not self._connected and self.power:
             UPNPObject.__init__(self, self.ip_address, self._locations)
+            self.name = self.__name__
             self._connected = True
 
     @property
