@@ -62,14 +62,20 @@ class UPNPObject(object):
 
             root = strip_xmlns(root)
             node = root.find('device')
-
-            services = node.find('serviceList')
-            if services is None:
+            if node is None:
+                print(content)
                 services = []
-
-            devices = node.find('deviceList')
-            if devices is None:
                 devices = []
+
+            else:
+                services = node.find('serviceList')
+
+                if services is None:
+                    services = []
+
+                devices = node.find('deviceList')
+                if devices is None:
+                    devices = []
 
             for service in services:
                 scpdurl = service.find('SCPDURL').text.replace(url, '')
