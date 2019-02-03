@@ -210,7 +210,7 @@ class Config(object):
     def load(path):
         if '~' in path:
             path.replace('~', os.path.expanduser('~'))
-        if '%' in path:
+        if '%' in path or '$' in path:
             path = os.path.expandvars(path)
 
         if os.path.isfile(path):
