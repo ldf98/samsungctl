@@ -10,6 +10,7 @@ import requests
 import time
 import json
 import socket
+import uuid
 from . import exceptions
 from . import application
 from . import websocket_base
@@ -443,11 +444,553 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                                 )
                                 break
 
+    def _build_art_app_request(self, request, value=None):
+        if value is None:
+            data = dict(
+                request=request,
+                id=str(uuid.uuid4())[1:-1]
+            )
+        else:
+            data = dict(
+                request=request,
+                value=value,
+                id=str(uuid.uuid4())[1:-1]
+            )
+
+        return dict(
+            clientIp=socket.gethostbyname(socket.gethostname()),
+            data=json.dumps(data),
+            deviceName=self._serialize_string(self.config.name),
+            event='art_app_request',
+            to='host'
+        )
+
+    @property
+    def motion_timer(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_motion_timer\",
+                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }"
+        """
+
+        params = self._build_art_app_request('get_motion_timer')
+
+        response = []
+        event = threading.Event()
+
+        def motion_timer_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+                        \"event\":\"motion_timer\",
+                        \"value\":\"30\",
+                        \"valid_values\":\"[\\\"off\\\",\\\"15\\\",\\\"30\\\",\\\"60\\\",\\\"120\\\",\\\"240\\\"]\\n\",
+                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+                }
+            }
+            """
+
+            valid_values = []
+
+            for item in data['valid_values']:
+                if item.isdigit():
+                    item = int(item)
+                valid_values += [item]
+
+            if data['value'].isdigit():
+                data['value'] = int(data['value'])
+
+            response.append(
+                dict(
+                    value=int(data['value']),
+                    valid_values=valid_values[:]
+
+                )
+            )
+
+            event.set()
+
+        self.register_receive_callback(
+            motion_timer_callback,
+            'motion_timer',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            motion_timer_callback,
+            'motion_timer',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_motion_timer: timed out')
+        else:
+            return response[0]
+
+    @motion_timer.setter
+    def motion_timer(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"off\",
+                    \"request\":\"set_motion_timer\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+
+        if value != 'off':
+            value = int(value)
+
+        res = self.motion_timer
+
+        if res and value in res['valid_values']:
+            params = self._build_art_app_request(
+                'set_motion_timer',
+                str(value)
+            )
+
+            self.send('ms.channel.emit', **params)
+
+    @property
+    def motion_sensitivity(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_motion_sensitivity\",
+                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }"
+        """
+
+        params = self._build_art_app_request('get_motion_sensitivity')
+
+        response = []
+        event = threading.Event()
+
+        def motion_sensitivity_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+                        \"event\":\"motion_sensitivity\",
+                        \"value\":\"2\",
+                        \"min\":\"1\",
+                        \"max\":\"3\",
+                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+                }
+            }
+            """
+            response.append(
+                dict(
+                    value=int(data['value']),
+                    min=int(data['min']),
+                    max=int(data['max'])
+                )
+            )
+
+            event.set()
+
+        self.register_receive_callback(
+            motion_sensitivity_callback,
+            'motion_sensitivity',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            motion_sensitivity_callback,
+            'motion_sensitivity',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_motion_sensitivity: timed out')
+        else:
+            return response[0]
+
+    @motion_sensitivity.setter
+    def motion_sensitivity(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"2\",
+                    \"request\":\"set_motion_sensitivity\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+        value = int(value)
+
+        res = self.motion_sensitivity
+        if res and res['min'] <= value <= res['max']:
+            params = self._build_art_app_request(
+                'set_motion_sensitivity',
+                str(value)
+            )
+
+            self.send('ms.channel.emit', **params)
+
+    @property
+    def color_temperature(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_color_temperature\",
+                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }"
+        """
+
+        params = self._build_art_app_request('get_color_temperature')
+
+        response = []
+        event = threading.Event()
+
+        def color_temperature_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+                        \"event\":\"color_temperature\",
+                        \"value\":\"2\",
+                        \"min\":\"1\",
+                        \"max\":\"3\",
+                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+                }
+            }
+            """
+            response.append(
+                dict(
+                    value=int(data['value']),
+                    min=int(data['min']),
+                    max=int(data['max'])
+                )
+            )
+
+            event.set()
+
+        self.register_receive_callback(
+            color_temperature_callback,
+            'color_temperature',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            color_temperature_callback,
+            'color_temperature',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_color_temperature: timed out')
+        else:
+            return response[0]
+
+    @color_temperature.setter
+    def color_temperature(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"2\",
+                    \"request\":\"set_color_temperature\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+        value = int(value)
+
+        res = self.color_temperature
+        if res and res['min'] <= value <= res['max']:
+            params = self._build_art_app_request(
+                'set_color_temperature',
+                str(value)
+            )
+
+            self.send('ms.channel.emit', **params)
+
+    @property
+    def brightness(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_brightness\",
+                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }"
+        """
+
+        params = self._build_art_app_request('get_brightness')
+
+        response = []
+        event = threading.Event()
+
+        def brightness_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+                        \"event\":\"brightness\",
+                        \"value\":\"2\",
+                        \"min\":\"1\",
+                        \"max\":\"3\",
+                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+                }
+            }
+            """
+            response.append(
+                dict(
+                    value=int(data['value']),
+                    min=int(data['min']),
+                    max=int(data['max'])
+                )
+            )
+
+            event.set()
+
+        self.register_receive_callback(
+            brightness_callback,
+            'brightness',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            brightness_callback,
+            'brightness',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_brightness: timed out')
+        else:
+            return response[0]
+
+    @brightness.setter
+    def brightness(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"2\",
+                    \"request\":\"set_brightness\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+        value = int(value)
+
+        res = self.brightness
+        if res and res['min'] <= value <= res['max']:
+            params = self._build_art_app_request(
+                'set_brightness',
+                str(value)
+            )
+
+            self.send('ms.channel.emit', **params)
+
+    @property
+    def brightness_sensor(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"request\":\"get_brightness_sensor_setting\",
+                    \"id\":\"713fe2f1-2848-4161-b04c-18dd6753ecaf\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+
+        params = self._build_art_app_request('get_brightness_sensor_setting')
+
+        response = []
+        event = threading.Event()
+
+        def brightness_sensor_callback(data):
+            """
+            {
+                "method":"ms.channel.emit",
+                "params":{
+                    "clientIp":"127.0.0.1",
+                    "data":"{
+                        \"id\":\"713fe2f1-2848-4161-b04c-18dd6753ecaf\",
+                        \"event\":\"brightness_sensor_setting\",
+                        \"value\":\"off\",
+                        \"target_client_id\":\"de34a6-2b5f-46a0-ad19-f1a3d56167\"
+                    }",
+                    "deviceName":"Smart Device",
+                    "event":"d2d_service_message",
+                    "to":"de34a6-2b5f-46a0-ad19-f1a3d56167"
+                }
+            }
+            """
+
+            if data['value'] == 'on':
+                response.append(True)
+            else:
+                response.append(False)
+
+            event.set()
+
+        self.register_receive_callback(
+            brightness_sensor_callback,
+            'brightness_sensor_setting',
+            None
+        )
+
+        self.send('ms.channel.emit', **params)
+
+        event.wait(2.0)
+
+        self.unregister_receive_callback(
+            brightness_sensor_callback,
+            'brightness_sensor_setting',
+            None
+        )
+
+        if not event.isSet():
+            logging.debug('get_brightness_sensor_setting: timed out')
+        else:
+            return response[0]
+
+    @brightness_sensor.setter
+    def brightness_sensor(self, value):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "clientIp":"192.168.1.20",
+                "data":"{
+                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+                    \"value\":\"on\",
+                    \"request\":\"set_brightness_sensor_setting\"
+                }",
+                "deviceName":"W1Bob25lXWlQaG9uZQ==",
+                "event":"art_app_request",
+                "to":"host"
+            }
+        }
+        """
+
+        params = self._build_art_app_request(
+            'set_brightness_sensor_setting',
+            'on' if value else 'off'
+        )
+
+        self.send('ms.channel.emit', **params)
+
     @property
     def artmode(self):
         """
         {
-            "method":"",
+            "method":"ms.channel.emit",
             "params":{
                 "clientIp":"192.168.1.20",
                 "data":"{
@@ -461,19 +1004,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         }"
         """
 
-        params = dict(
-            clientIp=socket.gethostbyname(socket.gethostname()),
-            data=json.dumps(
-                dict(
-                    request='get_artmode_status',
-                    id=self.config.id
-                )
-            ),
-            deviceName=self._serialize_string(self.config.name),
-            event='art_app_request',
-            to='host'
-
-        )
+        params = self._build_art_app_request('get_artmode_status')
 
         response = []
         event = threading.Event()
@@ -543,26 +1074,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             }
         }
         """
-        if value:
-            value = 'on'
 
-        else:
-            value = 'off'
-
-        params = dict(
-            clientIp=socket.gethostbyname(socket.gethostname()),
-            data=json.dumps(
-                dict(
-                    request='set_artmode_status',
-                    value=value,
-                    id=self.config.id
-                )
-            ),
-            deviceName=self._serialize_string(self.config.name),
-            event='art_app_request',
-            to='host'
-
+        params = self._build_art_app_request(
+            'set_artmode_status',
+            'on' if value else 'off'
         )
+
         self.send('ms.channel.emit', **params)
 
     @LogIt
