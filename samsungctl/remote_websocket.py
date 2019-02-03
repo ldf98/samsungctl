@@ -54,146 +54,143 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         if self.sock is not None:
             return True
 
-        self._starting = True
-        with self.receive_lock:
-            power = self.power
+        power = self.power
+        starting = self._starting
 
+        if not starting:
+            self._starting = True
             if not self.config.paired and not power:
                 self.power = True
 
                 if not self.power:
                     raise RuntimeError(
-                        'Unable to pair with TV.. Is the TV off?!?'
-                    )
+                            'Unable to pair with TV.. Is the TV off?!?'
+                        )
 
-            if self.sock is not None:
-                self.close()
+        if self.config.port == 8002 or self.has_ssl:
+            self.config.port = 8002
 
-            if self.config.port == 8002 or self.has_ssl:
-                self.config.port = 8002
-
-                if self.config.token:
-                    logger.debug('using saved token: ' + self.config.token)
-                    token = "&token=" + self.config.token
-                else:
-                    token = ''
-
-                sslopt = {"cert_reqs": ssl.CERT_NONE}
-                url = SSL_URL_FORMAT.format(
-                    self.config.host,
-                    self.config.port,
-                    self._serialize_string(self.config.name)
-                ) + token
+            if self.config.token:
+                logger.debug('using saved token: ' + self.config.token)
+                token = "&token=" + self.config.token
             else:
-                self.config.port = 8001
+                token = ''
 
-                sslopt = {}
-                url = URL_FORMAT.format(
-                    self.config.host,
-                    self.config.port,
-                    self._serialize_string(self.config.name)
-                )
+            sslopt = {"cert_reqs": ssl.CERT_NONE}
+            url = SSL_URL_FORMAT.format(
+                self.config.host,
+                self.config.port,
+                self._serialize_string(self.config.name)
+            ) + token
+        else:
+            self.config.port = 8001
 
-            try:
-                self.sock = websocket.create_connection(url, sslopt=sslopt)
-            except:
-                if not self.config.paired:
-                    raise RuntimeError('Unable to connect to the TV')
+            sslopt = {}
+            url = URL_FORMAT.format(
+                self.config.host,
+                self.config.port,
+                self._serialize_string(self.config.name)
+            )
 
-                if not self._running:
-                    logger.info('Is the TV on?!?')
-                self._starting = False
-                return False
+        try:
+            self.sock = websocket.create_connection(url, sslopt=sslopt)
+        except:
+            if not self.config.paired:
+                raise RuntimeError('Unable to connect to the TV')
 
-            auth_event = threading.Event()
+            if not self._running:
+                logger.info('Is the TV on?!?')
+            return False
 
-            def unauthorized_callback(_):
-                auth_event.set()
+        auth_event = threading.Event()
 
-                self.unregister_receive_callback(
-                    auth_callback,
-                    'event',
-                    'ms.channel.connect'
-                )
+        def unauthorized_callback(_):
+            auth_event.set()
 
-                if self.config.port == 8001:
-                    logger.debug(
-                        "Websocket connection failed. Trying ssl connection"
-                    )
-                    self.config.port = 8002
-                    self.open()
-                else:
-                    self.close()
-                    raise RuntimeError('Authentication denied')
-
-            def auth_callback(data):
-                if 'data' in data and 'token' in data["data"]:
-                    self.config.token = data['data']["token"]
-
-                    logger.debug('new token: ' + self.config.token)
-
-                logger.debug("Access granted.")
-                auth_event.set()
-
-                self.unregister_receive_callback(
-                    unauthorized_callback,
-                    'event',
-                    'ms.channel.unauthorized'
-                )
-
-                if 'data' in data and 'token' in data["data"]:
-                    self.config.token = data['data']["token"]
-                    logger.debug('new token: ' + self.config.token)
-
-                logger.debug("Access granted.")
-
-                if not power and not self.config.paired:
-                    self.power = False
-
-                self.config.paired = True
-                if self.config.path:
-                    self.config.save()
-
-                auth_event.set()
-
-            self.register_receive_callback(
+            self.unregister_receive_callback(
                 auth_callback,
                 'event',
                 'ms.channel.connect'
             )
 
-            self.register_receive_callback(
+            if self.config.port == 8001:
+                logger.debug(
+                    "Websocket connection failed. Trying ssl connection"
+                )
+                self.config.port = 8002
+                self.open()
+            else:
+                self.close()
+                raise RuntimeError('Authentication denied')
+
+        def auth_callback(data):
+            if 'data' in data and 'token' in data["data"]:
+                self.config.token = data['data']["token"]
+
+                logger.debug('new token: ' + self.config.token)
+
+            logger.debug("Access granted.")
+            auth_event.set()
+
+            self.unregister_receive_callback(
                 unauthorized_callback,
                 'event',
                 'ms.channel.unauthorized'
             )
 
-            if not self._running:
-                self._thread = threading.Thread(target=self.loop)
-                self._thread.start()
+            if 'data' in data and 'token' in data["data"]:
+                self.config.token = data['data']["token"]
+                logger.debug('new token: ' + self.config.token)
 
-                if self.config.paired:
-                    auth_event.wait(5.0)
-                else:
-                    auth_event.wait(30.0)
+            logger.debug("Access granted.")
 
-                if not auth_event.isSet():
-                    if not self.config.paired and self.config.port == 8001:
-                        logger.debug(
-                            "Websocket connection failed. Trying ssl connection"
-                        )
-                        self.config.port = 8002
-                        return self.open()
-                    else:
-                        self.close()
-                        raise RuntimeError('Auth Failure')
+            if not starting and not power and not self.config.paired:
+                self.power = False
 
-                self._starting = False
-                self.send_event.wait(0.5)
-                return True
+            self.config.paired = True
+            if self.config.path:
+                self.config.save()
+
+            auth_event.set()
+
+        self.register_receive_callback(
+            auth_callback,
+            'event',
+            'ms.channel.connect'
+        )
+
+        self.register_receive_callback(
+            unauthorized_callback,
+            'event',
+            'ms.channel.unauthorized'
+        )
+
+        if not self._running:
+            self._thread = threading.Thread(target=self.loop)
+            self._thread.start()
+
+            if self.config.paired:
+                auth_event.wait(5.0)
             else:
-                self._starting = False
-                return True
+                auth_event.wait(30.0)
+
+            if not auth_event.isSet():
+                if not self.config.paired and self.config.port == 8001:
+                    logger.debug(
+                        "Websocket connection failed. Trying ssl connection"
+                    )
+                    self.config.port = 8002
+                    return self.open()
+                else:
+                    self.close()
+                    raise RuntimeError('Auth Failure')
+
+            self._starting = False
+            self.send_event.wait(0.5)
+            return True
+        else:
+            self._starting = False
+            return True
 
     @LogIt
     def send(self, method, **params):

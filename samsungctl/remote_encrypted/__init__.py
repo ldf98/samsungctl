@@ -138,19 +138,22 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         if self.sock is not None:
             return True
 
-        self._starting = True
+        starting = self._starting
 
         power = self.power
         paired = self.config.paired
 
-        if self.ctx is None:
-            if not power:
+        if not starting:
+            self._starting = True
+            if not self.config.paired and not power:
                 self.power = True
 
-            if not self.power:
-                raise RuntimeError('Unable to pair with TV.')
+                if not self.power:
+                    raise RuntimeError('Unable to pair with TV.')
 
-            self.last_request_id = 0
+        self.last_request_id = 0
+
+        if self.ctx is None:
 
             if self.check_pin_page():
                 logger.debug("Pin NOT on TV")
@@ -199,8 +202,10 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             self._thread.start()
 
         if not paired and not power:
+
             self.power = False
             self.close()
+            self._starting = False
             return False
 
         self._starting = False
