@@ -14,10 +14,12 @@ logger = logging.getLogger('samsungctl')
 class UPNPTV(UPNPObject):
 
     def __init__(self, ip, locations):
+        self.ip_address = ip
+        self._devices = {}
+        self._services = {}
         self._dtv_information = None
         self._tv_options = None
         self.name = self.__class__.__name__
-        self.ip_address = ip
         self._connected = False
         self._locations = locations
         self._connect_upnp()
@@ -78,7 +80,7 @@ class UPNPTV(UPNPObject):
 
     @property
     def power(self):
-        raise NotImplementedError
+        return True
 
     def get_audio_selection(self):
         if not self.connected:
@@ -820,11 +822,6 @@ class UPNPTV(UPNPObject):
             return self.MainTVAgent2.SetRoomEQTest(
                 room_eq_id
             )[0]
-
-
-
-
-
 
     @property
     def schedule_list_url(self):

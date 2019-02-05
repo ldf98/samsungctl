@@ -58,7 +58,6 @@ def discover(config=None, log_level=None, timeout=5):
                         else:
                             raise ValueError
 
-
                     except (requests.HTTPError, requests.exceptions.ConnectTimeout):
                         port = 55000
                         method = 'legacy'
