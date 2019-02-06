@@ -86,6 +86,7 @@ class Config(object):
                     method = 'legacy'
                     app_id = ''
                     port = 55000
+                    mac = tmp_mac
                 else:
                     method = None
                     app_id = ''
@@ -290,7 +291,7 @@ class Config(object):
                 **_
             ):
                 if os.path.isdir(pth):
-                    cfg_path = os.path.join(pth, name + '.config')
+                    cfg_path = os.path.join(pth, host + '.config')
                     if os.path.exists(cfg_path):
                         return Config.load(cfg_path)
                 else:
