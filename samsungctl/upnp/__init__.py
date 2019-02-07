@@ -14,29 +14,26 @@ logger = logging.getLogger('samsungctl')
 class UPNPTV(UPNPObject):
 
     def __init__(self, ip, locations):
+        if locations is None:
+            locations = []
+
         self.ip_address = ip
-        self._devices = {}
-        self._services = {}
         self._dtv_information = None
         self._tv_options = None
         self.name = self.__class__.__name__
-        self._connected = False
         self._locations = locations
-        self._connect_upnp()
+
+        super(UPNPTV, self).__init__(ip, locations)
 
     @property
     def connected(self):
-        if self.power:
-            self._connect_upnp()
-            return True
+        if self._locations:
+            if self.power:
+                return True
+            else:
+                return False
         else:
-            logger.info('UPNP suspended')
             return False
-
-    def _connect_upnp(self):
-        if not self._connected and self.power:
-            super(UPNPTV, self).__init__(self.ip_address, self._locations)
-            self._connected = True
 
     @property
     def tv_options(self):

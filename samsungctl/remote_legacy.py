@@ -8,12 +8,13 @@ import codecs
 import threading
 import sys
 from . import exceptions
+from . import upnp
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger('samsungctl')
 
 
-class RemoteLegacy(object):
+class RemoteLegacy(upnp.UPNPTV):
     """Object for remote control connection."""
 
     @LogIt
@@ -22,6 +23,7 @@ class RemoteLegacy(object):
         self.sock = None
         self.config = config
         self._starting = True
+        super(upnp.UPNPTV, self).__init__(config.host, config.upnp_locations)
 
     @property
     @LogItWithReturn

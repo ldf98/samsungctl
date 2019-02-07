@@ -15,6 +15,7 @@ from . import exceptions
 from . import application
 from . import websocket_base
 from . import wake_on_lan
+from . import upnp
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger('samsungctl')
@@ -24,14 +25,15 @@ URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 
 
-class RemoteWebsocket(websocket_base.WebSocketBase):
+class RemoteWebsocket(websocket_base.WebSocketBase, upnp.UPNPTV):
     """Object for remote control connection."""
 
     @LogIt
     def __init__(self, config):
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
-        super(RemoteWebsocket, self).__init__(config)
+        websocket_base.WebSocketBase.__init__(self, config)
+        super(upnp.UPNPTV, self).__init__(config.host, config.upnp_locations)
 
     @property
     @LogItWithReturn

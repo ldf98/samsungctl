@@ -30,6 +30,7 @@ except NameError:
 from . import crypto # NOQA
 from .command_encryption import AESCipher # NOQA
 from .. import websocket_base # NOQA
+from .. import upnp
 from ..upnp.UPNP_Device.xmlns import strip_xmlns # NOQA
 from ..utils import LogIt, LogItWithReturn # NOQA
 
@@ -107,7 +108,7 @@ class URL(object):
         return "{0}/ws/apps/CloudPINPage".format(self.full_url)
 
 
-class RemoteEncrypted(websocket_base.WebSocketBase):
+class RemoteEncrypted(websocket_base.WebSocketBase, upnp.UPNPTV):
 
     @LogIt
     def __init__(self, config):
@@ -127,7 +128,8 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.last_request_id = 0
         self.aes_lib = None
 
-        super(RemoteEncrypted, self).__init__(config)
+        websocket_base.WebSocketBase.__init__(self, config)
+        super(upnp.UPNPTV, self).__init__(config.host, config.upnp_locations)
 
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
