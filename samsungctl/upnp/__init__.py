@@ -35,7 +35,7 @@ class UPNPTV(UPNPObject):
 
     def _connect_upnp(self):
         if not self._connected and self.power:
-            UPNPObject.__init__(self, self.ip_address, self._locations)
+            super(UPNPTV, self).__init__(self.ip_address, self._locations)
             self._connected = True
 
     @property
