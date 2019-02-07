@@ -23,7 +23,13 @@ class RemoteLegacy(upnp.UPNPTV):
         self.sock = None
         self.config = config
         self._starting = True
-        super(upnp.UPNPTV, self).__init__(config.host, config.upnp_locations)
+
+        if config.upnp_locations is None:
+            locations = []
+        else:
+            locations = config.upnp_locations
+
+        super(RemoteLegacy, self).__init__(config.host, locations)
 
     @property
     @LogItWithReturn

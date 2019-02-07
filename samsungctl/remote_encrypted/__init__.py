@@ -129,7 +129,12 @@ class RemoteEncrypted(websocket_base.WebSocketBase, upnp.UPNPTV):
         self.aes_lib = None
 
         websocket_base.WebSocketBase.__init__(self, config)
-        super(upnp.UPNPTV, self).__init__(config.host, config.upnp_locations)
+        if config.upnp_locations is None:
+            locations = []
+        else:
+            locations = config.upnp_locations
+
+        super(upnp.UPNPTV, self).__init__(config.host, locations)
 
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")

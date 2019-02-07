@@ -33,7 +33,13 @@ class RemoteWebsocket(websocket_base.WebSocketBase, upnp.UPNPTV):
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
         websocket_base.WebSocketBase.__init__(self, config)
-        super(upnp.UPNPTV, self).__init__(config.host, config.upnp_locations)
+
+        if config.upnp_locations is None:
+            locations = []
+        else:
+            locations = config.upnp_locations
+
+        super(upnp.UPNPTV, self).__init__(config.host, locations)
 
     @property
     @LogItWithReturn
