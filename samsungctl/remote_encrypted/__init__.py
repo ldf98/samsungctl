@@ -127,7 +127,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.last_request_id = 0
         self.aes_lib = None
 
-        websocket_base.WebSocketBase.__init__(self, config)
+        super(RemoteEncrypted, self).__init__(config)
 
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
