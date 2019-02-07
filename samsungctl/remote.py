@@ -41,6 +41,9 @@ class RemoteMeta(type):
 
             def __init__(self, config):
                 self.__name__ = config.name
+                self._connected = False
+                self._devices = {}
+                self._services = {}
 
                 for name, key in KEYS.items():
                     self.__dict__[name] = KeyWrapper(self, key)
