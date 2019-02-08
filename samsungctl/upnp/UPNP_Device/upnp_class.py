@@ -63,7 +63,6 @@ class UPNPObject(object):
             root = strip_xmlns(root)
             node = root.find('device')
             if node is None:
-                print(content)
                 services = []
                 devices = []
 

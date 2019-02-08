@@ -28,12 +28,12 @@ class Service(object):
         dump=''
     ):
 
-        self.__parent = parent
+        self._parent = parent
         self.state_variables = {}
-        self.__actions = {}
-        self.__node = node
+        self._actions = {}
+        self._node = node
         self.url = url
-        self.__icons = {}
+        self._icons = {}
 
         if node is not None:
             icons = node.find('iconList')
@@ -43,7 +43,7 @@ class Service(object):
 
             for icon in icons:
                 icon = Icon(self, url, icon)
-                self.__icons[icon.__name__] = icon
+                self._icons[icon.__name__] = icon
 
         self.service = service
 
@@ -55,6 +55,7 @@ class Service(object):
 
         response = requests.get(url + location)
         content = response.content.decode('utf-8')
+
         if dump:
             path = location
             if path.startswith('/'):
@@ -102,32 +103,32 @@ class Service(object):
                 url + control_url
             )
 
-            self.__actions[action.__name__] = action
+            self._actions[action.__name__] = action
 
     @property
     def methods(self):
-        return list(self.__actions.values())[:]
+        return list(self._actions.values())[:]
 
     @property
     def access_point(self):
-        return self.__parent.access_point + '.' + self.__name__
+        return self._parent.access_point + '.' + self.__name__
 
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
 
-        if item in self.__actions:
-            return self.__actions[item]
+        if item in self._actions:
+            return self._actions[item]
 
-        if self.__node is not None:
-            if item in self.__icons:
-                return self.__icons[item]
+        if self._node is not None:
+            if item in self._icons:
+                return self._icons[item]
 
             if item in self.__class__.__dict__:
                 if hasattr(self.__class__.__dict__[item], 'fget'):
                     return self.__class__.__dict__[item].fget(self)
 
-            value = self.__node.find(item)
+            value = self._node.find(item)
             if value is not None:
                 return value.text
 
@@ -141,8 +142,8 @@ class Service(object):
             icons=list(icon.as_dict for icon in self.icons)
         )
 
-        if self.__node is not None:
-            for node in self.__node:
+        if self._node is not None:
+            for node in self._node:
                 if node.text.strip() and node.text != '/':
                     res[node.tag] = node.text
         return res
@@ -150,13 +151,13 @@ class Service(object):
     def __str__(self, indent=''):
         actions = ''
 
-        for action in self.__actions.values():
+        for action in self._actions.values():
             actions += action.__str__(indent + '    ')
 
         if not actions:
             actions += indent + '    None'
 
-        if self.__node is None:
+        if self._node is None:
 
             output = TEMPLATE.format(
                 indent=indent,
@@ -200,8 +201,8 @@ class Service(object):
 
         return output
 
-    def __get_xml_text(self, tag):
-        value = self.__node.find(tag)
+    def _get_xml_text(self, tag):
+        value = self._node.find(tag)
         if value is not None:
             value = value.text
 
@@ -209,7 +210,7 @@ class Service(object):
 
     @property
     def hardware_id(self):
-        value = self.__get_xml_text('X_hardwareId')
+        value = self._get_xml_text('X_hardwareId')
         if value is not None:
             value = value.replace('&amp;', '&')
 
@@ -217,67 +218,67 @@ class Service(object):
 
     @property
     def device_category(self):
-        value = self.__get_xml_text('X_deviceCategory')
+        value = self._get_xml_text('X_deviceCategory')
         return value
 
     @property
     def device_subcategory(self):
-        value = self.__get_xml_text('X_deviceCategory')
+        value = self._get_xml_text('X_deviceCategory')
         return value
 
     @property
     def icons(self):
-        return list(self.__icons.values())[:]
+        return list(self._icons.values())[:]
 
     @property
     def device_type(self):
-        return self.__get_xml_text('deviceType')
+        return self._get_xml_text('deviceType')
 
     @property
     def presentation_url(self):
-        value = self.__get_xml_text('presentationURL')
+        value = self._get_xml_text('presentationURL')
         if value is not None:
             return self.url + value
 
     @property
     def friendly_name(self):
-        return self.__get_xml_text('friendlyName')
+        return self._get_xml_text('friendlyName')
 
     @property
     def manufacturer(self):
-        return self.__get_xml_text('manufacturer')
+        return self._get_xml_text('manufacturer')
 
     @property
     def manufacturer_url(self):
-        return self.__get_xml_text('manufacturerURL')
+        return self._get_xml_text('manufacturerURL')
 
     @property
     def model_description(self):
-        return self.__get_xml_text('modelDescription')
+        return self._get_xml_text('modelDescription')
 
     @property
     def model_name(self):
-        return self.__get_xml_text('modelName')
+        return self._get_xml_text('modelName')
 
     @property
     def model_number(self):
-        return self.__get_xml_text('modelNumber')
+        return self._get_xml_text('modelNumber')
 
     @property
     def model_url(self):
-        return self.__get_xml_text('modelURL')
+        return self._get_xml_text('modelURL')
 
     @property
     def serial_number(self):
-        return self.__get_xml_text('serialNumber')
+        return self._get_xml_text('serialNumber')
 
     @property
     def udn(self):
-        return self.__get_xml_text('UDN')
+        return self._get_xml_text('UDN')
 
     @property
     def upc(self):
-        return self.__get_xml_text('UPC')
+        return self._get_xml_text('UPC')
 
 
 TEMPLATE = '''{indent}Service name: {name}

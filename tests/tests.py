@@ -14,14 +14,139 @@ import uuid
 import logging
 import socket
 import flask
+import struct
+from xml.dom.minidom import Document
+from lxml import etree
+
 
 try:
     import responses
+    import ssdp
 except ImportError:
     from . import responses
+    from . import ssdp
+
+IPV4_MCAST_GRP = '239.255.255.250'
+IPV6_MCAST_GRP = '[ff02::c]'
+
+BIND_ADDREESS = ('127.0.0.1', 1900)
+
+'''
+M-SEARCH * HTTP/1.1
+ST: ssdp:all
+MAN: "ssdp:discover"
+HOST: 239.255.255.250:1900
+MX: 10
+Content-Length: 0
 
 
+Received 1/22/2019 at 8:03:06 AM (40)
+
+M-SEARCH * HTTP/1.1
+ST: upnp:rootdevice
+MAN: "ssdp:discover"
+HOST: [ff02::c]:1900
+MX: 10
+Content-Length: 0
+
+
+'''
+BASE_PATH = os.path.abspath(os.path.dirname(__file__))
+LOCAL_IP = socket.gethostbyname(socket.gethostname())
+UPNP_PORT = 7272
+ENVELOPE_XMLNS = 'http://schemas.xmlsoap.org/soap/envelope/'
 VERBOSE = 0
+
+
+data_type_classes = {
+    'time.tz': str,
+    'time': str,
+    'dateTime.tz': str,
+    'dateTime': str,
+    'date': str,
+    'uuid': str,
+    'uri': str,
+    'bin.base64': str,
+    'boolean': bool,
+    'string': str,
+    'char': str,
+    'float': float,
+    'fixed.14.4': float,
+    'number': int,
+    'r8': float,
+    'r4': float,
+    'int': int,
+    'i8': int,
+    'i4': int,
+    'i2': int,
+    'i1': int,
+    'ui8': int,
+    'ui4': int,
+    'ui2': int,
+    'ui1': int,
+    'long': int
+}
+
+
+def convert_packet(packet):
+    packet_type, packet = packet.decode('utf-8').split('\n', 1)
+    packet_type = packet_type.upper().split('*')[0].strip()
+
+    packet = dict(
+        (
+            line.split(':', 1)[0].strip().upper(),
+            line.split(':', 1)[1].strip()
+        ) for line in packet.split('\n') if line.strip()
+    )
+
+    packet['TYPE'] = packet_type
+    return packet
+
+
+def build_xml_response(func, service, retvals):
+    doc = Document()
+
+    envelope = doc.createElementNS('', 'Envelope')
+    body = doc.createElementNS('', 'Body')
+
+    fn = doc.createElementNS('', func)
+
+    for key, value in retvals:
+
+        tmp_node = doc.createElement(key)
+        tmp_text_node = doc.createTextNode(str(value))
+        tmp_node.appendChild(tmp_text_node)
+        fn.appendChild(tmp_node)
+
+    body.appendChild(fn)
+    envelope.appendChild(body)
+    doc.appendChild(envelope)
+    pure_xml = doc.toxml()
+    return pure_xml
+
+
+def strip_xmlns(root):
+    def iter_node(n):
+        nsmap = n.nsmap
+        for child in n:
+            nsmap.update(iter_node(child))
+        return nsmap
+
+    xmlns = list('{' + item + '}' for item in iter_node(root).values())
+
+    def strip_node(n):
+        for item in xmlns:
+            n.tag = n.tag.replace(item, '')
+
+        for child in n[:]:
+            try:
+                strip_node(child)
+            except AttributeError:
+                n.remove(child)
+    strip_node(root)
+
+    return root
+
 
 for arg in list(sys.argv):
     if arg.startswith('-v'):
@@ -90,7 +215,6 @@ def key_wrapper(func):
 
     return wrapper
 
-
 class FakeWebsocketClient(object):
     def __init__(self, handler):
 
@@ -148,6 +272,11 @@ class WebSocketTest(unittest.TestCase):
     client = None
     applications = []
     config = None
+    ssdp_thread = None
+    ssdp_event = None
+    ssdp_sock = None
+    func = None
+    result = None
 
     NO_CONNECTION = 'no connection'
     PREVIOUS_TEST_FAILED = 'previous test failed'
@@ -169,7 +298,107 @@ class WebSocketTest(unittest.TestCase):
         return base64.b64encode(s).decode("utf-8")
 
     def test_001_CONNECTION(self):
-        self.app = flask.Flask('Power Provider')
+        # sys.modules['samsungctl.application']._instances.clear()
+
+        self.upnp_app = flask.Flask('Encrypted XML Provider')
+        self.api_app = flask.Flask('API Provider')
+
+        def get_node(xml, xmlns, tag):
+            tag = '{{{xmlns}}}{tag}'.format(
+                xmlns=xmlns,
+                tag=tag
+            )
+            return xml.find(tag)
+
+        def get_func():
+            try:
+                envelope = etree.fromstring(flask.request.data)
+            except etree.ParseError:
+                self.fail('XML_PARSE_ERROR')
+
+            if envelope is None:
+                self.fail('NO_ENVELOPE:\n' + flask.request.data)
+
+            body = get_node(envelope, ENVELOPE_XMLNS, 'Body')
+            if body is None:
+                self.fail('NO_BODY')
+
+            for func in body:
+                if func.tag == WebSocketTest.func:
+                    break
+            else:
+                self.fail('NO_FUNC: ' + WebSocketTest.func)
+
+            envelope = strip_xmlns(envelope)
+            body = envelope.find('Body')
+
+            for func in body:
+                if func.tag == WebSocketTest.func:
+                    return func
+
+        def get_file(path):
+            path = os.path.join(BASE_PATH, 'upnp', 'encrypted_upnp', path)
+            with open(path, 'r') as f:
+                return f.read()
+
+        def get_service_func(path):
+            service_xml = etree.fromstring(get_file(path))
+            service_xml = strip_xmlns(service_xml)
+            action_list = service_xml.find('actionList')
+
+            value_table = service_xml.find('serviceStateTable')
+
+            for action in action_list:
+                name = action.find('name')
+                if name.text == self.func:
+                    return action, value_table
+
+        def check_value(func, action, value_table):
+            arguments = action.find('argumentList')
+
+            for argument in arguments:
+                direction = argument.find('direction')
+                if direction.text != 'in':
+                    continue
+                name = argument.find('name')
+                param = func.find(name.text)
+                if param is None:
+                    self.fail('NO_PARAM: ' + name.text)
+
+                value = param.text
+                variable_name = argument.find('relatedStateVariable').text
+
+                for variable in value_table:
+                    name = variable.find('name')
+
+                    if name.text != variable_name:
+                        continue
+
+                    data_type = variable.find('dataType').text
+                    data_type = data_type_classes[data_type]
+
+                    allowed_values = variable.find('allowedValueList')
+                    allowed_value_range = variable.find('allowedValueRange')
+
+                    value = data_type(value)
+
+                    if allowed_values is not None:
+                        allowed_values = list(av.text for av in allowed_values)
+                        if value not in allowed_values:
+                            self.fail('VALUE_NOT_ALLOWED')
+                    elif allowed_value_range is not None:
+                        min = allowed_value_range.find('min')
+                        max = allowed_value_range.find('max')
+                        step = allowed_value_range.find('step')
+                        if min is not None and data_type(min.text) > value:
+                            self.fail('VALUE_LOWER_THEN_MIN')
+
+                        if max is not None and data_type(max.text) < value:
+                            self.fail('VALUE_GREATER_THEN_MAX')
+
+                        if step is not None and value % data_type(step.text):
+                            self.fail('VALUE_INCREMENT_INCORRECT')
+                    break
 
         def shutdown_server():
             func = flask.request.environ.get('werkzeug.server.shutdown')
@@ -177,12 +406,17 @@ class WebSocketTest(unittest.TestCase):
                 raise RuntimeError('Not running with the Werkzeug Server')
             func()
 
-        @self.app.route('/shutdown', methods=['POST'])
+        @self.upnp_app.route('/shutdown', methods=['POST'])
         def shutdown():
             shutdown_server()
             return 'Server shutting down...'
 
-        @self.app.route('/api/v2/')
+        @self.api_app.route('/shutdown', methods=['POST'])
+        def shutdown():
+            shutdown_server()
+            return 'Server shutting down...'
+
+        @self.api_app.route('/api/v2/')
         def api_v2():
             res = dict(
                 device=dict(
@@ -231,12 +465,171 @@ class WebSocketTest(unittest.TestCase):
 
             return json.dumps(res)
 
-        def do():
-            self.app.run(host='0.0.0.0', port=8001)
+        @self.upnp_app.route('/smp_3_')
+        def smp_3_():
+            return get_file('smp_2_/smp_3_.xml')
 
-        threading.Thread(target=do).start()
+        @self.upnp_app.route('/smp_8_')
+        def smp_8_():
+            return get_file('smp_7_/smp_8_.xml')
 
-        # sys.modules['samsungctl.application']._instances.clear()
+        @self.upnp_app.route('/smp_16_')
+        def smp_16_():
+            return get_file('smp_15_/smp_16_.xml')
+
+        @self.upnp_app.route('/smp_19_')
+        def smp_19_():
+            return get_file('smp_15_/smp_19_.xml')
+
+        @self.upnp_app.route('/smp_22_')
+        def smp_22_():
+            return get_file('smp_15_/smp_22_.xml')
+
+        @self.upnp_app.route('/smp_26_')
+        def smp_26_():
+            return get_file('smp_25_/smp_26_.xml')
+
+        @self.upnp_app.route('/smp_4_', methods=['POST'])
+        def smp_4_():
+            '''
+            smp_2_/smp_3_
+            urn:samsung.com:service:MainTVAgent2
+            '''
+            func = get_func()
+            action, value_table = get_service_func('smp_2_/smp_3_.xml')
+            check_value(func, action, value_table)
+            return WebSocketTest.result
+
+        @self.upnp_app.route('/smp_9_', methods=['POST'])
+        def smp_9_():
+            '''
+            smp_7_/smp_8_
+            urn:samsung.com:service:MultiScreenService
+            '''
+            func = get_func()
+            action, value_table = get_service_func('smp_7_/smp_8_.xml')
+            check_value(func, action, value_table)
+            return WebSocketTest.result
+
+        @self.upnp_app.route('/smp_17_', methods=['POST'])
+        def smp_17_():
+            '''
+            smp_15_/smp_16_
+            urn:schemas-upnp-org:service:RenderingControl
+            '''
+            func = get_func()
+            action, value_table = get_service_func('smp_15_/smp_16_.xml')
+            check_value(func, action, value_table)
+            return WebSocketTest.result
+
+        @self.upnp_app.route('/smp_20_', methods=['POST'])
+        def smp_20_():
+            '''
+            smp_15_/smp_19_
+            urn:schemas-upnp-org:service:ConnectionManager
+
+            '''
+            func = get_func()
+            action, value_table = get_service_func('smp_15_/smp_19_.xml')
+            check_value(func, action, value_table)
+            return WebSocketTest.result
+
+        @self.upnp_app.route('/smp_23_', methods=['POST'])
+        def smp_23_():
+            '''
+            smp_15_/smp_22_
+            urn:schemas-upnp-org:service:AVTransport
+
+            '''
+            func = get_func()
+            action, value_table = get_service_func('smp_15_/smp_22_.xml')
+            check_value(func, action, value_table)
+            return WebSocketTest.result
+
+        @self.upnp_app.route('/smp_27_', methods=['POST'])
+        def smp_27_():
+            '''
+            smp_25_/smp_26_
+            urn:dial-multiscreen-org:service:dial
+            '''
+            func = get_func()
+            action, value_table = get_service_func('smp_25_/smp_26_.xml')
+            check_value(func, action, value_table)
+            return WebSocketTest.result
+
+        @self.upnp_app.route('/smp_2_')
+        def smp_2_():
+            return get_file('smp_2_.xml')
+
+        @self.upnp_app.route('/smp_7_')
+        def smp_7_():
+            return get_file('smp_7_.xml')
+
+        @self.upnp_app.route('/smp_15_')
+        def smp_15_():
+            return get_file('smp_15_.xml')
+
+        @self.upnp_app.route('/smp_25_')
+        def smp_25_():
+            return get_file('smp_25_.xml')
+
+        self.ssdp_event = WebSocketTest.ssdp_event = threading.Event()
+        self.ssdp_sock = ssdp_sock = WebSocketTest.ssdp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.ssdp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        ssdp_sock.bind(BIND_ADDREESS)
+        group = socket.inet_aton(IPV4_MCAST_GRP)
+        group_membership = struct.pack('4sL', group, socket.INADDR_ANY)
+        ssdp_sock.setsockopt(
+            socket.IPPROTO_IP,
+            socket.IP_ADD_MEMBERSHIP,
+            group_membership
+        )
+
+        def ssdp_do():
+            while not self.ssdp_event.isSet():
+                try:
+                    data, address = self.ssdp_sock.recvfrom(1024)
+                except socket.error:
+                    break
+
+                if not data:
+                    continue
+
+                packet = convert_packet(data)
+
+                if packet['TYPE'] != 'M-SEARCH':
+                    continue
+
+                if (
+                    'MAN' in packet and
+                    'ST' in packet and
+                    packet['MAN'] == '"ssdp:discover"' and
+                    packet['ST'] in ('ssdp:all', 'upnp:rootdevice')
+                ):
+                    for ssdp_packet in ssdp.PACKETS:
+                        self.ssdp_sock.sendto(
+                            ssdp_packet.format(ip=LOCAL_IP, port=UPNP_PORT),
+                            address
+                        )
+
+        def upnp_do():
+            self.upnp_app.run(host='0.0.0.0', port=UPNP_PORT)
+
+        def api_do():
+            self.api_app.run(host='0.0.0.0', port=8001)
+
+        self.upnp_thread = threading.Thread(target=upnp_do, name='upnp_server')
+        self.upnp_thread.start()
+
+        self.api_thread = threading.Thread(target=api_do, name='api_server')
+        self.api_thread.start()
+
+        self.ssdp_thread = WebSocketTest.ssdp_thread = threading.Thread(target=ssdp_do, name='ssdp_listen')
+        self.ssdp_thread.start()
+        #
+        # for config in samsungctl.discover():
+        #     print(str(list(config)))
+
         WebSocketTest.config = samsungctl.Config(
             name="samsungctl",
             description="PC",
@@ -244,7 +637,8 @@ class WebSocketTest(unittest.TestCase):
             method="websocket",
             host='127.0.0.1',
             port=8001,
-            timeout=0
+            timeout=0,
+            upnp_locations=[]
         )
 
         self.config.log_level = LOG_LEVEL
@@ -285,6 +679,56 @@ class WebSocketTest(unittest.TestCase):
         )
 
         self.assertEqual(url, self.client.url)
+
+    def test_003_GET_VOLUME(self):
+        WebSocketTest.func = 'GetVolume'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentVolume', 50]])
+        self.assertEqual(50, self.remote.volume, 'VOLUME_NOT_50')
+
+    def test_003_SET_VOLUME(self):
+        WebSocketTest.func = 'SetVolume'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        self.remote.volume = 30
+
+    def test_004_GET_MUTE(self):
+        WebSocketTest.func = 'GetMute'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentMute', '1']])
+        self.assertEqual(True, self.remote.mute, 'MUTE_NOT_TRUE')
+
+    def test_004_SET_MUTE(self):
+        WebSocketTest.func = 'SetMute'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        self.remote.mute = False
+
+    def test_005_GET_BRIGHTNESS(self):
+        WebSocketTest.func = 'GetBrightness'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentBrightness', 50]])
+        self.assertEqual(50, self.remote.brightness, 'BRIGHTNESS_NOT_50')
+
+    def test_005_SET_BRIGHTNESS(self):
+        WebSocketTest.func = 'SetBrightness'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        self.remote.brightness = 50
+
+    def test_006_GET_CONTRAST(self):
+        WebSocketTest.func = 'GetContrast'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentContrast', 50]])
+        self.assertEqual(50, self.remote.contrast, 'CONTRAST_NOT_50')
+
+    def test_006_SET_CONTRAST(self):
+        WebSocketTest.func = 'SetContrast'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        self.remote.contrast = 50
+
+    def test_007_GET_SHARPNESS(self):
+        WebSocketTest.func = 'GetSharpness'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentSharpness', 50]])
+        self.assertEqual(50, self.remote.sharpness, 'SHARPNESS_NOT_50')
+
+    def test_007_SET_SHARPNESS(self):
+        WebSocketTest.func = 'SetSharpness'
+        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        self.remote.sharpness = 50
 
     # @key_wrapper
     def test_0100_KEY_POWEROFF(self):
@@ -1267,7 +1711,13 @@ class WebSocketTest(unittest.TestCase):
 
         import requests
 
+        self.ssdp_event.set()
+        self.ssdp_sock.shutdown(socket.SHUT_RDWR)
+        self.ssdp_sock.close()
+        self.ssdp_thread.join(3.0)
+
         requests.post('http://127.0.0.1:8001/shutdown')
+        requests.post('http://127.0.0.1:{0}/shutdown'.format(UPNP_PORT))
 
     def on_disconnect(self):
         pass

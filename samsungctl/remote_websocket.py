@@ -15,7 +15,6 @@ from . import exceptions
 from . import application
 from . import websocket_base
 from . import wake_on_lan
-from . import upnp
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger('samsungctl')
@@ -25,21 +24,14 @@ URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 
 
-class RemoteWebsocket(websocket_base.WebSocketBase, upnp.UPNPTV):
+class RemoteWebsocket(websocket_base.WebSocketBase):
     """Object for remote control connection."""
 
     @LogIt
     def __init__(self, config):
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
-        websocket_base.WebSocketBase.__init__(self, config)
-
-        if config.upnp_locations is None:
-            locations = []
-        else:
-            locations = config.upnp_locations
-
-        super(upnp.UPNPTV, self).__init__(config.host, locations)
+        super(RemoteWebsocket, self).__init__(config)
 
     @property
     @LogItWithReturn
@@ -791,109 +783,109 @@ class RemoteWebsocket(websocket_base.WebSocketBase, upnp.UPNPTV):
             )
 
             self.send('ms.channel.emit', **params)
-
-    @property
-    def brightness(self):
-        """
-        {
-            "method":"ms.channel.emit",
-            "params":{
-                "clientIp":"192.168.1.20",
-                "data":"{
-                    \"request\":\"get_brightness\",
-                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
-                }",
-                "deviceName":"W1Bob25lXWlQaG9uZQ==",
-                "event":"art_app_request",
-                "to":"host"
-            }
-        }"
-        """
-
-        params = self._build_art_app_request('get_brightness')
-
-        response = []
-        event = threading.Event()
-
-        def brightness_callback(data):
-            """
-            {
-                "method":"ms.channel.emit",
-                "params":{
-                    "clientIp":"127.0.0.1",
-                    "data":"{
-                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
-                        \"event\":\"brightness\",
-                        \"value\":\"2\",
-                        \"min\":\"1\",
-                        \"max\":\"3\",
-                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
-                    }",
-                    "deviceName":"Smart Device",
-                    "event":"d2d_service_message",
-                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
-                }
-            }
-            """
-            response.append(
-                dict(
-                    value=int(data['value']),
-                    min=int(data['min']),
-                    max=int(data['max'])
-                )
-            )
-
-            event.set()
-
-        self.register_receive_callback(
-            brightness_callback,
-            'brightness',
-            None
-        )
-
-        self.send('ms.channel.emit', **params)
-
-        event.wait(2.0)
-
-        self.unregister_receive_callback(
-            brightness_callback,
-            'brightness',
-            None
-        )
-
-        if not event.isSet():
-            logging.debug('get_brightness: timed out')
-        else:
-            return response[0]
-
-    @brightness.setter
-    def brightness(self, value):
-        """
-        {
-            "method":"ms.channel.emit",
-            "params":{
-                "clientIp":"192.168.1.20",
-                "data":"{
-                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
-                    \"value\":\"2\",
-                    \"request\":\"set_brightness\"
-                }",
-                "deviceName":"W1Bob25lXWlQaG9uZQ==",
-                "event":"art_app_request",
-                "to":"host"
-            }
-        }
-        """
-        value = int(value)
-
-        res = self.brightness
-        if res and res['min'] <= value <= res['max']:
-            params = self._build_art_app_request(
-                'set_brightness',
-                str(value)
-            )
-
-            self.send('ms.channel.emit', **params)
+    #
+    # @property
+    # def brightness(self):
+    #     """
+    #     {
+    #         "method":"ms.channel.emit",
+    #         "params":{
+    #             "clientIp":"192.168.1.20",
+    #             "data":"{
+    #                 \"request\":\"get_brightness\",
+    #                 \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+    #             }",
+    #             "deviceName":"W1Bob25lXWlQaG9uZQ==",
+    #             "event":"art_app_request",
+    #             "to":"host"
+    #         }
+    #     }"
+    #     """
+    #
+    #     params = self._build_art_app_request('get_brightness')
+    #
+    #     response = []
+    #     event = threading.Event()
+    #
+    #     def brightness_callback(data):
+    #         """
+    #         {
+    #             "method":"ms.channel.emit",
+    #             "params":{
+    #                 "clientIp":"127.0.0.1",
+    #                 "data":"{
+    #                     \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+    #                     \"event\":\"brightness\",
+    #                     \"value\":\"2\",
+    #                     \"min\":\"1\",
+    #                     \"max\":\"3\",
+    #                     \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+    #                 }",
+    #                 "deviceName":"Smart Device",
+    #                 "event":"d2d_service_message",
+    #                 "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+    #             }
+    #         }
+    #         """
+    #         response.append(
+    #             dict(
+    #                 value=int(data['value']),
+    #                 min=int(data['min']),
+    #                 max=int(data['max'])
+    #             )
+    #         )
+    #
+    #         event.set()
+    #
+    #     self.register_receive_callback(
+    #         brightness_callback,
+    #         'brightness',
+    #         None
+    #     )
+    #
+    #     self.send('ms.channel.emit', **params)
+    #
+    #     event.wait(2.0)
+    #
+    #     self.unregister_receive_callback(
+    #         brightness_callback,
+    #         'brightness',
+    #         None
+    #     )
+    #
+    #     if not event.isSet():
+    #         logging.debug('get_brightness: timed out')
+    #     else:
+    #         return response[0]
+    #
+    # @brightness.setter
+    # def brightness(self, value):
+    #     """
+    #     {
+    #         "method":"ms.channel.emit",
+    #         "params":{
+    #             "clientIp":"192.168.1.20",
+    #             "data":"{
+    #                 \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+    #                 \"value\":\"2\",
+    #                 \"request\":\"set_brightness\"
+    #             }",
+    #             "deviceName":"W1Bob25lXWlQaG9uZQ==",
+    #             "event":"art_app_request",
+    #             "to":"host"
+    #         }
+    #     }
+    #     """
+    #     value = int(value)
+    #
+    #     res = self.brightness
+    #     if res and res['min'] <= value <= res['max']:
+    #         params = self._build_art_app_request(
+    #             'set_brightness',
+    #             str(value)
+    #         )
+    #
+    #         self.send('ms.channel.emit', **params)
 
     @property
     def brightness_sensor(self):

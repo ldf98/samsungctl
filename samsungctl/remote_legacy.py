@@ -23,41 +23,16 @@ class RemoteLegacy(upnp.UPNPTV):
         self.sock = None
         self.config = config
         self._starting = True
+        self._thread = None
+        self._loop_event = threading.Event()
+        self._receive_lock = threading.Lock()
 
-        if config.upnp_locations is None:
-            locations = []
-        else:
-            locations = config.upnp_locations
-
-        super(RemoteLegacy, self).__init__(config.host, locations)
+        super(RemoteLegacy, self).__init__(config.host, config.upnp_locations)
 
     @property
     @LogItWithReturn
     def power(self):
-        if self.sock is None and not self._starting:
-            try:
-                self.open()
-                return True
-            except:
-                return False
-
-        elif self.sock is not None:
-            self.sock.self.sock.setblocking(0)
-            try:
-                self.sock.recv(2048)
-                self.sock.self.sock.setblocking(1)
-                return True
-
-            except socket.error:
-                try:
-                    self.sock.close()
-                except socket.error:
-                    pass
-
-                self.sock = None
-                return False
-
-        return False
+        return self.sock is not None
 
     @power.setter
     @LogIt
@@ -69,6 +44,30 @@ class RemoteLegacy(upnp.UPNPTV):
             while self.power:
                 self.control('KEY_POWEROFF')
                 event.wait(2.0)
+
+    def loop(self):
+        while not self._loop_event.isSet():
+            try:
+                data = self.sock.recv(2048)
+                if data:
+                    self._read_response(data)
+                self._loop_event.wait(0.2)
+
+            except socket.error:
+                self.sock = None
+                self.disconnect()
+
+                while self.sock is None and not self._loop_event.isSet():
+                    try:
+                        self.open()
+                    except:
+                        self._loop_event.wait(2.0)
+
+                if not self._loop_event.isSet():
+                    self.connect()
+
+        self._thread = None
+        self._loop_event.clear()
 
     @LogIt
     def open(self):
@@ -101,11 +100,20 @@ class RemoteLegacy(upnp.UPNPTV):
         logger.info("Sending handshake.")
         self.sock.send(packet)
         self._read_response(True)
+
+        if self._thread is None:
+            self._thread = threading.Thread(target=self.loop)
+            self._thread.start()
+
         self._starting = False
 
     @LogIt
     def close(self):
         """Close the connection."""
+        self._loop_event.set()
+        if self._thread is not None:
+            self._thread.join(2.0)
+
         if self.sock:
             self.sock.close()
             self.sock = None
@@ -114,17 +122,17 @@ class RemoteLegacy(upnp.UPNPTV):
     @LogIt
     def control(self, key):
         """Send a control command."""
-        if not self.sock:
+        if self.sock is None:
             logger.info('Is the TV on?!?')
             return
 
-        payload = b"\x00\x00\x00" + self._serialize_string(key)
-        packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
+        with self._receive_lock:
+            payload = b"\x00\x00\x00" + self._serialize_string(key)
+            packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
 
-        logger.info("Sending control command: %s", key)
-        self.sock.send(packet)
-        self._read_response()
-        time.sleep(self._key_interval)
+            logger.info("Sending control command: %s", key)
+            self.sock.send(packet)
+            time.sleep(self._key_interval)
 
     _key_interval = 0.2
 
