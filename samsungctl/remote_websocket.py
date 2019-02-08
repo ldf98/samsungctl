@@ -89,7 +89,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             if not self._running:
                 logger.info('Is the TV on?!?')
-            return False
+                self._starting = False
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
+                return True
+            else:
+                return False
 
         auth_event = threading.Event()
 

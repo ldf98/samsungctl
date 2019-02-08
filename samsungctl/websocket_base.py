@@ -87,6 +87,9 @@ class WebSocketBase(UPNPTV):
         err_count = 0
         while not self._loop_event.isSet():
             try:
+                if self.sock is None and not self._loop_event.isSet():
+                    raise ValueError
+
                 data = self.sock.recv()
                 if data:
                     self.on_message(data)
