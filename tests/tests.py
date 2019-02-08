@@ -608,7 +608,7 @@ class WebSocketTest(unittest.TestCase):
                 ):
                     for ssdp_packet in ssdp.PACKETS:
                         self.ssdp_sock.sendto(
-                            ssdp_packet.format(ip=LOCAL_IP, port=UPNP_PORT),
+                            ssdp_packet.format(ip=LOCAL_IP, port=UPNP_PORT).encode('utf-8'),
                             address
                         )
 
