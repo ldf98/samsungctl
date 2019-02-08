@@ -54,8 +54,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         if self.sock is not None:
             return True
 
-        starting = self._starting
-
         if self.config.port == 8002 or self.has_ssl:
             self.config.port = 8002
 
@@ -160,22 +158,22 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
 
-        if self.config.paired:
-            auth_event.wait(5.0)
-        else:
-            auth_event.wait(30.0)
-
-        if not auth_event.isSet():
-            if not self.config.paired and self.config.port == 8001:
-                logger.debug(
-                    "Websocket connection failed. Trying ssl connection"
-                )
-                self.config.port = 8002
-                return self.open()
+            if self.config.paired:
+                auth_event.wait(5.0)
             else:
-                self.close()
-                if not self._running:
-                    raise RuntimeError('Auth Failure')
+                auth_event.wait(30.0)
+
+            if not auth_event.isSet():
+                if not self.config.paired and self.config.port == 8001:
+                    logger.debug(
+                        "Websocket connection failed. Trying ssl connection"
+                    )
+                    self.config.port = 8002
+                    return self.open()
+                else:
+                    self.close()
+                    if not self._running:
+                        raise RuntimeError('Auth Failure')
 
         self._starting = False
         self.send_event.wait(0.5)
@@ -194,8 +192,11 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             method=method,
             params=params
         )
-        self.sock.send(json.dumps(payload))
-        self.send_event.wait(0.3)
+        try:
+            self.sock.send(json.dumps(payload))
+            self.send_event.wait(0.3)
+        except:
+            pass
 
     @LogIt
     def power(self, value):
@@ -207,7 +208,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 wake_on_lan.send_wol(self.mac_address)
                 event.wait(1.0)
 
-                while not self.power and count < 20:
+                while self.sock is None and count < 20:
                     if not self._running:
                         try:
                             self.open()
@@ -215,7 +216,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                             pass
                     wake_on_lan.send_wol(self.mac_address)
                     event.wait(1.0)
-
                     count += 1
 
                 if count == 20:
@@ -227,9 +227,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 logging.error('Unable to get TV\'s mac address')
 
         elif not value and self.power:
-            if self.sock is None:
-                self.open()
-
             count = 0
             power_off = dict(
                 Cmd='Click',
@@ -248,12 +245,15 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             self.send("ms.remote.control", **power)
             logger.info("Sending control command: " + str(power_off))
             self.send("ms.remote.control", **power_off)
+            event.wait(1.0)
 
-            while self.power and count < 10:
+            self.sock.close()
+
+            while self.power and count < 20:
                 event.wait(1.0)
                 count += 1
 
-            if count == 10:
+            if count == 20:
                 logger.info('Unable to power off the TV')
 
     power = property(fget=websocket_base.WebSocketBase.power, fset=power)
@@ -285,7 +285,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 logger.info('Is the TV on?!?')
                 return
 
-            self.open()
+            if not self._running:
+                self.open()
 
         with self.receive_lock:
             params = dict(

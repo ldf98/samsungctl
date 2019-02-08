@@ -29,20 +29,7 @@ class WebSocketBase(UPNPTV):
         self._starting = False
         self._running = False
         self._thread = None
-
-        try:
-            requests.get(
-                'http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=3
-            )
-
-            self.open()
-        except (
-            requests.HTTPError,
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ConnectionError
-        ):
-            pass
+        self.open()
 
         super(WebSocketBase, self).__init__(
             config.host,
@@ -84,35 +71,28 @@ class WebSocketBase(UPNPTV):
 
     def loop(self):
         self._running = True
-        err_count = 0
         while not self._loop_event.isSet():
             try:
-                if self.sock is None and not self._loop_event.isSet():
-                    raise ValueError
-
                 data = self.sock.recv()
                 if data:
                     self.on_message(data)
-                err_count = 0
             except:
-                if err_count == 3:
-                    self.disconnect()
-                    self.sock = None
-                    del self._registered_callbacks[:]
-                    logger.info('Websocket closed')
+                self.disconnect()
+                self.sock = None
+                del self._registered_callbacks[:]
+                logger.info('Websocket closed')
 
-                    while self.sock is None and not self._loop_event.isSet():
-                        if not self._starting:
-                            try:
-                                self.open()
-                            except:
+                while self.sock is None and not self._loop_event.isSet():
+                    if not self._starting:
+                        try:
+                            if not self.open():
                                 self._loop_event.wait(1.0)
-                        else:
+                        except:
                             self._loop_event.wait(1.0)
-                    if not self._loop_event.isSet():
-                        self.connect()
-                else:
-                    err_count += 1
+                    else:
+                        self._loop_event.wait(1.0)
+                if not self._loop_event.isSet():
+                    self.connect()
 
         self._running = False
         self._loop_event.clear()
