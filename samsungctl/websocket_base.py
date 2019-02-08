@@ -111,7 +111,6 @@ class WebSocketBase(UPNPTV):
                 else:
                     err_count += 1
 
-
         self._running = False
         self._loop_event.clear()
         self._thread = None
@@ -126,7 +125,18 @@ class WebSocketBase(UPNPTV):
 
     @LogItWithReturn
     def power(self):
-        return self.sock is not None
+        try:
+            requests.get(
+                'http://{0}:8001/api/v2/'.format(self.config.host),
+                timeout=2
+            )
+            return True
+        except (
+            requests.HTTPError,
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ConnectionError
+        ):
+            return False
 
     def control(self, *_):
         raise NotImplementedError

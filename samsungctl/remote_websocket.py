@@ -54,18 +54,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         if self.sock is not None:
             return True
 
-        power = self.power
         starting = self._starting
-
-        if not starting:
-            self._starting = True
-            if not self.config.paired and not power:
-                self.power = True
-
-                if not self.power:
-                    raise RuntimeError(
-                            'Unable to pair with TV.. Is the TV off?!?'
-                        )
 
         if self.config.port == 8002 or self.has_ssl:
             self.config.port = 8002
@@ -144,9 +133,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             logger.debug("Access granted.")
 
-            if not starting and not power and not self.config.paired:
-                self.power = False
-
             self.config.paired = True
             if self.config.path:
                 self.config.save()
@@ -169,28 +155,26 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
 
-            if self.config.paired:
-                auth_event.wait(5.0)
-            else:
-                auth_event.wait(30.0)
+        if self.config.paired:
+            auth_event.wait(5.0)
+        else:
+            auth_event.wait(30.0)
 
-            if not auth_event.isSet():
-                if not self.config.paired and self.config.port == 8001:
-                    logger.debug(
-                        "Websocket connection failed. Trying ssl connection"
-                    )
-                    self.config.port = 8002
-                    return self.open()
-                else:
-                    self.close()
+        if not auth_event.isSet():
+            if not self.config.paired and self.config.port == 8001:
+                logger.debug(
+                    "Websocket connection failed. Trying ssl connection"
+                )
+                self.config.port = 8002
+                return self.open()
+            else:
+                self.close()
+                if not self._running:
                     raise RuntimeError('Auth Failure')
 
-            self._starting = False
-            self.send_event.wait(0.5)
-            return True
-        else:
-            self._starting = False
-            return True
+        self._starting = False
+        self.send_event.wait(0.5)
+        return True
 
     @LogIt
     def send(self, method, **params):
