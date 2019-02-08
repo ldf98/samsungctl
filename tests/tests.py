@@ -103,7 +103,7 @@ def convert_packet(packet):
     return packet
 
 
-def build_xml_response(func, service, retvals):
+def build_xml_response(func, retvals):
     doc = Document()
 
     envelope = doc.createElementNS('', 'Envelope')
@@ -491,10 +491,6 @@ class WebSocketTest(unittest.TestCase):
 
         @self.upnp_app.route('/smp_4_', methods=['POST'])
         def smp_4_():
-            '''
-            smp_2_/smp_3_
-            urn:samsung.com:service:MainTVAgent2
-            '''
             func = get_func()
             action, value_table = get_service_func('smp_2_/smp_3_.xml')
             check_value(func, action, value_table)
@@ -502,10 +498,6 @@ class WebSocketTest(unittest.TestCase):
 
         @self.upnp_app.route('/smp_9_', methods=['POST'])
         def smp_9_():
-            '''
-            smp_7_/smp_8_
-            urn:samsung.com:service:MultiScreenService
-            '''
             func = get_func()
             action, value_table = get_service_func('smp_7_/smp_8_.xml')
             check_value(func, action, value_table)
@@ -513,10 +505,6 @@ class WebSocketTest(unittest.TestCase):
 
         @self.upnp_app.route('/smp_17_', methods=['POST'])
         def smp_17_():
-            '''
-            smp_15_/smp_16_
-            urn:schemas-upnp-org:service:RenderingControl
-            '''
             func = get_func()
             action, value_table = get_service_func('smp_15_/smp_16_.xml')
             check_value(func, action, value_table)
@@ -524,11 +512,6 @@ class WebSocketTest(unittest.TestCase):
 
         @self.upnp_app.route('/smp_20_', methods=['POST'])
         def smp_20_():
-            '''
-            smp_15_/smp_19_
-            urn:schemas-upnp-org:service:ConnectionManager
-
-            '''
             func = get_func()
             action, value_table = get_service_func('smp_15_/smp_19_.xml')
             check_value(func, action, value_table)
@@ -536,11 +519,6 @@ class WebSocketTest(unittest.TestCase):
 
         @self.upnp_app.route('/smp_23_', methods=['POST'])
         def smp_23_():
-            '''
-            smp_15_/smp_22_
-            urn:schemas-upnp-org:service:AVTransport
-
-            '''
             func = get_func()
             action, value_table = get_service_func('smp_15_/smp_22_.xml')
             check_value(func, action, value_table)
@@ -548,10 +526,6 @@ class WebSocketTest(unittest.TestCase):
 
         @self.upnp_app.route('/smp_27_', methods=['POST'])
         def smp_27_():
-            '''
-            smp_25_/smp_26_
-            urn:dial-multiscreen-org:service:dial
-            '''
             func = get_func()
             action, value_table = get_service_func('smp_25_/smp_26_.xml')
             check_value(func, action, value_table)
@@ -574,7 +548,10 @@ class WebSocketTest(unittest.TestCase):
             return get_file('smp_25_.xml')
 
         self.ssdp_event = WebSocketTest.ssdp_event = threading.Event()
-        self.ssdp_sock = ssdp_sock = WebSocketTest.ssdp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.ssdp_sock = ssdp_sock = WebSocketTest.ssdp_sock = socket.socket(
+            socket.AF_INET,
+            socket.SOCK_DGRAM
+        )
         self.ssdp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         ssdp_sock.bind(BIND_ADDREESS)
         group = socket.inet_aton(IPV4_MCAST_GRP)
@@ -608,7 +585,10 @@ class WebSocketTest(unittest.TestCase):
                 ):
                     for ssdp_packet in ssdp.PACKETS:
                         self.ssdp_sock.sendto(
-                            ssdp_packet.format(ip=LOCAL_IP, port=UPNP_PORT).encode('utf-8'),
+                            ssdp_packet.format(
+                                ip=LOCAL_IP,
+                                port=UPNP_PORT
+                            ).encode('utf-8'),
                             address
                         )
 
@@ -624,7 +604,10 @@ class WebSocketTest(unittest.TestCase):
         self.api_thread = threading.Thread(target=api_do, name='api_server')
         self.api_thread.start()
 
-        self.ssdp_thread = WebSocketTest.ssdp_thread = threading.Thread(target=ssdp_do, name='ssdp_listen')
+        self.ssdp_thread = WebSocketTest.ssdp_thread = threading.Thread(
+            target=ssdp_do,
+            name='ssdp_listen'
+        )
         self.ssdp_thread.start()
         #
         # for config in samsungctl.discover():
@@ -682,52 +665,70 @@ class WebSocketTest(unittest.TestCase):
 
     def test_003_GET_VOLUME(self):
         WebSocketTest.func = 'GetVolume'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentVolume', 50]])
+        WebSocketTest.result = build_xml_response(
+            self.func + 'Response',
+            [['CurrentVolume', 50]]
+        )
         self.assertEqual(50, self.remote.volume, 'VOLUME_NOT_50')
 
     def test_003_SET_VOLUME(self):
         WebSocketTest.func = 'SetVolume'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        WebSocketTest.result = build_xml_response(self.func + 'Response', [])
         self.remote.volume = 30
 
     def test_004_GET_MUTE(self):
         WebSocketTest.func = 'GetMute'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentMute', '1']])
+        WebSocketTest.result = build_xml_response(
+            self.func + 'Response',
+            [['CurrentMute', '1']]
+        )
         self.assertEqual(True, self.remote.mute, 'MUTE_NOT_TRUE')
 
     def test_004_SET_MUTE(self):
         WebSocketTest.func = 'SetMute'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        WebSocketTest.result = build_xml_response(
+            self.func + 'Response',
+            []
+        )
         self.remote.mute = False
 
     def test_005_GET_BRIGHTNESS(self):
         WebSocketTest.func = 'GetBrightness'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentBrightness', 50]])
+        WebSocketTest.result = build_xml_response(
+            self.func + 'Response',
+            [['CurrentBrightness', 50]]
+        )
         self.assertEqual(50, self.remote.brightness, 'BRIGHTNESS_NOT_50')
 
     def test_005_SET_BRIGHTNESS(self):
         WebSocketTest.func = 'SetBrightness'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        WebSocketTest.result = build_xml_response(self.func + 'Response', [])
         self.remote.brightness = 50
 
     def test_006_GET_CONTRAST(self):
         WebSocketTest.func = 'GetContrast'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentContrast', 50]])
+        WebSocketTest.result = build_xml_response(
+            self.func + 'Response',
+            [['CurrentContrast', 50]]
+        )
         self.assertEqual(50, self.remote.contrast, 'CONTRAST_NOT_50')
 
     def test_006_SET_CONTRAST(self):
         WebSocketTest.func = 'SetContrast'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        WebSocketTest.result = build_xml_response(self.func + 'Response', [])
         self.remote.contrast = 50
 
     def test_007_GET_SHARPNESS(self):
         WebSocketTest.func = 'GetSharpness'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [['CurrentSharpness', 50]])
+        WebSocketTest.result = build_xml_response(
+            self.func + 'Response',
+            [['CurrentSharpness', 50]]
+        )
         self.assertEqual(50, self.remote.sharpness, 'SHARPNESS_NOT_50')
 
     def test_007_SET_SHARPNESS(self):
         WebSocketTest.func = 'SetSharpness'
-        WebSocketTest.result = build_xml_response(self.func + 'Response', 'urn:upnp-org:serviceId:RenderingControl:1', [])
+        WebSocketTest.result = build_xml_response(self.func + 'Response', [])
         self.remote.sharpness = 50
 
     # @key_wrapper
@@ -1859,7 +1860,9 @@ class WebSocketSSLTest(unittest.TestCase):
         logger.info(str(self.config))
 
         try:
-            self.remote = WebSocketSSLTest.remote = samsungctl.Remote(self.config)
+            self.remote = WebSocketSSLTest.remote = (
+                samsungctl.Remote(self.config)
+            )
             self.remote.open()
             self.connection_event.wait(2)
             if not self.connection_event.isSet():
@@ -3724,7 +3727,9 @@ if __name__ == '__main__':
 
     # test_loader = unittest.TestLoader()
     # websocket_test_suite = test_loader.loadTestsFromTestCase(WebSocketTest)
-    # websocket_ssl_test_suite = test_loader.loadTestsFromTestCase(WebSocketSSLTest)
+    # websocket_ssl_test_suite = test_loader.loadTestsFromTestCase(
+    #     WebSocketSSLTest
+    # )
     # legacy_test_suite = test_loader.loadTestsFromTestCase(LegacyTest)
     #
     # # Default args:

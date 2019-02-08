@@ -207,6 +207,10 @@ class Config(object):
     def __call__(self, **_):
         return self
 
+    def get_pin(self):
+        tv_pin = input("Please enter pin from tv: ")
+        return tv_pin
+
     @staticmethod
     def load(path):
         if '~' in path:

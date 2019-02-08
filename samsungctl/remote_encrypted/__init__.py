@@ -112,6 +112,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     @LogIt
     def __init__(self, config):
         self.url = URL(config)
+
         if config.token:
             self.ctx, self.current_session_id = config.token.rsplit(':', 1)
 
@@ -120,6 +121,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             except ValueError:
                 pass
         else:
+            config.set_pin = self.set_pin
             self.ctx = None
             self.current_session_id = None
 
@@ -128,10 +130,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.aes_lib = None
 
         super(RemoteEncrypted, self).__init__(config)
-
-    def get_pin(self):
-        tv_pin = input("Please enter pin from tv: ")
-        return tv_pin
 
     @LogItWithReturn
     def open(self):
@@ -162,7 +160,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 logger.debug("Pin ON TV")
 
             while self.ctx is None:
-                tv_pin = self.get_pin()
+                tv_pin = self.config.get_pin()
+                if tv_pin is False:
+                    raise RuntimeError('Pin retry limit reached.')
+                if tv_pin is None:
+                    continue
 
                 logger.info("Got pin: '{0}'".format(tv_pin))
 
