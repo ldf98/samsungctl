@@ -3,39 +3,39 @@ import requests
 import six
 from xml.sax import saxutils
 from lxml import etree
+from .discover import discover
+
 from .UPNP_Device.upnp_class import UPNPObject
 from .UPNP_Device.instance_singleton import InstanceSingleton
 from .UPNP_Device.xmlns import strip_xmlns
 
+import threading
 import logging
 logger = logging.getLogger('samsungctl')
 
 
 class UPNPTV(UPNPObject):
 
-    def __init__(self, ip, locations):
-        if locations is None:
-            locations = []
-
-        self.ip_address = ip
+    def __init__(self, config):
+        self.config = config
+        self._devices = {}
+        self._services = {}
+        self.is_connected = False
+        self.ip_address = config.host
         self._dtv_information = None
         self._tv_options = None
         self.name = self.__class__.__name__
-        self._locations = locations
 
-        if self.power:
-            super(UPNPTV, self).__init__(ip, locations)
-        else:
-            super(UPNPTV, self).__init__(ip, [])
+        super(UPNPTV, self).__init__(self.ip_address, [], False)
 
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
 
-        if item in self._devices:
-            return self._devices[item]
+        if item in self._devices and self.is_connected:
+                return self._devices[item]
 
-        if item in self._services:
+        if item in self._services and self.is_connected:
             return self._services[item]
 
         if item in self.__class__.__dict__:
@@ -76,13 +76,41 @@ class UPNPTV(UPNPObject):
 
     @property
     def power(self):
+        logger.debug('This power should not be called')
         return True
 
     def connect(self):
-        super(UPNPTV, self).__init__(self.ip_address, self._locations)
+        def build():
+            logger.debug('Connecting UPNP')
+            logger.debug('UPNP locations: ' + str(self.config.upnp_locations))
+            self.build(self.config.upnp_locations)
+            self.is_connected = True
+
+        if self.config.upnp_locations:
+            threading.Thread(target=build).start()
+
+        else:
+            def do():
+                if self.config.upnp_locations is None:
+                    self.config.upnp_locations = []
+
+                logger.debug('UPNP discovering locations')
+                discover(self.config)
+                logger.debug(
+                    'UPNP locations discovered: ' + str(
+                        self.config.upnp_locations)
+                )
+                if self.config.upnp_locations:
+                    build()
+                else:
+                    self.is_connected = False
+                    self.config.upnp_locations = None
+
+            threading.Thread(target=do).start()
 
     def disconnect(self):
-        super(UPNPTV, self).__init__(self.ip_address, [])
+        logger.debug('Disconnecting UPNP')
+        self.is_connected = False
 
     @property
     def tv_options(self):
@@ -613,8 +641,14 @@ class UPNPTV(UPNPObject):
     def mute(self):
         try:
             status = self.MainTVAgent2.GetMuteStatus()[1]
-        except AttributeError:
+        except (AttributeError, TypeError):
             status = self.get_channel_mute('Master')
+
+        if status is not None and not isinstance(status, bool):
+            if status == 'Enable':
+                status = True
+            elif status == 'Disable':
+                status = False
 
         return status
 
@@ -624,6 +658,8 @@ class UPNPTV(UPNPObject):
             self.MainTVAgent2.SetMute(desired_mute)
         except AttributeError:
             self.set_channel_mute('Master', desired_mute)
+        except TypeError:
+            self.MainTVAgent2.SetMute('Enable' if desired_mute else 'Disable')
 
     @property
     def network_information(self):
@@ -1019,23 +1055,27 @@ class UPNPTV(UPNPObject):
         try:
             source_list = self.MainTVAgent2.GetSourceList()[1]
             source_list = saxutils.unescape(source_list)
-            root = etree.fromstring(source_list)
+            root = etree.fromstring(source_list.encode('utf-8'))
 
             sources = []
+
+            active_id = int(root.find('ID').text)
 
             for src in root:
                 if src.tag == 'Source':
                     source_name = src.find('SourceType').text
                     source_id = int(src.find('ID').text)
                     source_editable = src.find('Editable').text == 'Yes'
-                    sources += [
-                        Source(
-                            source_id,
-                            source_name,
-                            self,
-                            source_editable
-                        )
-                    ]
+                    source = Source(
+                        source_id,
+                        source_name,
+                        self,
+                        source_editable
+                    )
+
+                    active = active_id == source.id
+                    source._update(src, active)
+                    sources += [source]
 
             return sources
         except AttributeError:
@@ -1858,6 +1898,39 @@ class Source(object):
         self.__name__ = name
         self._parent = parent
         self._editable = editable
+        self._viewable = False
+        self._connected = None
+        self._device_name = None
+        self._label = name
+        self._active = False
+
+    def _update(self, node, active):
+        self._viewable = node.find('SupportView').text == 'Yes'
+
+        connected = node.find('Connected')
+        if connected is not None:
+            self._connected = connected.text == 'Yes'
+
+        if self.is_editable:
+            label = node.find('EditNameType')
+            if label is not None:
+                label = label.text
+                if label != 'NONE':
+                    self._label = label
+                else:
+                    self._label = self.name
+            else:
+                self._label = self.name
+        else:
+            self._label = self.name
+
+        device_name = node.find('DeviceName')
+        if device_name is not None:
+            self._device_name = device_name.text
+        else:
+            self._device_name = None
+
+        self._active = active
 
     @property
     def id(self):
@@ -1869,47 +1942,22 @@ class Source(object):
 
     @property
     def is_viewable(self):
-        source = self.__source
-        return source.find('SupportView').text == 'Yes'
+        _ = self._parent.sources
+        return self._viewable
 
     @property
     def is_editable(self):
         return self._editable
 
     @property
-    def __source(self):
-        source_list = self._parent.MainTVAgent2.GetSourceList()[1]
-        source_list = saxutils.unescape(source_list)
-        root = etree.fromstring(source_list)
-
-        for src in root:
-            if src.tag == 'Source':
-                if int(src.find('ID').text) == self.id:
-                    return src
-
-    @property
     def is_connected(self):
-        source = self.__source
-
-        connected = source.find('Connected')
-        if connected is not None:
-            if connected.text == 'Yes':
-                return True
-            if connected.text == 'No':
-                return False
+        _ = self._parent.sources
+        return self._connected
 
     @property
     def label(self):
-        if self.is_editable:
-            source = self.__source
-
-            label = source.find('EditNameType')
-            if label is not None:
-                label = label.text
-                if label != 'NONE':
-                    return label
-
-        return self.name
+        _ = self._parent.sources
+        return self._label
 
     @label.setter
     def label(self, value):
@@ -1918,17 +1966,13 @@ class Source(object):
 
     @property
     def device_name(self):
-        source = self.__source
-        device_name = source.find('DeviceName')
-        if device_name is not None:
-            return device_name.text
+        _ = self._parent.sources
+        return self._device_name
 
     @property
     def is_active(self):
-        source_list = self._parent.MainTVAgent2.GetSourceList()[1]
-        source_list = saxutils.unescape(source_list)
-        root = etree.fromstring(source_list)
-        return int(root.find('ID').text) == self.id
+        _ = self._parent.sources
+        return self._active
 
     def activate(self):
         if self.is_connected:

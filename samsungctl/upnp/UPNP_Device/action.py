@@ -10,7 +10,7 @@ except ImportError:
 
 import logging
 
-logger = logging.getLogger('samsungctl')
+logger = logging.getLogger('UPNP_Device')
 
 
 class Action(object):
@@ -24,6 +24,10 @@ class Action(object):
 
         self.__name__ = node.find('name').text
 
+        logger.debug('upnp action added: ' + self.__name__)
+        logger.debug(self.__name__ + ': control url - ' + control_url)
+        logger.debug(self.__name__ + ': service - ' + service)
+
         for arguments in node:
             if arguments.tag != 'argumentList':
                 continue
@@ -35,8 +39,14 @@ class Action(object):
 
                 if direction == 'in':
                     self.params += [variable]
+                    logger.debug(self.__name__ + ': parameter added - ' + name)
                 else:
                     self.ret_vals += [variable]
+                    logger.debug(self.__name__ + ': parameter added - ' + name)
+
+                logger.debug(
+                    name + ': data type - ' + str(variable.py_data_type)
+                )
 
     def __call__(self, *args, **kwargs):
         for i, arg in enumerate(args):
@@ -80,7 +90,7 @@ class Action(object):
         doc.appendChild(envelope)
         pure_xml = doc.toxml()
 
-        logger.debug('OUTGOING: ' + pure_xml)
+        logger.debug(self.__name__ + ' --> ' + pure_xml)
 
         header = {
             'SOAPAction':   '"{service}#{method}"'.format(
@@ -89,17 +99,27 @@ class Action(object):
             ),
             'Content-Type': 'text/xml'
         }
-        response = requests.post(
-            self.control_url,
-            data=pure_xml,
-            headers=header
-        )
+        try:
+            response = requests.post(
+                self.control_url,
+                data=pure_xml,
+                headers=header
+            )
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ConnectTimeout
+        ):
+            return [None] * len(self.ret_vals)
 
         response = response.content.decode('utf-8')
 
-        logger.debug('INCOMING: ' + response)
+        logger.debug(self.__name__ + ' <-- ' + response)
 
-        envelope = etree.fromstring(response)
+        try:
+            envelope = etree.fromstring(response)
+        except etree.ParseError:
+            return [None] * len(self.ret_vals)
+
         envelope = strip_xmlns(envelope)
 
         body = envelope.find('Body')

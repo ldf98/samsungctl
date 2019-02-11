@@ -7,7 +7,6 @@ from .remote_websocket import RemoteWebsocket
 from .remote_encrypted import RemoteEncrypted
 from .config import Config
 from .key_mappings import KEYS
-from .upnp.discover import discover
 
 
 class KeyWrapper(object):
@@ -26,12 +25,6 @@ class RemoteMeta(type):
         if isinstance(config, dict):
             config = Config(**config)
 
-        if (
-            config.upnp_locations is not None
-            and not config.upnp_locations
-        ):
-            discover(config)
-
         if config.method == "legacy":
             remote = RemoteLegacy(config)
         elif config.method == "websocket":
@@ -42,7 +35,7 @@ class RemoteMeta(type):
             raise exceptions.ConfigUnknownMethod()
 
         for name, key in KEYS.items():
-            config.__dict__[name] = KeyWrapper(config, key)
+            remote.__dict__[name] = KeyWrapper(remote, key)
 
         return remote
 
@@ -52,4 +45,6 @@ class Remote(object):
 
     def __init__(self, config):
         self.config = config
+
+
 

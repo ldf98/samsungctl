@@ -5,11 +5,13 @@ import socket
 import json
 import logging
 import requests
+import uuid
 from . import wake_on_lan
 from . import exceptions
 
 
 logger = logging.getLogger('samsungctl')
+upnp_logger = logging.getLogger('UPNP_Device')
 
 
 DEFAULT_CONFIG = dict(
@@ -60,11 +62,22 @@ class Config(object):
             try:
                 response = requests.get(
                     'http://{0}:8001/api/v2/'.format(host),
-                    timeout=3
+                    timeout=2
                 )
                 response = response.json()['device']
                 model = response['modelName']
                 if model[5] in ('H', 'J'):
+                    model_check = model[5:]
+                    while True:
+                        if model_check.isdigit():
+                            model_check = int(model_check)
+                            break
+                        model_check = model_check[:-1]
+                    if model_check <= 5200:
+                        raise RuntimeError(
+                            'Model {0} does not have the capability '
+                            'of being remotely controlled'.format(model)
+                        )
                     method = 'encrypted'
                     port = 8080
                     app_id = '654321'
@@ -78,19 +91,32 @@ class Config(object):
             except (
                 ValueError,
                 KeyError,
-                requests.HTTPError,
-                requests.exceptions.ConnectTimeout
             ):
-                tmp_mac = wake_on_lan.get_mac_address(host)
-                if tmp_mac is not None:
+                raise RuntimeError('Unknown Config Error')
+            except (
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError
+            ):
+                try:
+                    requests.get(
+                        'http://{0}:9090'.format(host),
+                        timeout=2
+                    )
                     method = 'legacy'
                     app_id = ''
                     port = 55000
-                    mac = tmp_mac
-                else:
-                    method = None
-                    app_id = ''
-                    port = None
+
+                except requests.exceptions.ConnectTimeout:
+                    raise RuntimeError(
+                        'TV needs to be turned on for the automatic discovery '
+                        'of the connection settings'
+                    )
+
+                except requests.exceptions.ConnectionError:
+                    raise RuntimeError(
+                        'is the ip address {0} the '
+                        'address of the TV?'.format(host)
+                    )
 
         elif method is None:
             if port == 55000:
@@ -164,6 +190,9 @@ class Config(object):
             else:
                 paired = False
 
+        if method == 'legacy' and id is None:
+            id = str(uuid.uuid4())[1:-1]
+
         self.name = name
         self.description = description
         self.host = host
@@ -191,6 +220,7 @@ class Config(object):
         else:
             logging.basicConfig(format="%(message)s", level=log_level)
             logger.setLevel(log_level)
+            upnp_logger.setLevel(log_level)
 
     def __eq__(self, other):
         if isinstance(other, Config):

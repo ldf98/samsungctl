@@ -85,14 +85,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             if not self.config.paired:
                 raise RuntimeError('Unable to connect to the TV')
 
-            if not self._running:
-                logger.info('Is the TV on?!?')
-                self._starting = False
-                self._thread = threading.Thread(target=self.loop)
-                self._thread.start()
-                return True
-            else:
-                return False
+            return False
 
         auth_event = threading.Event()
 
@@ -154,28 +147,22 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             'ms.channel.unauthorized'
         )
 
-        if not self._running:
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
+        if self.config.paired:
+            auth_event.wait(5.0)
+        else:
+            auth_event.wait(30.0)
 
-            if self.config.paired:
-                auth_event.wait(5.0)
-            else:
-                auth_event.wait(30.0)
-
-            if not auth_event.isSet():
-                if not self.config.paired and self.config.port == 8001:
-                    logger.debug(
+        if not auth_event.isSet():
+            if not self.config.paired and self.config.port == 8001:
+                logger.debug(
                         "Websocket connection failed. Trying ssl connection"
-                    )
-                    self.config.port = 8002
-                    return self.open()
-                else:
-                    self.close()
-                    if not self._running:
-                        raise RuntimeError('Auth Failure')
+                )
+                self.config.port = 8002
+                return self.open()
+            else:
+                self.sock.close()
+                raise RuntimeError('Auth Failure')
 
-        self._starting = False
         self.send_event.wait(0.5)
         return True
 
@@ -209,7 +196,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 event.wait(1.0)
 
                 while self.sock is None and count < 20:
-                    if not self._running:
+                    if self._thread is None:
                         try:
                             self.open()
                         except:
@@ -285,7 +272,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 logger.info('Is the TV on?!?')
                 return
 
-            if not self._running:
+            if self._thread is None:
                 self.open()
 
         with self.receive_lock:

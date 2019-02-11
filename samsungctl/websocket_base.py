@@ -25,16 +25,11 @@ class WebSocketBase(UPNPTV):
         self.config = config
         self.sock = None
         self._loop_event = threading.Event()
+        self.auth_lock = threading.Lock()
         self._registered_callbacks = []
-        self._starting = False
-        self._running = False
-        self._thread = None
-        self.open()
-
-        super(WebSocketBase, self).__init__(
-            config.host,
-            config.upnp_locations
-        )
+        super(WebSocketBase, self).__init__(config)
+        self._thread = threading.Thread(target=self.loop)
+        self._thread.start()
 
     @property
     @LogItWithReturn
@@ -70,31 +65,32 @@ class WebSocketBase(UPNPTV):
                 raise RuntimeError('Loop thread did not properly terminate')
 
     def loop(self):
-        self._running = True
+
+        with self.auth_lock:
+            if self.open():
+                self.connect()
+
         while not self._loop_event.isSet():
             try:
                 data = self.sock.recv()
                 if data:
                     self.on_message(data)
+                else:
+                    raise RuntimeError
             except:
-                self.disconnect()
                 self.sock = None
+                self.disconnect()
                 del self._registered_callbacks[:]
-                logger.info('Websocket closed')
 
-                while self.sock is None and not self._loop_event.isSet():
-                    if not self._starting:
-                        try:
-                            if not self.open():
-                                self._loop_event.wait(1.0)
-                        except:
-                            self._loop_event.wait(1.0)
-                    else:
+                while not self._loop_event.isSet():
+                    with self.auth_lock:
+                        if self.open():
+                            self.connect()
+                            break
+
                         self._loop_event.wait(1.0)
-                if not self._loop_event.isSet():
-                    self.connect()
 
-        self._running = False
+        self.sock = None
         self._loop_event.clear()
         self._thread = None
 
@@ -138,7 +134,6 @@ class WebSocketBase(UPNPTV):
         :return: self
         :rtype: :class: `samsungctl.Remote` instance
         """
-        self.open()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

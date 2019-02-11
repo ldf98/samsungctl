@@ -23,38 +23,80 @@ except ImportError:
 
 class UPNPObject(object):
 
-    def __init__(self, ip, locations, dump=''):
+    def __init__(self, ip, locations, dump='', load_on_startup=True):
         self.ip_address = ip
         self._devices = {}
         self._services = {}
-        for location in locations:
-            parsed_url = urlparse(location)
-            url = parsed_url.scheme + '://' + parsed_url.netloc
-            response = requests.get(location)
+        if load_on_startup:
+            self.build(locations, dump)
 
+    def build(self, locations, dump=''):
+        self._devices.clear()
+        self._services.clear()
+
+        for location in locations:
+            parsed = urlparse(location)
+            url = '{0}://{1}:{2}/'.format(
+                parsed.scheme,
+                parsed.hostname,
+                parsed.port
+            )
+            response = requests.get(location)
             content = response.content.decode('utf-8')
 
+            path = parsed.path
+            if path.startswith('/'):
+                path = path[1:]
+
+            if '/' in path:
+                path, file_name = path.rsplit('/', 1)
+            else:
+                file_name = path
+                path = ''
+
+            if not file_name.endswith('.xml'):
+                file_name += '.xml'
+
             if dump:
-                path = location
-                if path.startswith('/'):
-                    path = path[1:]
+                if path:
+                    output = os.path.join(dump, path)
 
-                if '/' in path:
-                    path, file_name = path.rsplit('/', 1)
-                    path = os.path.join(dump, path)
+                    if not os.path.exists(output):
+                        os.makedirs(output)
                 else:
-                    file_name = path
-                    path = dump
+                    output = dump
 
-                if not os.path.exists(path):
-                    os.makedirs(path)
+                indent_count = 0
 
-                if not file_name.endswith('.xml'):
-                    file_name += '.xml'
+                for line in content.split('\n'):
+                    for char in list(line):
+                        if not line:
+                            continue
 
-                with open(os.path.join(path, file_name), 'w') as f:
-                    f.write(content)
+                        if char != ' ' and not indent_count:
+                            break
+                        if char == ' ':
+                            indent_count += 1
+                        else:
+                            if indent_count != 2:
+                                indent_count = 0
+                            break
+                    if indent_count:
+                        break
 
+                with open(os.path.join(output, file_name), 'w') as f:
+                    for line in content.split('\n'):
+                        if not line.strip():
+                            continue
+                        line = line.replace('\t', '    ')
+                        if indent_count:
+                            count = 0
+                            for char in list(line):
+                                if char != ' ':
+                                    break
+                                count += 1
+                            line = '    ' * (count / 2) + line.strip()
+                        f.write(line + '\n')
             try:
                 root = etree.fromstring(content)
             except etree.XMLSyntaxError:
@@ -79,6 +121,9 @@ class UPNPObject(object):
             for service in services:
                 scpdurl = service.find('SCPDURL').text.replace(url, '')
 
+                if '/' not in scpdurl and path and path not in scpdurl:
+                    scpdurl = path + '/' + scpdurl
+
                 control_url = service.find('controlURL').text
                 if control_url is None:
                     if scpdurl.endswith('.xml'):
@@ -89,6 +134,9 @@ class UPNPObject(object):
                         control_url = scpdurl
                 else:
                     control_url = control_url.replace(url, '')
+
+                if control_url.startswith('/'):
+                    control_url = control_url[1:]
 
                 service_id = service.find('serviceId').text
                 service_type = service.find('serviceType').text

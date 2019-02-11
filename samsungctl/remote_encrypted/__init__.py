@@ -136,19 +136,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         if self.sock is not None:
             return True
 
-        starting = self._starting
-
-        power = self.power
-        paired = self.config.paired
-
-        if not starting:
-            self._starting = True
-            if not self.config.paired and not power:
-                self.power = True
-
-                if not self.power:
-                    raise RuntimeError('Unable to pair with TV.')
-
         self.last_request_id = 0
 
         if self.ctx is None:
@@ -196,21 +183,16 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         logger.debug(websocket_url)
 
         self.aes_lib = AESCipher(self.ctx.upper(), self.current_session_id)
-        self.sock = websocket.create_connection(websocket_url)
-        time.sleep(0.35)
+        try:
+            self.sock = websocket.create_connection(websocket_url)
+        except:
+            if not self.config.paired:
+                raise RuntimeError('Unable to connect to the TV')
 
-        if not self._running:
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
-
-        if not paired and not power:
-
-            self.power = False
-            self.close()
-            self._starting = False
             return False
 
-        self._starting = False
+        time.sleep(0.35)
+
         return True
 
     @LogIt
@@ -328,7 +310,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 event.wait(1.0)
 
                 while not self.power and count < 20:
-                    if not self._running:
+                    if self._thread is None:
                         try:
                             self.open()
                         except:

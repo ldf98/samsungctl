@@ -4,7 +4,6 @@ import base64
 import logging
 import socket
 import time
-import codecs
 import threading
 import sys
 from . import exceptions
@@ -22,17 +21,26 @@ class RemoteLegacy(upnp.UPNPTV):
         """Make a new connection."""
         self.sock = None
         self.config = config
-        self._starting = True
-        self._thread = None
+        self.auth_lock = threading.Lock()
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
-
-        super(RemoteLegacy, self).__init__(config.host, config.upnp_locations)
+        super(RemoteLegacy, self).__init__(config)
+        self._thread = threading.Thread(target=self.loop)
+        self._thread.start()
 
     @property
     @LogItWithReturn
     def power(self):
-        return self.sock is not None
+        with self.auth_lock:
+            return self.sock is not None
+        # try:
+        #     requests.get(
+        #         'http://{0}:9090'.format(self.config.host),
+        #         timeout=1
+        #     )
+        #     return True
+        # except requests.ConnectTimeout:
+        #     return False
 
     @power.setter
     @LogIt
@@ -41,90 +49,97 @@ class RemoteLegacy(upnp.UPNPTV):
             logger.info('Power on is not supported for legacy TV\'s')
         elif not value and self.power:
             event = threading.Event()
+            self.control('KEY_POWEROFF')
+
             while self.power:
-                self.control('KEY_POWEROFF')
                 event.wait(2.0)
 
     def loop(self):
+        with self.auth_lock:
+            if self.open():
+                self.connect()
+
         while not self._loop_event.isSet():
             try:
-                data = self.sock.recv(2048)
-                if data:
-                    self._read_response(data)
-                self._loop_event.wait(0.2)
+                if self._read_response(self.sock):
+                    self._loop_event.wait(0.2)
+                else:
+                    raise AttributeError
 
-            except socket.error:
+            except (socket.error, AttributeError):
                 self.sock = None
                 self.disconnect()
 
-                while self.sock is None and not self._loop_event.isSet():
-                    try:
-                        self.open()
-                    except:
-                        self._loop_event.wait(2.0)
+                while not self._loop_event.isSet():
+                    with self.auth_lock:
+                        if self.open():
+                            self.connect()
+                            break
 
-                if not self._loop_event.isSet():
-                    self.connect()
+                        self._loop_event.wait(1.0)
+
+        if self.sock is not None:
+            self.sock.close()
+            self.sock = None
+            logging.debug("Connection closed.")
 
         self._thread = None
         self._loop_event.clear()
 
     @LogIt
     def open(self):
-        self._starting = True
-        self.config.port = 55000
-
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        if self.config.timeout:
-            self.sock.settimeout(self.config.timeout)
-
         try:
-            self.sock.connect((self.config.host, self.config.port))
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+            if self.config.timeout:
+                sock.settimeout(self.config.timeout)
+
+            sock.connect((self.config.host, self.config.port))
+
+            payload = (
+                b"\x64\x00" +
+                self._serialize_string(self.config.description) +
+                self._serialize_string(self.config.id) +
+                self._serialize_string(self.config.name)
+            )
+            packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
+
+            logger.info("Sending handshake.")
+            sock.send(packet)
+            response = self._read_response(sock, True)
+            if response:
+                self.sock = sock
+            else:
+                self.sock = None
+
+            return response
+
         except socket.error:
-            if not self.config.paired:
+            if not self.config.paired and not self._loop_event.isSet():
                 raise RuntimeError('Unable to pair with TV.. Is the TV on?!?')
             else:
-                logger.info('Is the TV on?!?')
                 self.sock = None
-                return
-
-        payload = (
-            b"\x64\x00" +
-            self._serialize_string(self.config.description) +
-            self._serialize_string(self.config.id) +
-            self._serialize_string(self.config.name)
-        )
-        packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
-
-        logger.info("Sending handshake.")
-        self.sock.send(packet)
-        self._read_response(True)
-
-        if self._thread is None:
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
-
-        self._starting = False
+                return False
 
     @LogIt
     def close(self):
         """Close the connection."""
         self._loop_event.set()
+        if self.sock is not None:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.close()
+            except:
+                pass
+
         if self._thread is not None:
             self._thread.join(2.0)
-
-        if self.sock:
-            self.sock.close()
-            self.sock = None
-            logging.debug("Connection closed.")
 
     @LogIt
     def control(self, key):
         """Send a control command."""
         if self.sock is None:
-            logger.info('Is the TV on?!?')
-            return
+            return False
 
         with self._receive_lock:
             payload = b"\x00\x00\x00" + self._serialize_string(key)
@@ -137,39 +152,55 @@ class RemoteLegacy(upnp.UPNPTV):
     _key_interval = 0.2
 
     @LogIt
-    def _read_response(self, first_time=False):
-        header = self.sock.recv(3)
-        tv_name_len = int(codecs.encode(header[1:3], 'hex'), 16)
-        tv_name = self.sock.recv(tv_name_len)
+    def _read_response(self, sock, first_time=False):
+        try:
+            header = sock.recv(3)
+            logger.debug('header: ' + repr(header))
+            tv_name_len = ord(header[1:2].decode('utf-8'))
+            logger.debug('tv_name_len: ' + repr(tv_name_len))
+            tv_name = sock.recv(tv_name_len)
+            logger.debug('tv_name: ' + repr(tv_name))
 
-        if first_time:
-            logger.debug("Connected to '%s'.", tv_name.decode())
-
-        response_len = int(codecs.encode(self.sock.recv(2), 'hex'), 16)
-        response = self.sock.recv(response_len)
-
-        if len(response) == 0:
-            self.close()
-            raise exceptions.ConnectionClosed()
-
-        if response == b"\x64\x00\x01\x00":
-            logger.debug("Access granted.")
-            self.config.paired = True
-            return
-        elif response == b"\x64\x00\x00\x00":
-            raise exceptions.AccessDenied()
-        elif response[0:1] == b"\x0a":
             if first_time:
-                logger.warning("Waiting for authorization...")
-            return self._read_response()
-        elif response[0:1] == b"\x65":
-            logger.warning("Authorization cancelled.")
-            raise exceptions.AccessDenied()
-        elif response == b"\x00\x00\x00\x00":
-            logger.debug("Control accepted.")
-            return
+                logger.debug("Connected to '%s'.", tv_name.decode())
 
-        raise exceptions.UnhandledResponse(response)
+            response_len = sock.recv(2)
+            logger.debug('response_len raw: ' + repr(response_len))
+
+            response_len = ord(response_len[:1].decode('utf-8'))
+            logger.debug('response_len: ' + repr(response_len))
+            response = sock.recv(response_len)
+            logger.debug('response: ' + repr(response))
+
+            if len(response) == 0:
+                return False
+
+            if response == b"\x64\x00\x01\x00":
+                logger.debug("Access granted.")
+                self.config.paired = True
+                return True
+            elif response == b"\x64\x00\x00\x00":
+                raise exceptions.AccessDenied()
+            elif response[0:1] == b"\x0a":
+                if first_time:
+                    logger.warning("Waiting for authorization...")
+                return self._read_response(sock)
+            elif response[0:1] == b"\x65":
+                logger.warning("Authorization cancelled.")
+                raise exceptions.AccessDenied()
+            elif response == b"\x00\x00\x00\x00":
+                logger.debug("Control accepted.")
+                return True
+
+            raise exceptions.UnhandledResponse(repr(response))
+
+        except (
+            exceptions.AccessDenied,
+            exceptions.UnhandledResponse
+        ):
+            raise
+        except:
+            return False
 
     @staticmethod
     @LogItWithReturn
@@ -182,3 +213,28 @@ class RemoteLegacy(upnp.UPNPTV):
             string = base64.b64encode(string)
 
         return bytes([len(string)]) + b"\x00" + string
+
+    def __enter__(self):
+        """
+        Open the connection to the TV. use in a `with` statement
+
+        >>> with samsungctl.Remote(config) as remote:
+        >>>     remote.KEY_MENU()
+
+
+        :return: self
+        :rtype: :class: `samsungctl.Remote` instance
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        This gets called automatically when exiting a `with` statement
+        see `samsungctl.Remote.__enter__` for more information
+
+        :param exc_type: Not Used
+        :param exc_val: Not Used
+        :param exc_tb: Not Used
+        :return: `None`
+        """
+        self.close()
