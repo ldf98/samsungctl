@@ -143,6 +143,14 @@ class UPNPTV(UPNPObject):
         return self._tv_options
 
     @property
+    def icon(self):
+        if self.is_connected:
+            for service in self._services.values():
+                icons = list(service.icons)
+                if icons:
+                    return icons[-1]
+
+    @property
     def is_support(self):
         return self.tv_options.get('isSupport', {})
 
