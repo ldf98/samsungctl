@@ -104,18 +104,20 @@ class WebSocketBase(UPNPTV):
 
     @LogItWithReturn
     def power(self):
-        try:
-            requests.get(
-                'http://{0}:8001/api/v2/'.format(self.config.host),
-                timeout=2
-            )
-            return True
-        except (
-            requests.HTTPError,
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ConnectionError
-        ):
-            return False
+        with self.auth_lock:
+            return self.sock is not None
+        # try:
+        #     requests.get(
+        #         'http://{0}:8001/api/v2/'.format(self.config.host),
+        #         timeout=2
+        #     )
+        #     return True
+        # except (
+        #     requests.HTTPError,
+        #     requests.exceptions.ConnectTimeout,
+        #     requests.exceptions.ConnectionError
+        # ):
+        #     return False
 
     def control(self, *_):
         raise NotImplementedError
