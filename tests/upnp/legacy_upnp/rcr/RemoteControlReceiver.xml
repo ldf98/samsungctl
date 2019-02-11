@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna" xmlns:dlna="urn:schemas-dlna-org:device-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <device>
+        <deviceType>urn:samsung.com:device:RemoteControlReceiver:1</deviceType>
+        <friendlyName>[TV]UN55D8000</friendlyName>
+        <manufacturer>Samsung Electronics</manufacturer>
+        <manufacturerURL>http://www.samsung.com/sec</manufacturerURL>
+        <modelDescription>Samsung TV RCR</modelDescription>
+        <modelName>UN55D8000</modelName>
+        <modelNumber>1.0</modelNumber>
+        <modelURL>http://www.samsung.com/sec</modelURL>
+        <serialNumber>20090804RCR</serialNumber>
+        <UDN>uuid:2007e9e6-2ec1-f097-f2df-944770ea00a3</UDN>
+        <sec:deviceID>MTCN4UQJAZBMQ</sec:deviceID>
+        <serviceList>
+            <service>
+                <serviceType>urn:samsung.com:service:TestRCRService:1</serviceType>
+                <serviceId>urn:samsung.com:serviceId:TestRCRService</serviceId>
+                <controlURL>/RCR/control/TestRCRService</controlURL>
+                <eventSubURL>/RCR/event/TestRCRService</eventSubURL>
+                <SCPDURL>TestRCRService.xml</SCPDURL>
+            </service>
+        </serviceList>
+    </device>
+</root>

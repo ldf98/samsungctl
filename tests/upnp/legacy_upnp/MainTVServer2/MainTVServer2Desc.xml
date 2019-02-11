@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <device>
+        <deviceType>urn:samsung.com:device:MainTVServer2:1</deviceType>
+        <friendlyName>[TV]UN55D8000</friendlyName>
+        <manufacturer>Samsung Electronics</manufacturer>
+        <manufacturerURL>http://www.samsung.com/sec</manufacturerURL>
+        <modelDescription>Samsung TV MainTVServer2</modelDescription>
+        <modelName>UN55D8000</modelName>
+        <modelNumber>1.0</modelNumber>
+        <modelURL>http://www.samsung.com/sec</modelURL>
+        <serialNumber>20100621</serialNumber>
+        <UDN>uuid:1b0d8e6e-30cf-1f9e-f1fb-2f30e82f6be7</UDN>
+        <UPC>123456789012</UPC>
+        <sec:deviceID>MTCN4UQJAZBMQ</sec:deviceID>
+        <serviceList>
+            <service>
+                <serviceType>urn:samsung.com:service:MainTVAgent2:1</serviceType>
+                <serviceId>urn:samsung.com:serviceId:MainTVAgent2</serviceId>
+                <controlURL>/MainTVServer2/control/MainTVAgent2</controlURL>
+                <eventSubURL>/MainTVServer2/event/MainTVAgent2</eventSubURL>
+                <SCPDURL>MainTVAgent2.xml</SCPDURL>
+            </service>
+</serviceList>
+</device>
+</root>
