@@ -1,84 +1,144 @@
 # -*- coding: utf-8 -*-
 import requests
-import json
 from lxml import etree
 from .UPNP_Device.discover import discover as _discover
 from .UPNP_Device.xmlns import strip_xmlns
 from ..config import Config
+from .. import wake_on_lan
+
+import logging
+
+logger = logging.getLogger('samsungctl')
 
 
-def discover(config=None, log_level=None, timeout=5):
-    if isinstance(config, dict):
-        config = Config(**config)
+def discover(log_level=None, timeout=5):
+    services = (
+        'urn:schemas-upnp-org:device:MediaRenderer:1',
+        'urn:samsung.com:device:IPControlServer:1',
+        'urn:dial-multiscreen-org:device:dialreceiver:1',
+        'urn:samsung.com:device:MainTVServer2:1',
+        'urn:samsung.com:device:RemoteControlReceiver:1',
+    )
 
-    if config is None:
-        upnp_locations = None
-        search_ips = ()
+    found = []
 
-    else:
-        upnp_locations = config.upnp_locations
-        if not upnp_locations:
-            upnp_locations = None
-            config.upnp_locations = None
+    for host, locations in _discover(timeout, log_level, services=services):
+        services = list(service for service, _ in locations)
+        upnp_locations = list(location for _, location in locations)
 
-        search_ips = (config.host,)
+        def get_mac():
+            try:
+                res = requests.get(
+                    'http://{0}:8001/api/v2/'.format(host),
+                    timeout=3
+                )
+                res = res.json()['device']
+                if res['networkType'] == 'wired':
+                    return wake_on_lan.get_mac_address(host)
+                else:
+                    return res['wifiMac'].upper()
+            except (
+                ValueError,
+                KeyError,
+                requests.HTTPError,
+                requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ConnectionError
+            ):
+                return wake_on_lan.get_mac_address(host)
 
-    if upnp_locations is None:
-        found = []
-        for ip, locations in _discover(timeout, log_level, search_ips=search_ips):
-            if search_ips:
-                config.upnp_locations = locations
-                found += [config]
-            else:
-                location = locations[0]
+        if (
+            'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
+            'urn:samsung.com:device:IPControlServer:1' in services and
+            'urn:dial-multiscreen-org:device:dialreceiver:1' in services
+        ):
+            method = 'websocket'
+            app_id = None
+            port = 8001
+            mac = get_mac()
 
-                response = requests.get(location)
-                root = etree.fromstring(response.content)
+        elif (
+            'urn:samsung.com:device:MainTVServer2:1' in services and
+            'urn:samsung.com:device:RemoteControlReceiver:1' in services and
+            'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
+            'urn:dial-multiscreen-org:device:dialreceiver:1' in services
+        ):
+            method = 'encrypted'
+            port = 8080
+            app_id = '12345'
+            # user_id = '654321'
+            mac = get_mac()
+            # device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
 
-                root = strip_xmlns(root)
+        elif (
+            'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
+            'urn:samsung.com:device:MainTVServer2:1' in services and
+            'urn:samsung.com:device:RemoteControlReceiver:1' in services
+        ):
+            method = 'legacy'
+            app_id = None
+            # user_id = None
+            port = 55000
+            mac = wake_on_lan.get_mac_address(host)
+        else:
+            continue
 
-                device = root.find('device')
-                mfgr = device.find('manufacturer').text
+        for service, location in locations:
 
-                if mfgr == 'Samsung Electronics':
-                    try:
-                        response = requests.get(
-                            'http://{0}:8001/api/v2/'.format(ip),
-                            timeout=3
-                        )
-                        is_support = (
-                            json.loads(response.content)['device']['isSupport']
-                        )
-                        token_support = json.loads(is_support)['TokenAuthSupport']
+            if service != 'urn:schemas-upnp-org:device:MediaRenderer:1':
+                continue
 
-                        if token_support:
-                            port = 8002
-                            method = 'websocket'
+            response = requests.get(location)
+            content = response.content.decode('utf-8')
 
-                        else:
-                            raise ValueError
+            try:
+                root = etree.fromstring(content)
+            except etree.XMLSyntaxError:
+                continue
 
-                    except (requests.HTTPError, requests.exceptions.ConnectTimeout):
-                        port = 55000
-                        method = 'legacy'
+            root = strip_xmlns(root)
+            node = root.find('device')
 
-                    except (ValueError, KeyError):
-                        port = 8001
-                        method = 'websocket'
+            if node is None:
+                continue
 
-                    host = ip
-                    config = Config(
-                        host=host,
-                        method=method,
-                        port=port,
-                        upnp_locations=locations
-                    )
+            description = node.find('modelDescription')
+            if (
+                description is None or
+                description.text != 'Samsung TV DMR'
+            ):
+                continue
 
-                found += [config]
-    else:
-        found = [config]
+            model = node.find('modelName')
+            if model is None:
+                continue
 
-    if search_ips and config.upnp_locations is None:
-        config.upnp_locations = []
+            model = model.text
+
+            uuid = node.find('UDN')
+
+            if uuid is None:
+                continue
+
+            uuid = uuid.text.split(':')[-1]
+            break
+        else:
+            continue
+
+        if mac is None:
+            logger.error('Unable to acquire TV\'s mac address')
+
+        config = Config(
+            host=host,
+            method=method,
+            upnp_locations=upnp_locations,
+            model=model,
+            uuid=uuid,
+            mac=mac,
+            app_id=app_id,
+            # user_id=user_id,
+            port=port,
+        )
+
+        found += [config]
 
     return found

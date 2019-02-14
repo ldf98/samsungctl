@@ -23,7 +23,7 @@ IPV6_MCAST_GRP = "[ff02::c]"
 
 IPV4_SSDP = '''\
 M-SEARCH * HTTP/1.1\r
-ST: upnp:rootdevice\r
+ST: {0}\r
 MAN: "ssdp:discover"\r
 HOST: 239.255.255.250:1900\r
 MX: 1\r
@@ -33,7 +33,7 @@ Content-Length: 0\r
 
 IPV6_SSDP = '''\
 M-SEARCH * HTTP/1.1\r
-ST: upnp:rootdevice\r
+ST: {0}\r
 MAN: "ssdp:discover"\r
 HOST: [ff02::c]:1900\r
 MX: 1\r
@@ -42,7 +42,7 @@ Content-Length: 0\r
 '''
 
 
-def discover(timeout=5, log_level=None, search_ips=(), dump=''):
+def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:rootdevice',)):
     if dump and not os.path.exists(dump):
         os.makedirs(dump)
 
@@ -130,9 +130,16 @@ def discover(timeout=5, log_level=None, search_ips=(), dump=''):
 
         sock.settimeout(t_out)
 
-        logger.debug('SSDP: %s\n%s', destination, ssdp_packet)
-        for _ in range(5):
-            sock.sendto(ssdp_packet.encode('utf-8'), (destination, 1900))
+        for service in services:
+            packet = ssdp_packet.format(service)
+            logger.debug(
+                'SSDP: %s\n%s',
+                destination,
+                packet
+            )
+
+            sock.sendto(packet.encode('utf-8'), (destination, 1900))
+
         return sock
 
     def do(local_address, target_ips):
@@ -174,7 +181,7 @@ def discover(timeout=5, log_level=None, search_ips=(), dump=''):
                     threads.append(trd)
                     trd.start()
 
-                found[addr[0]].add(packet['LOCATION'])
+                found[addr[0]].add((packet['ST'], packet['LOCATION']))
 
         except socket.timeout:
             pass
@@ -220,7 +227,7 @@ def discover(timeout=5, log_level=None, search_ips=(), dump=''):
 
                     continue
 
-                found[addr[0]].add(packet['LOCATION'])
+                found[addr[0]].add((packet['ST'], packet['LOCATION']))
 
         except socket.error:
             pass

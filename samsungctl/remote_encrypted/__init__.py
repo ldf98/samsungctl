@@ -52,10 +52,10 @@ class URL(object):
     @property
     @LogItWithReturn
     def request(self):
-        return "{0}/ws/pairing?step={{0}}&app_id={1}&device_id={2}".format(
+        return "{0}/ws/pairing?step={{0}}&app_id={1}&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184".format(
             self.full_url,
             self.config.app_id,
-            self.config.device_id
+            # self.config.id
         )
 
     @property

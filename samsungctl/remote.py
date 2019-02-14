@@ -32,7 +32,7 @@ class RemoteMeta(type):
         elif config.method == "encrypted":
             remote = RemoteEncrypted(config)
         else:
-            raise exceptions.ConfigUnknownMethod()
+            raise exceptions.ConfigUnknownMethod(config.method)
 
         for name, key in KEYS.items():
             remote.__dict__[name] = KeyWrapper(remote, key)
