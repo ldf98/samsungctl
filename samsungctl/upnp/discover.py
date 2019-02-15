@@ -79,6 +79,16 @@ def discover(log_level=None, timeout=5):
             # user_id = None
             port = 55000
             mac = wake_on_lan.get_mac_address(host)
+
+        elif (
+            'urn:samsung.com:device:RemoteControlReceiver:1' in services and
+            'urn:dial-multiscreen-org:device:dialreceiver:1' in services and
+            'urn:schemas-upnp-org:device:MediaRenderer:1' in services
+        ):
+            method = 'websocket'
+            app_id = None
+            port = 8001
+            mac = get_mac()
         else:
             continue
 
