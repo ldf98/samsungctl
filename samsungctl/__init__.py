@@ -11,7 +11,7 @@ logging.basicConfig(format="%(message)s", level=None)
 
 
 __title__ = "samsungctl"
-__version__ = "0.8.63b"
+__version__ = "0.8.64b"
 __url__ = "https://github.com/kdschlosser/samsungctl"
 __author__ = "Lauri Niskanen, Kevin Schlosser"
 __author_email__ = "kevin.g.schlosser@gmail.com"
@@ -19,10 +19,3 @@ __license__ = "MIT"
 
 from .remote import Remote # NOQA
 from .config import Config # NOQA
-
-
-def discover(timeout=5):
-    from .upnp.discover import discover as _discover
-
-    for config in _discover(timeout=timeout):
-        yield Remote(config)

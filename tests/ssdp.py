@@ -102,3 +102,67 @@ LEGACY_PACKETS = [
     PACKET_RCR,
     PACKET_MAIN_TV_SERVER
 ]
+
+
+PACKET_NSERVICE = '''\
+HTTP/1.1 200 OK\r
+Content-Length: 0\r
+USN: uuid:a4b62f85-4832-47e0-9472-8569505135c5::upnp:rootdevice\r
+Server: Samsung-Linux/4.1, UPnP/1.0, Samsung_UPnP_SDK/1.0\r
+Ext: \r
+Location: http://{ip}:{port}/nservice/\r
+Cache-Control: max-age=1800\r
+Date: Mon, 11 Feb 2019 10:41:04 GMT\r
+BOOTID.UPNP.ORG: 8\r
+ST: upnp:rootdevice\r
+\r
+'''
+PACKET_IP_CONTROL = '''\
+HTTP/1.1 200 OK\r
+Content-Length: 0\r
+USN: uid:bff42d3e-775d-4f15-bef2-f711ed99dfda::upnp:rootdevice\r
+Server: Samsung-Linux/4.1, UPnP/1.0, Samsung_UPnP_SDK/1.0\r
+Ext: \r
+Location: http://{ip}:{port}/ip_control\r
+Cache-Control: max-age=1800\r
+Date: Mon, 11 Feb 2019 10:41:04 GMT\r
+BOOTID.UPNP.ORG: 5\r
+ST: upnp:rootdevice\r
+\r
+'''
+PACKET_DMR = '''\
+HTTP/1.1 200 OK\r
+Content-Length: 0\r
+USN: uuid:e25e45ea-eb5f-482b-b83a-75f75e70f861::upnp:rootdevice\r
+Server: Samsung-Linux/4.1, UPnP/1.0, Samsung_UPnP_SDK/1.0\r
+Ext: \r
+Location: http://{ip}:{port}/dmr\r
+Cache-Control: max-age=1800\r
+Date: Mon, 11 Feb 2019 10:41:04 GMT\r
+BOOTID.UPNP.ORG: 6\r
+ST: upnp:rootdevice\r
+\r
+'''
+PACKET_SCREEN_SHARING = '''\
+HTTP/1.1 200 OK\r
+Content-Length: 0\r
+USN: uuid:903746cd-34bf-41d2-9cf7-186b217c2156::upnp:rootdevice\r
+Server: Samsung-Linux/4.1, UPnP/1.0, Samsung_UPnP_SDK/1.0\r
+Ext: \r
+Location: http://{ip}:{port}/screen_sharing\r
+Cache-Control: max-age=1800\r
+Date: Mon, 11 Feb 2019 10:41:04 GMT\r
+BOOTID.UPNP.ORG: 8\r
+ST: upnp:rootdevice\r
+\r
+'''
+
+WEBSOCKET_PACKETS = [
+    PACKET_NSERVICE,
+    PACKET_IP_CONTROL,
+    PACKET_DMR,
+    PACKET_SCREEN_SHARING
+]
+
+
+

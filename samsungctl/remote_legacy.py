@@ -3,11 +3,11 @@
 import base64
 import logging
 import socket
-import time
 import threading
 import sys
 from . import exceptions
 from . import upnp
+from .upnp.discover import auto_discover
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger('samsungctl')
@@ -24,9 +24,30 @@ class RemoteLegacy(upnp.UPNPTV):
         self.auth_lock = threading.Lock()
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
+        self._receive_event = threading.Event()
+        self._registered_callbacks = []
         super(RemoteLegacy, self).__init__(config)
-        self._thread = threading.Thread(target=self.loop)
-        self._thread.start()
+        self._thread = None
+
+        new_config, state = auto_discover.register_callback(
+            self._connect,
+            config.uuid
+        )
+
+        if not auto_discover.is_running:
+            auto_discover.start()
+
+        if state:
+            self._connect(new_config, state)
+
+    def _connect(self, config, power):
+        if power and not self._thread:
+            self.config.copy(config)
+
+            if self.open():
+                self.connect()
+        elif not power:
+            self.close()
 
     @property
     @LogItWithReturn
@@ -55,28 +76,15 @@ class RemoteLegacy(upnp.UPNPTV):
                 event.wait(2.0)
 
     def loop(self):
-        with self.auth_lock:
-            if self.open():
-                self.connect()
-
         while not self._loop_event.isSet():
             try:
                 if self._read_response(self.sock):
-                    self._loop_event.wait(0.2)
+                    continue
                 else:
-                    raise AttributeError
+                    break
 
-            except (socket.error, AttributeError):
-                self.sock = None
+            except socket.error:
                 self.disconnect()
-
-                while not self._loop_event.isSet():
-                    with self.auth_lock:
-                        if self.open():
-                            self.connect()
-                            break
-
-                        self._loop_event.wait(1.0)
 
         if self.sock is not None:
             self.sock.close()
@@ -88,12 +96,10 @@ class RemoteLegacy(upnp.UPNPTV):
 
     @LogIt
     def open(self):
+        if self.sock is not None:
+            return
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-            if self.config.timeout:
-                sock.settimeout(self.config.timeout)
-
             sock.connect((self.config.host, self.config.port))
 
             payload = (
@@ -109,13 +115,15 @@ class RemoteLegacy(upnp.UPNPTV):
             response = self._read_response(sock, True)
             if response:
                 self.sock = sock
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
             else:
                 self.sock = None
 
-            return response
+            return True
 
         except socket.error:
-            if not self.config.paired and not self._loop_event.isSet():
+            if not self.config.paired:
                 raise RuntimeError('Unable to pair with TV.. Is the TV on?!?')
             else:
                 self.sock = None
@@ -124,15 +132,13 @@ class RemoteLegacy(upnp.UPNPTV):
     @LogIt
     def close(self):
         """Close the connection."""
-        self._loop_event.set()
-        if self.sock is not None:
+        if self._thread is not None:
+            self._loop_event.set()
             try:
                 self.sock.shutdown(socket.SHUT_RDWR)
                 self.sock.close()
-            except:
+            except socket.error:
                 pass
-
-        if self._thread is not None:
             self._thread.join(2.0)
 
     @LogIt
@@ -146,10 +152,17 @@ class RemoteLegacy(upnp.UPNPTV):
             packet = b"\x00\x00\x00" + self._serialize_string(payload, True)
 
             logger.info("Sending control command: %s", key)
-            self.sock.send(packet)
-            time.sleep(self._key_interval)
 
-    _key_interval = 0.2
+            def callback():
+                self._receive_event.set()
+
+            self._registered_callbacks += [callback]
+            self._receive_event.clear()
+            self.sock.send(packet)
+            self._receive_event.wait(self._key_interval)
+            self._registered_callbacks.remove(callback)
+
+    _key_interval = 0.3
 
     @LogIt
     def _read_response(self, sock, first_time=False):
@@ -190,6 +203,8 @@ class RemoteLegacy(upnp.UPNPTV):
                 raise exceptions.AccessDenied()
             elif response == b"\x00\x00\x00\x00":
                 logger.debug("Control accepted.")
+                if self._registered_callbacks:
+                    self._registered_callbacks[0]()
                 return True
 
             raise exceptions.UnhandledResponse(repr(response))

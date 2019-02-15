@@ -21,12 +21,6 @@ import logging
 import traceback
 from .. import wake_on_lan
 
-
-try:
-    input = raw_input
-except NameError:
-    pass
-
 from . import crypto # NOQA
 from .command_encryption import AESCipher # NOQA
 from .. import websocket_base # NOQA
@@ -52,9 +46,9 @@ class URL(object):
     @property
     @LogItWithReturn
     def request(self):
-        return "{0}/ws/pairing?step={{0}}&app_id={1}&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184".format(
+        return "{0}/ws/pairing?step={{0}}&app_id=12345&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184".format(
             self.full_url,
-            self.config.app_id,
+            # self.config.app_id,
             # self.config.id
         )
 
@@ -191,6 +185,9 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             return False
 
+        self._thread = threading.Thread(target=self.loop)
+        self._thread.start()
+
         time.sleep(0.35)
 
         return True
@@ -264,7 +261,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         content = dict(
             auth_Data=dict(
                 auth_type='SPC',
-
                 request_id=str(self.last_request_id),
                 ServerAckMsg=server_ack_message
             )

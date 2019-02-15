@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<root xmlns="urn:samsung.com:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna">
+<specVersion>
+    <major>1</major>
+    <minor>0</minor>
+</specVersion>
+<device>
+    <deviceType>urn:samsung.com:device:IPControlServer:1</deviceType>
+    <friendlyName>[TV] Fernseher im Wohnzimmer</friendlyName>
+    <manufacturer>Samsung Electronics</manufacturer>
+    <manufacturerURL>http://www.samsung.com/sec</manufacturerURL>
+    <modelDescription>Samsung TV IPControl</modelDescription>
+    <modelName>UE55NU8009</modelName>
+    <modelNumber>AllShare1.0</modelNumber>
+    <modelURL>http://www.samsung.com/sec</modelURL>
+    <serialNumber>0DZV3HDKB02335K</serialNumber>
+    <UDN>uuid:bff42d3e-775d-4f15-bef2-f711ed99dfda</UDN>
+    <iconList>
+        <icon>
+            <mimetype>image/jpeg</mimetype>
+            <width>48</width>
+            <height>48</height>
+            <depth>24</depth>
+            <url>/icon_SML.jpg</url>
+        </icon>
+        <icon>
+            <mimetype>image/jpeg</mimetype>
+            <width>120</width>
+            <height>120</height>
+            <depth>24</depth>
+            <url>/icon_LRG.jpg</url>
+        </icon>
+        <icon>
+            <mimetype>image/png</mimetype>
+            <width>48</width>
+            <height>48</height>
+            <depth>24</depth>
+            <url>/icon_SML.png</url>
+        </icon>
+        <icon>
+            <mimetype>image/png</mimetype>
+            <width>120</width>
+            <height>120</height>
+            <depth>24</depth>
+            <url>/icon_LRG.png</url>
+        </icon>
+    </iconList>
+    <serviceList>
+        <service>
+            <serviceType>urn:samsung.com:service:IPControlService:1</serviceType>
+            <serviceId>urn:samsung.com:serviceId:IPControlService</serviceId>
+            <controlURL>/upnp/control/IPControlService1</controlURL>
+            <eventSubURL>/upnp/event/IPControlService1</eventSubURL>
+            <SCPDURL>/IPControlService1_1.xml</SCPDURL>
+        </service>
+    </serviceList>
+    <sec:X_IPControl>wlanMacAddress:70:2a:d5:63:68:ec,eth0MacAddress:fc:03:9f:93:2d:77,supportDMR:1,DMR_UDN:uuid:e25e45ea-eb5f-482b-b83a-75f75e70f861,listenFrequency:2412,wlanFrequency:0,bssid:00:00:00:00:00:00,vdProductType:TV</sec:X_IPControl>
+</device>
+</root>

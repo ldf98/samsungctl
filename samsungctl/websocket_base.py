@@ -3,7 +3,7 @@
 from __future__ import absolute_import, print_function
 import logging
 import threading
-import requests
+from .upnp.discover import auto_discover
 from . import wake_on_lan
 from .upnp import UPNPTV
 from .utils import LogIt, LogItWithReturn
@@ -27,9 +27,28 @@ class WebSocketBase(UPNPTV):
         self._loop_event = threading.Event()
         self.auth_lock = threading.Lock()
         self._registered_callbacks = []
+        self._thread = None
         super(WebSocketBase, self).__init__(config)
-        self._thread = threading.Thread(target=self.loop)
-        self._thread.start()
+
+        new_config, state = auto_discover.register_callback(
+            self._connect,
+            config.uuid
+        )
+
+        if not auto_discover.is_running:
+            auto_discover.start()
+
+        if state:
+            self._connect(new_config, state)
+
+    def _connect(self, config, power):
+        if power and not self._thread:
+            self.config.copy(config)
+
+            if self.open():
+                self.connect()
+        elif not power:
+            self.close()
 
     @property
     @LogItWithReturn
@@ -58,18 +77,15 @@ class WebSocketBase(UPNPTV):
         """Close the connection."""
         if self.sock is not None:
             self._loop_event.set()
-            self.sock.close()
+            try:
+                self.sock.close()
+            except:
+                pass
+
             if self._thread is not None:
                 self._thread.join(3.0)
-            if self._thread is not None:
-                raise RuntimeError('Loop thread did not properly terminate')
 
     def loop(self):
-
-        with self.auth_lock:
-            if self.open():
-                self.connect()
-
         while not self._loop_event.isSet():
             try:
                 data = self.sock.recv()
@@ -78,17 +94,13 @@ class WebSocketBase(UPNPTV):
                 else:
                     raise RuntimeError
             except:
-                self.sock = None
                 self.disconnect()
                 del self._registered_callbacks[:]
 
-                while not self._loop_event.isSet():
-                    with self.auth_lock:
-                        if self.open():
-                            self.connect()
-                            break
-
-                        self._loop_event.wait(1.0)
+        try:
+            self.sock.close()
+        except:
+            pass
 
         self.sock = None
         self._loop_event.clear()

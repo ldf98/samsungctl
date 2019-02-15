@@ -163,6 +163,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self.sock.close()
                 raise RuntimeError('Auth Failure')
 
+        self._thread = threading.Thread(target=self.loop)
+        self._thread.start()
+
         self.send_event.wait(0.5)
         return True
 
@@ -233,8 +236,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             logger.info("Sending control command: " + str(power_off))
             self.send("ms.remote.control", **power_off)
             event.wait(1.0)
-
-            self.sock.close()
 
             while self.power and count < 20:
                 event.wait(1.0)
