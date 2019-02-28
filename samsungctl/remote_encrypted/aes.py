@@ -1,9 +1,6 @@
 from Crypto.Cipher import AES as _AES
 import binascii
-from .keys import wbKey, transKey
-
-from .rijndael import Rijndael
-
+from .keys import wbKey
 
 # Padding for the input string --not
 # related to encryption itself.

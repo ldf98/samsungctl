@@ -16,7 +16,6 @@ import websocket
 import threading
 import json
 from lxml import etree
-import binascii
 import logging
 import traceback
 from .. import wake_on_lan
