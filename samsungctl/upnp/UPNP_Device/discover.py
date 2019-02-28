@@ -3,13 +3,12 @@
 from __future__ import print_function
 import socket
 import threading
-import ifaddr
-import ipaddress
 import sys
 import os
-
 import logging
 import json
+
+from . import adapter_addresses
 
 logger = logging.getLogger('UPNP_Devices')
 
@@ -43,6 +42,8 @@ Content-Length: 0\r
 
 
 def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:rootdevice',)):
+    adapter_ips = list(adapter_addresses.get_adapter_ips())
+
     if dump and not os.path.exists(dump):
         os.makedirs(dump)
 
@@ -54,18 +55,6 @@ def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:
     found = {}
     found_event = threading.Event()
     threads = []
-    adapter_ips = []
-
-    for adapter in ifaddr.get_adapters():
-        for adapter_ip in adapter.ips:
-            if (
-                isinstance(adapter_ip.ip, tuple) or
-                adapter_ip.nice_name == 'lo0'
-            ):
-                # adapter_ips += [adapter_ip.ip[0]]
-                continue
-            else:
-                adapter_ips += [adapter_ip.ip]
 
     def convert_ssdp_response(packet, addr):
         packet_type, packet = packet.decode('utf-8').split('\n', 1)
@@ -97,35 +86,39 @@ def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:
         return packet
 
     def send_to(destination, t_out=5):
-        try:
-            network = ipaddress.ip_network(destination.decode('utf-8'))
-        except:
-            network = ipaddress.ip_network(destination)
-
-        if isinstance(network, ipaddress.IPv6Network):
-            mcast = IPV6_MCAST_GRP
-            ssdp_packet = IPV6_SSDP
-            sock = socket.socket(
-                family=socket.AF_INET6,
-                type=socket.SOCK_DGRAM,
-                proto=socket.IPPROTO_IP
-            )
-            sock.setsockopt(IPPROTO_IPV6, socket.IPV6_MULTICAST_HOPS, 1)
-
-        else:
-            mcast = IPV4_MCAST_GRP
-            ssdp_packet = IPV4_SSDP
-            sock = socket.socket(
-                family=socket.AF_INET,
-                type=socket.SOCK_DGRAM,
-                proto=socket.IPPROTO_UDP
-            )
-            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+        # try:
+        #     network = ipaddress.ip_network(destination.decode('utf-8'))
+        # except:
+        #     network = ipaddress.ip_network(destination)
+        # if isinstance(network, ipaddress.IPv6Network):
+        #     mcast = IPV6_MCAST_GRP
+        #     ssdp_packet = IPV6_SSDP
+        #     sock = socket.socket(
+        #         family=socket.AF_INET6,
+        #         type=socket.SOCK_DGRAM,
+        #         proto=socket.IPPROTO_IP
+        #     )
+        #     sock.setsockopt(IPPROTO_IPV6, socket.IPV6_MULTICAST_HOPS, 1)
+        #
+        # else:
+        mcast = IPV4_MCAST_GRP
+        ssdp_packet = IPV4_SSDP
+        sock = socket.socket(
+            family=socket.AF_INET,
+            type=socket.SOCK_DGRAM,
+            proto=socket.IPPROTO_UDP
+        )
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
 
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         if destination in adapter_ips:
-            sock.bind((destination, 0))
+            try:
+                sock.bind((destination, 0))
+            except socket.error:
+                sock.close()
+                raise
+
             destination = mcast
 
         sock.settimeout(t_out)
@@ -214,7 +207,6 @@ def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:
         try:
             while True:
                 data, addr = sock.recvfrom(1024)
-
                 packet = convert_ssdp_response(data, addr[0])
 
                 if packet['TYPE'] != 'response' or 'LOCATION' not in packet:
@@ -224,7 +216,6 @@ def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:
                     packet['LOCATION'].count('/') == 2 and
                     packet['LOCATION'].startswith('http')
                 ):
-
                     continue
 
                 found[addr[0]].add((packet['ST'], packet['LOCATION']))

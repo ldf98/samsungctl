@@ -111,14 +111,17 @@ class Action(object):
         ):
             return [None] * len(self.ret_vals)
 
-        response = response.content.decode('utf-8')
-
-        logger.debug(self.__name__ + ' <-- ' + response)
+        logger.debug(self.__name__ + ' <-- ' + response.content.decode('utf-8'))
 
         try:
-            envelope = etree.fromstring(response)
+            envelope = etree.fromstring(response.content.decode('utf-8'))
         except etree.ParseError:
             return [None] * len(self.ret_vals)
+        except ValueError:
+            try:
+                envelope = etree.fromstring(response.content)
+            except etree.ParseError:
+                return [None] * len(self.ret_vals)
 
         envelope = strip_xmlns(envelope)
 

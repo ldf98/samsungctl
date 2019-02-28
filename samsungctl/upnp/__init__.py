@@ -18,24 +18,20 @@ class UPNPTV(UPNPObject):
 
     def __init__(self, config):
         self.config = config
-        self._devices = {}
-        self._services = {}
         self.is_connected = False
-        self.ip_address = config.host
         self._dtv_information = None
-        self._tv_options = None
+        self._tv_options = {}
         self.name = self.__class__.__name__
-
-        super(UPNPTV, self).__init__(self.ip_address, [], False)
+        UPNPObject.__init__(self, config.host, [], False)
 
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
 
-        if item in self._devices and self.is_connected:
-                return self._devices[item]
+        if self.is_connected and item in self._devices:
+            return self._devices[item]
 
-        if item in self._services and self.is_connected:
+        if self.is_connected and item in self._services:
             return self._services[item]
 
         if item in self.__class__.__dict__:
@@ -72,7 +68,7 @@ class UPNPTV(UPNPObject):
             UPNPObject.__dict__[key].fset(self, value)
 
         else:
-            self.__dict__[key] = value
+            object.__setattr__(self, key, value)
 
     @property
     def power(self):
@@ -80,66 +76,53 @@ class UPNPTV(UPNPObject):
         return True
 
     def connect(self):
-        def build():
+        if not self.is_connected:
             logger.debug('Connecting UPNP')
             logger.debug('UPNP locations: ' + str(self.config.upnp_locations))
-            self.build(self.config.upnp_locations)
+            self.build(self.config.host, self.config.upnp_locations)
             self.is_connected = True
 
-        if self.config.upnp_locations:
-            threading.Thread(target=build).start()
-
-        else:
-            def do():
-                if self.config.upnp_locations is None:
-                    self.config.upnp_locations = []
-
-                logger.debug('UPNP discovering locations')
-                discover(self.config)
-                logger.debug(
-                    'UPNP locations discovered: ' + str(
-                        self.config.upnp_locations)
-                )
-                if self.config.upnp_locations:
-                    build()
-                else:
-                    self.is_connected = False
-                    self.config.upnp_locations = None
-
-            threading.Thread(target=do).start()
-
     def disconnect(self):
-        logger.debug('Disconnecting UPNP')
-        self.is_connected = False
+        if self.is_connected:
+            logger.debug('Disconnecting UPNP')
+            self.is_connected = False
 
     @property
     def tv_options(self):
-        if self._tv_options is None:
+        if not self._tv_options:
             try:
-                url = 'http://{0}:8001/api/v2'.format(self.ip_address)
+                url = 'http://{0}:8001/api/v2/'.format(self.config.host)
                 response = requests.get(url)
+                logger.debug(self.__name__ + ' <-- ' + response.content.decode('utf-8'))
                 response = response.json()
 
+                result = {}
+                if 'isSupport' in response:
+                    import json
+                    result.update(
+                        json.loads(response['isSupport'])
+                    )
                 if 'device' in response:
-                    response = response['device']
-                    if 'isSupport' in response:
-                        import json
-                        response['isSupport'] = json.loads(
-                            response['isSupport']
-                        )
-                else:
-                    response = None
+                    for key, value in response['device'].items():
+                        if key in result:
+                            continue
+                        result[key] = value
+                for key, value in response.items():
+                    if key in result:
+                        continue
+                    if isinstance(value, dict) or key == 'isSupport':
+                        continue
+                    result[key] = value
+
             except (
                 requests.HTTPError,
                 requests.exceptions.ConnectTimeout,
                 requests.exceptions.ConnectionError
             ):
-                response = None
+                result = {}
 
-            if response is None:
-                return {}
+            self._tv_options.update(result)
 
-            self._tv_options = response
         return self._tv_options
 
     @property
@@ -149,10 +132,6 @@ class UPNPTV(UPNPObject):
                 icons = list(service.icons)
                 if icons:
                     return icons[-1]
-
-    @property
-    def is_support(self):
-        return self.tv_options.get('isSupport', {})
 
     def get_audio_selection(self):
         try:
@@ -224,7 +203,7 @@ class UPNPTV(UPNPObject):
     @property
     def aspect_ratio(self):
         try:
-            aspect_ratio = self.RenderingControl.X_GetAspectRatio(0)
+            aspect_ratio = self.RenderingControl.X_GetAspectRatio(0)[0]
             return aspect_ratio
         except AttributeError:
             pass
@@ -257,10 +236,9 @@ class UPNPTV(UPNPObject):
     @property
     def brightness(self):
         try:
-            brightness = self.RenderingControl.GetBrightness(0)[0]
-            return brightness
+            return self.RenderingControl.GetBrightness(0)[0]
         except AttributeError:
-            raise
+            pass
 
     @brightness.setter
     def brightness(self, desired_brightness):
@@ -308,22 +286,24 @@ class UPNPTV(UPNPObject):
     @property
     def channels(self):
         try:
-            supported_channels = (
-                self.MainTVAgent2.GetChannelListURL()[2]
-            )
+            channel_list_url = self.channel_list_url[3]
+            if channel_list_url is None:
+                return None
 
-            channels = saxutils.unescape(supported_channels)
-            channels = etree.fromstring(channels)
+            response = requests.get(channel_list_url)
+            logger.debug(
+                self.config.host + ' --> ' + response.content.decode('utf-8')
+            )
 
             supported_channels = []
 
-            for channel in channels:
-                channel_num = (
-                    channel.find('MajorCh').text,
-                    channel.find('MinorCh').text
-                )
-
-                supported_channels += [Channel(channel_num, channel, self)]
+            # for channel in channels:
+            #     channel_num = (
+            #         channel.find('MajorCh').text,
+            #         channel.find('MinorCh').text
+            #     )
+            #
+            #     supported_channels += [Channel(channel_num, channel, self)]
 
             return supported_channels
 
@@ -335,7 +315,21 @@ class UPNPTV(UPNPObject):
         try:
             channel = self.MainTVAgent2.GetCurrentMainTVChannel()[1]
             channel = saxutils.unescape(channel)
-            channel = etree.fromstring(channel)
+
+            logger.debug(
+                self.config.host + ' --> ' + channel.decode('utf-8')
+            )
+
+            try:
+                channel = etree.fromstring(channel.decode('utf-8'))
+            except etree.ParseError:
+                return None
+            except ValueError:
+                try:
+                    channel = etree.fromstring(channel)
+                except etree.ParseError:
+                    return None
+
             channel_num = (
                 channel.find('MajorCh').text,
                 channel.find('MinorCh').text
@@ -363,6 +357,57 @@ class UPNPTV(UPNPObject):
                 )
         except AttributeError:
             pass
+
+    @property
+    def channel_list_url(self):
+        try:
+            (
+                channel_list_version,
+                support_channel_list,
+                channel_list_url,
+                channel_list_type,
+                satellite_id
+            ) = self.MainTVAgent2.GetChannelListURL()[1:]
+
+            support_channel_list = saxutils.unescape(support_channel_list)
+
+            try:
+                support_channel_list = etree.fromstring(
+                    support_channel_list.decode('utf-8'))
+            except etree.ParseError:
+                support_channel_list = None
+            except ValueError:
+                try:
+                    support_channel_list = etree.fromstring(
+                        support_channel_list)
+                except etree.ParseError:
+                    support_channel_list = None
+
+            if support_channel_list is None:
+                support_channel_list = []
+
+            else:
+                lists = []
+                support_channel_list = strip_xmlns(support_channel_list)
+
+                for channel_list_info in support_channel_list:
+                    list_type = channel_list_info.find('ChListType').text
+                    sort = channel_list_info.find('Sort').text
+                    lists += [dict(list_type=list_type, sort=sort)]
+
+                support_channel_list = lists[:]
+
+            return (
+                channel_list_version,
+                support_channel_list,
+                channel_list_url,
+                channel_list_type,
+                satellite_id
+            )
+        except AttributeError:
+            pass
+
+        return None, None, None, None, None
 
     def check_pin(self, pin):
         try:
@@ -436,8 +481,8 @@ class UPNPTV(UPNPObject):
     @property
     def current_connection_ids(self):
         try:
-            connection_ids = self.ConnectionManager.GetCurrentConnectionIDs()
-            return connection_ids
+            connection_ids = self.ConnectionManager.GetCurrentConnectionIDs()[0]
+            return connection_ids.split(',')
         except AttributeError:
             pass
 
@@ -476,7 +521,7 @@ class UPNPTV(UPNPObject):
     @property
     def current_transport_actions(self):
         try:
-            actions = self.AVTransport.GetCurrentTransportActions(0)
+            actions = self.AVTransport.GetCurrentTransportActions(0)[0]
             return actions
         except AttributeError:
             pass
@@ -590,7 +635,7 @@ class UPNPTV(UPNPObject):
 
     def list_presets(self):
         try:
-            current_preset_list = self.RenderingControl.ListPresets(0)
+            current_preset_list = self.RenderingControl.ListPresets(0)[0]
             return current_preset_list
         except AttributeError:
             pass
@@ -1366,32 +1411,11 @@ class UPNPTV(UPNPObject):
     def available_actions(self):
         try:
             available_actions = self.MainTVAgent2.GetAvailableActions()[1]
+            available_actions = available_actions.split(',')
+
             return available_actions
         except AttributeError:
             pass
-
-    @property
-    def channel_list_url(self):
-        try:
-            (
-                channel_list_version,
-                support_channel_list,
-                channel_list_url,
-                channel_list_type,
-                satellite_id
-            ) = self.MainTVAgent2.GetChannelListURL()[1:]
-
-            return (
-                channel_list_version,
-                support_channel_list,
-                channel_list_url,
-                channel_list_type,
-                satellite_id
-            )
-        except AttributeError:
-            pass
-
-        return None, None, None, None, None
 
     @property
     def browser_mode(self):
@@ -1437,6 +1461,8 @@ class UPNPTV(UPNPObject):
             return max_distance, all_speaker_distance
         except AttributeError:
             pass
+
+        return None, None
 
     @hts_all_speaker_distance.setter
     def hts_all_speaker_distance(self, all_speaker_distance):
@@ -1495,6 +1521,36 @@ class UPNPTV(UPNPObject):
         except AttributeError:
             pass
         return None, None
+
+    @property
+    def mbr_devices(self):
+
+        mbr_device_list = self.mbr_device_list
+
+        if mbr_device_list is None:
+            return None
+
+        try:
+            mbr_device_list = etree.fromstring(mbr_device_list.decode('utf-8'))
+        except etree.ParseError:
+            return None
+        except ValueError:
+            try:
+                mbr_device_list = etree.fromstring(mbr_device_list)
+            except etree.ParseError:
+                return None
+
+        mbr_device_list = strip_xmlns(mbr_device_list)
+
+        devices = []
+
+        for mbr_device in mbr_device_list:
+            id = mbr_device.find('ID')
+            device = MBRDevice(id, mbr_device, self)
+            device.update(mbr_device)
+            devices += [device]
+
+        return devices
 
     @property
     def mbr_device_list(self):
@@ -1566,105 +1622,122 @@ class UPNPTV(UPNPObject):
 
     @property
     def operating_system(self):
-        if 'OS' in self._tv_options:
-            return self._tv_options['OS']
+        options = self.tv_options
+        if 'OS' in options:
+            return options['OS']
         return 'Unknown'
 
     @property
     def frame_tv_support(self):
-        if 'FrameTVSupport' in self._tv_options:
-            return self._tv_options['FrameTVSupport']
+        options = self.tv_options
+        if 'FrameTVSupport' in options:
+            return options['FrameTVSupport'] == 'true'
         return 'Unknown'
 
     @property
     def game_pad_support(self):
-        if 'GamePadSupport' in self._tv_options:
-            return self._tv_options['GamePadSupport']
+        options = self.tv_options
+        if 'GamePadSupport' in options:
+            return options['GamePadSupport'] == 'true'
         return 'Unknown'
 
     @property
     def dmp_drm_playready(self):
-        if 'DMP_DRM_PLAYREADY' in self.is_support:
-            return self.is_support['DMP_DRM_PLAYREADY']
+        options = self.tv_options
+        if 'DMP_DRM_PLAYREADY' in options:
+            return options['DMP_DRM_PLAYREADY'] == 'true'
         return False
 
     @property
     def dmp_drm_widevine(self):
-        if 'DMP_DRM_WIDEVINE' in self.is_support:
-            return self.is_support['DMP_DRM_WIDEVINE']
+        options = self.tv_options
+        if 'DMP_DRM_WIDEVINE' in options:
+            return options['DMP_DRM_WIDEVINE'] == 'true'
         return False
 
     @property
     def dmp_available(self):
-        if 'DMP_available' in self.is_support:
-            return self.is_support['DMP_available']
+        options = self.tv_options
+        if 'DMP_available' in options:
+            return options['DMP_available'] == 'true'
         return False
 
     @property
     def eden_available(self):
-        if 'EDEN_available' in self.is_support:
-            return self.is_support['EDEN_available']
+        options = self.tv_options
+        if 'EDEN_available' in options:
+            return options['EDEN_available'] == 'true'
         return False
 
     @property
     def apps_list_available(self):
-        if self._tv_options:
+        options = self.tv_options
+        if options:
             return True
         return False
 
     @property
     def ime_synced_support(self):
-        if 'ImeSyncedSupport' in self.is_support:
-            return self.is_support['ImeSyncedSupport']
+        options = self.tv_options
+        if 'ImeSyncedSupport' in options:
+            return options['ImeSyncedSupport'] == 'true'
         return False
 
     @property
     def remote_four_directions(self):
-        if 'remote_fourDirections' in self.is_support:
-            return self.is_support['remote_fourDirections']
+        options = self.tv_options
+        if 'remote_fourDirections' in options:
+            return options['remote_fourDirections'] == 'true'
         return False
 
     @property
     def remote_touch_pad(self):
-        if 'remote_touchPad' in self.is_support:
-            return self.is_support['remote_touchPad']
+        options = self.tv_options
+        if 'remote_touchPad' in options:
+            return options['remote_touchPad'] == 'true'
         return False
 
     @property
     def voice_support(self):
-        if 'VoiceSupport' in self.tv_options:
-            return self.tv_options['VoiceSupport']
+        options = self.tv_options
+        if 'VoiceSupport' in options:
+            return options['VoiceSupport'] == 'true'
         return 'Unknown'
 
     @property
     def firmware_version(self):
-        if 'firmwareVersion' in self.tv_options:
-            return self.tv_options['firmwareVersion']
+        options = self.tv_options
+        if 'firmwareVersion' in options:
+            return options['firmwareVersion']
 
         return 'Unknown'
 
     @property
     def network_type(self):
-        if 'networkType' in self.tv_options:
-            return self.tv_options['networkType']
+        options = self.tv_options
+        if 'networkType' in options:
+            return options['networkType']
         return 'Unknown'
 
     @property
     def resolution(self):
-        if 'resolution' in self.tv_options:
-            return self.tv_options['resolution']
+        options = self.tv_options
+        if 'resolution' in options:
+            return options['resolution']
         return 'Unknown'
 
     @property
     def token_auth_support(self):
-        if 'TokenAuthSupport' in self.tv_options:
-            return self.tv_options['TokenAuthSupport']
+        options = self.tv_options
+        if 'TokenAuthSupport' in options:
+            return options['TokenAuthSupport'] == 'true'
         return 'Unknown'
 
     @property
     def wifi_mac(self):
-        if 'wifiMac' in self.tv_options:
-            return self.tv_options['wifiMac']
+        options = self.tv_options
+        if 'wifiMac' in options:
+            return options['wifiMac']
         return 'Unknown'
 
     @property
@@ -1710,24 +1783,60 @@ class UPNPTV(UPNPObject):
         return panel_mapping[model[5]]
 
     @property
-    def size(self):
+    def panel_size(self):
         return int(self.model[2:][:2])
 
     @property
     def model(self):
-        try:
-            return self.AVTransport.modelName
-        except AttributeError:
-            pass
-
-        return 'Unknown'
+        if self.config.model is not None:
+            return self.config.model
+        else:
+            return 'Unknown'
 
     @property
     def year(self):
         dtv_information = self.dtv_information
         if dtv_information is None:
-            if 'RemoteControlReceiver' in self._services:
-                year = self.RemoteControlReceiver.ProductCap.split(',')[0]
+            if self.is_connected:
+                for service in self.services:
+                    try:
+                        product_cap = service.ProductCap
+                        product_cap = product_cap.split(',')
+                        for item in product_cap:
+                            if (
+                                item.lower().startswiith('y') and
+                                len(item) == 5 and
+                                item[1:].isdigit()
+                            ):
+                                year = item[1:]
+                                break
+                        else:
+                            continue
+
+                        break
+                    except AttributeError:
+                        continue
+                else:
+                    model = self.model
+
+                    years = dict(
+                        A=2008,
+                        B=2009,
+                        C=2010,
+                        D=2011,
+                        E=2012,
+                        F=2013,
+                        H=2014,
+                        J=2015,
+                        K=2016,
+                        M=2017,
+                        Q=2017,
+                        N=2018,
+                    )
+                    if model[5].upper() in years:
+                        year = str(years[model[5].upper()])
+                    else:
+                        year = '0'
             else:
                 year = '0'
         else:
@@ -1738,11 +1847,23 @@ class UPNPTV(UPNPObject):
     @property
     def region(self):
         dtv_information = self.dtv_information
-        if dtv_information is None:
-            return 'Unknown'
 
-        location = dtv_information.find('TargetLocation')
-        return location.text.replace('TARGET_LOCATION_', '')
+        if dtv_information is not None:
+            location = dtv_information.find('TargetLocation')
+            if location is not None:
+                return location.text.replace('TARGET_LOCATION_', '')
+
+        model = self.model
+
+        if model[1] == 'N':
+            region = 'North America'
+        elif model[1] == 'E':
+            region = 'Europe'
+        elif model[1] == 'A':
+            region = 'Asia'
+        else:
+            region = 'Unknown'
+        return region
 
     @property
     def tuner_count(self):
@@ -1751,6 +1872,9 @@ class UPNPTV(UPNPObject):
             return 'Unknown'
 
         tuner_count = dtv_information.find('TunerCount')
+        if tuner_count is None:
+            return 'Unknown'
+
         return int(tuner_count.text)
 
     @property
@@ -1784,6 +1908,10 @@ class Channel(object):
 
         if item in self.__dict__:
             return self.__dict__[item]
+
+        if item in self.__class__.__dict__:
+            if hasattr(self.__class__.__dict__[item], 'fget'):
+                return self.__class__.__dict__[item].fget(self)
 
         for child in self._node:
             if child.tag == item:
@@ -1893,6 +2021,62 @@ class Channel(object):
 
 
 @six.add_metaclass(InstanceSingleton)
+class MBRDevice(object):
+
+    def __init__(self, id, node, parent):
+        self._parent = parent
+        self.id = id
+        self._node = node
+
+    @property
+    def activity_index(self):
+        _ = self._parent.mbr_devices
+        activity_index = self._node.find('ActivityIndex')
+        if activity_index is not None:
+            return int(activity_index.text)
+
+    @property
+    def source(self):
+        _ = self._parent.mbr_devices
+        source_type = self._node.find('SourceType')
+        if source_type is not None:
+            source_type = source_type.text
+            for source in self._parent.sources:
+                if source_type == source.name:
+                    return source
+
+    @property
+    def device_type(self):
+        _ = self._parent.mbr_devices
+        device_type = self._node.find('DeviceType')
+        if device_type is not None:
+            return device_type.text
+
+        return ''
+
+    @property
+    def brand(self):
+        _ = self._parent.mbr_devices
+        brand = self._node.find('BrandName')
+        if brand is not None:
+            return brand.text
+
+        return ''
+
+    @property
+    def model(self):
+        _ = self._parent.mbr_devices
+        model = self._node.find('ModelNumber')
+        if model is not None:
+            return model.text
+
+        return ''
+
+    def update(self, node):
+        self._node = node
+
+
+@six.add_metaclass(InstanceSingleton)
 class Source(object):
 
     def __init__(
@@ -1936,7 +2120,7 @@ class Source(object):
         if device_name is not None:
             self._device_name = device_name.text
         else:
-            self._device_name = None
+            self._device_name = ''
 
         self._active = active
 
@@ -1965,7 +2149,18 @@ class Source(object):
     @property
     def label(self):
         _ = self._parent.sources
-        return self._label
+
+        label = self._label
+
+        if label == self.__name__:
+            attached_device = self.attached_device
+            if attached_device is not None:
+                device_type = attached_device.device_type
+                if device_type:
+                    return device_type
+                else:
+                    return attached_device.brand
+        return label
 
     @label.setter
     def label(self, value):
@@ -1975,20 +2170,46 @@ class Source(object):
     @property
     def device_name(self):
         _ = self._parent.sources
-        return self._device_name
+        device_name = self._device_name
+
+        if not device_name:
+            attached_device = self.attached_device
+            if attached_device is not None:
+                return attached_device.brand
+
+        return device_name
 
     @property
     def is_active(self):
         _ = self._parent.sources
         return self._active
 
+    @property
+    def attached_device(self):
+        if not self.is_connected:
+            return None
+
+        mbr_devices = self._parent.mbr_devices
+
+        if mbr_devices is not None:
+            for device in self._parent.mbr_devices:
+                if device.source == self:
+                    return device
+
     def activate(self):
         if self.is_connected:
-            self._parent.MainTVAgent2.SetMainTVSource(
-                self.name,
-                str(self.id),
-                str(self.id)
-            )
+            try:
+                self._parent.MainTVAgent2.SetMainTVSource(
+                    self.name,
+                    str(self.id),
+                    str(self.id)
+                )
+            except ValueError:
+                self._parent.MainTVAgent2.SetMainTVSource(
+                    self.name,
+                    self.id,
+                    self.id
+                )
 
     def __str__(self):
         return self.label

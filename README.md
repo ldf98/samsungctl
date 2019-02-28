@@ -1,6 +1,21 @@
 
 \*\*\*\*\*\*\* ALL USERS PLEASE READ \*\*\*\*\*\*\*
 
+TV DISCOVERY
+
+I added a discovery feature. You no longer need to set your TV to a
+static IP address. The library now automatically discovers the TV.
+
+This is how to work the automatic discovery feature.
+
+On a new config file only pass the path for the config fil with the
+`--config-file` parameter
+
+    samsungctl --config-file "/PATH/FILE.NAME"
+
+If you do not want to usee the discovery feature then you will need to
+specify the '--host' for each call made.
+
 UPDATE TO POWER KEYS..
 In order to remove confusion of what TV supports what power keys.
 I have decided to alter the Samsung handling of keys. The way Samsung
@@ -98,9 +113,7 @@ install it using the directions below.
 - `requests`
 - `pycryptodome`
 - `lxml`
-- `ifaddr`
 - `six`
-- `curses` (optional, for the interactive mode)
 
 
 <br></br>

@@ -25,12 +25,13 @@ class WebSocketBase(UPNPTV):
         self.config = config
         self.sock = None
         self._loop_event = threading.Event()
-        self.auth_lock = threading.Lock()
+        self._auth_lock = threading.RLock()
+        self._send_lock - threading.Lock()
         self._registered_callbacks = []
         self._thread = None
-        super(WebSocketBase, self).__init__(config)
+        UPNPTV.__init__(self, config)
 
-        new_config, state = auto_discover.register_callback(
+        auto_discover.register_callback(
             self._connect,
             config.uuid
         )
@@ -38,17 +39,21 @@ class WebSocketBase(UPNPTV):
         if not auto_discover.is_running:
             auto_discover.start()
 
-        if state:
-            self._connect(new_config, state)
+        self._connect(auto_discover.is_on(config.uuid), True)
 
     def _connect(self, config, power):
+        if config is None:
+            return
+
         if power and not self._thread:
             self.config.copy(config)
+            self.open()
 
-            if self.open():
-                self.connect()
         elif not power:
             self.close()
+
+    def _send_key(self, *args, **kwargs):
+        raise NotImplementedError
 
     @property
     @LogItWithReturn
@@ -66,11 +71,14 @@ class WebSocketBase(UPNPTV):
             self.config.mac = wake_on_lan.get_mac_address(self.config.host)
             if self.config.mac is None:
                 if not self.power:
-                    logger.error('Unable to acquire MAC address')
+                    logger.error(
+                        self.config.host +
+                        ' -- unable to acquire MAC address'
+                    )
         return self.config.mac
 
     def on_message(self, _):
-        pass
+        raise NotImplementedError
 
     @LogIt
     def close(self):
@@ -86,10 +94,18 @@ class WebSocketBase(UPNPTV):
                 self._thread.join(3.0)
 
     def loop(self):
+        while self.sock is None and not self._loop_event.isSet():
+            self._loop_event.wait(0.1)
+
         while not self._loop_event.isSet():
             try:
                 data = self.sock.recv()
                 if data:
+                    logger.debug(
+                        self.config.host +
+                        ' --> ' +
+                        data
+                    )
                     self.on_message(data)
                 else:
                     raise RuntimeError
@@ -114,6 +130,7 @@ class WebSocketBase(UPNPTV):
     def artmode(self, value):
         pass
 
+    @property
     @LogItWithReturn
     def power(self):
         with self.auth_lock:
@@ -131,8 +148,42 @@ class WebSocketBase(UPNPTV):
         # ):
         #     return False
 
-    def control(self, *_):
+    @power.setter
+    @LogIt
+    def power(self, value):
+        self._set_power(value)
+
+    def _set_power(self, value):
         raise NotImplementedError
+
+    @LogItWithReturn
+    def control(self, key, *args, **kwargs):
+        if key == 'KEY_POWERON':
+            if not self.power:
+                self.power = True
+                return True
+
+            return False
+
+        elif key == 'KEY_POWEROFF':
+            if self.power:
+                self.power = False
+                return True
+
+            return False
+
+        elif key == 'KEY_POWER':
+            self.power = not self.power
+            return True
+
+        elif self.sock is None:
+            logger.info(
+                self.config.model +
+                ' -- is the TV on?!?'
+            )
+            return False
+
+        return self._send_key(key, *args, **kwargs)
 
     def open(self):
         raise NotImplementedError

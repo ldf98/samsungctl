@@ -317,7 +317,6 @@ INSTALLED_APP_RESPONSE = dict(
     )
 )
 
-
 EDEN_APP_RESPONSE = dict(
     event='ed.edenApp.get',
     data=dict(
@@ -5651,3 +5650,8 @@ EDEN_APP_RESPONSE = dict(
 )
 
 EDEN_APP_RESPONSE['from'] = "host"
+
+
+
+
+

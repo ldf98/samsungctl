@@ -235,6 +235,19 @@ class Application(object):
 
     @LogIt
     def run(self, meta_tag=None):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "event":"ed.apps.launch",
+                "to":"host",
+                "data":{
+                    "appId":0,
+                    "action_type":"DEEP_LINK" or "NATIVE_LAUNCH",
+                    "metaTag":additional_app_start_data
+            }
+        }
+        """
         params = dict(
             event='ed.apps.launch',
             to='host',
@@ -266,6 +279,17 @@ class Application(object):
     @property
     @LogIt
     def icon(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "event":"ed.apps.icon",
+                "to":"host",
+                "data":{
+                    "iconPath":path_to_icon,
+            }
+        }
+        """
         if self._icon:
             params = dict(
                 event="ed.apps.icon",
@@ -274,7 +298,7 @@ class Application(object):
 
             )
 
-            icon = [None]
+            icon = []
             event = threading.Event()
 
             @LogIt
@@ -285,7 +309,10 @@ class Application(object):
                         data = base64.decodebytes(data)
                     else:
                         data = base64.decodestring(data)
-                icon[0] = data
+
+                    data = "".join(map(chr, list(data)))
+
+                icon.append(data)
                 event.set()
 
             self._remote.register_receive_callback(
@@ -302,7 +329,8 @@ class Application(object):
                 'event',
                 'ed.apps.icon'
             )
-            return icon[0]
+            if event.isSet():
+                return icon[0]
 
 
 # noinspection PyPep8Naming
@@ -376,7 +404,6 @@ class AppData(object):
         icon=None,
         **kwargs
     ):
-
         self.application = application
         self._is_playable = isPlayable
         self.subtitle = subtitle
@@ -466,6 +493,17 @@ class AppData(object):
 
     @property
     def icon(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "event":"ed.apps.icon",
+                "to":"host",
+                "data":{
+                    "iconPath":path_to_icon,
+            }
+        }
+        """
         if self._icon:
             params = dict(
                 event="ed.apps.icon",
@@ -473,7 +511,7 @@ class AppData(object):
                 data=dict(iconPath=self._icon)
 
             )
-            icon = [None]
+            icon = []
             event = threading.Event()
 
             @LogIt
@@ -485,7 +523,10 @@ class AppData(object):
                     else:
                         data = base64.decodestring(data)
 
-                icon[0] = data
+                    data = "".join(map(chr, list(data)))
+
+                icon.append(data)
+
                 event.set()
 
             self.application._remote.register_receive_callback(
@@ -502,4 +543,6 @@ class AppData(object):
                 'event',
                 'ed.apps.icon'
             )
-            return icon[0]
+
+            if event.isSet():
+                return icon[0]

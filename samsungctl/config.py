@@ -99,7 +99,7 @@ class Config(object):
 
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
-        return tv_pin
+        return str(tv_pin)
 
     def copy(self, src):
         self.host = src.host

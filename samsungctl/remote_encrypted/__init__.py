@@ -22,7 +22,7 @@ import traceback
 from .. import wake_on_lan
 
 from . import crypto # NOQA
-from .command_encryption import AESCipher # NOQA
+from .aes import AES # NOQA
 from .. import websocket_base # NOQA
 from ..upnp.UPNP_Device.xmlns import strip_xmlns # NOQA
 from ..utils import LogIt, LogItWithReturn # NOQA
@@ -46,10 +46,15 @@ class URL(object):
     @property
     @LogItWithReturn
     def request(self):
-        return "{0}/ws/pairing?step={{0}}&app_id=12345&device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184".format(
-            self.full_url,
-            # self.config.app_id,
-            # self.config.id
+        return (
+            '{0}/ws/pairing?'
+            'step={{0}}&'
+            'app_id=12345&'
+            'device_id=7e509404-9d7c-46b4-8f6a-e2a9668ad184'.format(
+                self.full_url,
+                # self.config.app_id,
+                # self.config.id
+            )
         )
 
     @property
@@ -76,21 +81,43 @@ class URL(object):
     @property
     @LogItWithReturn
     def websocket(self):
+
+        logger.debug(
+            self.config.host +
+            ' <-- (' +
+            self.step4 +
+            ') ""'
+        )
+
+
         try:
             websocket_response = requests.get(self.step4, timeout=3)
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
             logger.info(
-                'Unable to open connection.. Is the TV on?!?'
+                self.config.model +
+                ' -- unable to open connection.. Is the TV on?!?'
             )
             return None
 
-        logger.debug('step 4: ' + websocket_response.content.decode('utf-8'))
+        logger.debug(
+            self.config.host +
+            ' --> (' +
+            self.step4 +
+            ') ' +
+            websocket_response.content.decode('utf-8')
+        )
 
         websocket_url = (
             'ws://{0}:8000/socket.io/1/websocket/{1}'.format(
                 self.config.host,
                 websocket_response.text.split(':')[0]
             )
+        )
+
+        logger.debug(
+            self.config.host +
+            ' -- (websocket url)' +
+            websocket_url
         )
 
         return websocket_url
@@ -106,99 +133,160 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     @LogIt
     def __init__(self, config):
         self.url = URL(config)
-
-        if config.token:
-            self.ctx, self.current_session_id = config.token.rsplit(':', 1)
-
-            try:
-                self.current_session_id = int(self.current_session_id)
-            except ValueError:
-                pass
-        else:
-            config.set_pin = self.set_pin
-            self.ctx = None
-            self.current_session_id = None
-
-        self.sk_prime = False
-        self.last_request_id = 0
-        self.aes_lib = None
+        self.current_session_id = None
+        self.aes = None
 
         super(RemoteEncrypted, self).__init__(config)
 
     @LogItWithReturn
     def open(self):
-        if self.sock is not None:
-            return True
+        with self.auth_lock:
+            if self.sock is not None:
+                return True
 
-        self.last_request_id = 0
-
-        if self.ctx is None:
-
-            if self.check_pin_page():
-                logger.debug("Pin NOT on TV")
-                self.show_pin_page()
-            else:
-                logger.debug("Pin ON TV")
-
-            while self.ctx is None:
-                tv_pin = self.config.get_pin()
-                if tv_pin is False:
-                    raise RuntimeError('Pin retry limit reached.')
-                if tv_pin is None:
-                    continue
-
-                logger.info("Got pin: '{0}'".format(tv_pin))
-
-                self.first_step_of_pairing()
-                output = self.hello_exchange(tv_pin)
-                if output:
-                    self.ctx = crypto.bytes2str(
-                        binascii.hexlify(output['ctx'])
-                    )
-                    self.sk_prime = output['SKPrime']
-                    logger.debug("ctx: " + self.ctx)
-                    logger.info("Pin accepted")
-                else:
-                    logger.info("Pin incorrect. Please try again...")
-
-            self.current_session_id = self.acknowledge_exchange()
-            self.config.token = (
-                str(self.ctx) + ':' + str(self.current_session_id)
-            )
-
-            self.close_pin_page()
-            logger.info("Authorization successful.")
-            self.config.paired = True
-
-        websocket_url = self.url.websocket
-        if websocket_url is None:
-            return False
-
-        logger.debug(websocket_url)
-
-        self.aes_lib = AESCipher(self.ctx.upper(), self.current_session_id)
-        try:
-            self.sock = websocket.create_connection(websocket_url)
-        except:
             if not self.config.paired:
-                raise RuntimeError('Unable to connect to the TV')
+                if self.check_pin_page():
+                    logger.debug(
+                        self.config.host +
+                        ' -- showing pin page'
+                    )
+                    self.show_pin_page()
+                else:
+                    logger.debug(
+                        self.config.host +
+                        ' -- pin page already displayed'
+                    )
+                try:
+                    while not self.config.paired:
+                        tv_pin = self.config.get_pin()
+                        if tv_pin is False:
+                            logger.error(
+                                self.config.host +
+                                '-- pin retry limit reached.'
+                            )
+                            return False
 
-            return False
+                        if tv_pin is None:
+                            continue
 
-        self._thread = threading.Thread(target=self.loop)
-        self._thread.start()
+                        logger.info(
+                            self.config.host +
+                            ' -- (pin) ' +
+                            tv_pin
+                        )
 
-        time.sleep(0.35)
+                        self.first_step_of_pairing()
+                        output, last_request_id = self.hello_exchange(tv_pin)
+                        if output:
+                            logger.info(
+                                self.config.host +
+                                ' -- pin accepted'
+                            )
 
-        return True
+                            aes_key = crypto.bytes2str(output['ctx'])
+                            logger.debug(
+                                self.config.host +
+                                ' -- (aes_key) ' +
+                                aes_key.upper()
+                            )
+
+                            sk_prime = output['SKPrime']
+                            logger.debug(
+                                self.config.host +
+                                ' -- (sk prime) ' +
+                                sk_prime
+                            )
+
+                            current_session_id = self.acknowledge_exchange(
+                                last_request_id,
+                                sk_prime
+                            )
+
+                            self.config.token = (
+                                aes_key.upper() + ':' + str(current_session_id)
+                            )
+                            logger.debug(
+                                self.config.host +
+                                ' -- (token) ' +
+                                self.config.token
+                            )
+
+                            logger.info(
+                                self.config.host +
+                                ' -- authorization successful.'
+                            )
+
+                            self.config.paired = True
+                            if self.config.path:
+                                self.config.save()
+
+                        else:
+                            logger.info(
+                                self.config.host +
+                                ' -- pin incorrect.\nplease try again...'
+                            )
+                finally:
+                    self.close_pin_page()
+
+            aes_key, current_session_id = self.config.token.rsplit(':', 1)
+            self.current_session_id = int(current_session_id)
+
+            if self.aes is None:
+                self.aes = AES(aes_key)
+
+            websocket_url = self.url.websocket
+            if websocket_url is None:
+                return False
+
+            try:
+                self.sock = websocket.create_connection(websocket_url)
+            except:
+                return False
+
+            self._thread = threading.Thread(target=self.loop)
+            self._thread.start()
+
+            time.sleep(0.35)
+            self.connect()
+            return True
 
     @LogIt
     def show_pin_page(self):
-        requests.post(self.url.cloud_pin_page, "pin4")
+        logger.debug(
+            self.config.host +
+            ' <-- (' +
+            self.url.cloud_pin_page +
+            ') "pin4"'
+        )
+
+        response = requests.post(self.url.cloud_pin_page, "pin4")
+
+        logger.debug(
+            self.config.host +
+            ' --> (' +
+            self.url.cloud_pin_page +
+            ') ' +
+            response.content.decode('utf-8')
+        )
 
     @LogItWithReturn
     def check_pin_page(self):
+        logger.debug(
+            self.config.host +
+            ' <-- (' +
+            self.url.cloud_pin_page +
+            ') ""'
+        )
+
         response = requests.get(self.url.cloud_pin_page, timeout=3)
+
+        logger.debug(
+            self.config.host +
+            ' --> (' +
+            self.url.cloud_pin_page +
+            ') ' +
+            response.content.decode('utf-8')
+        )
 
         try:
             root = etree.fromstring(response.content)
@@ -209,7 +297,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
         state = root.find('state')
         if state is not None:
-            logger.debug("Current state: " + state.text)
+            logger.debug(
+                self.config.host +
+                ' --> (pin display state)' +
+                state.text
+            )
             if state.text == 'stopped':
                 return True
 
@@ -217,12 +309,31 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogIt
     def first_step_of_pairing(self):
+        logger.debug(
+            self.config.host +
+            ' <-- (' +
+            self.url.step1 +
+            ') ""'
+        )
+
         response = requests.get(self.url.step1)
-        logger.debug('step 1: ' + response.content.decode('utf-8'))
+        logger.debug(
+            self.config.host +
+            ' --> (' +
+            self.url.step1 +
+            ') ' +
+            response.content.decode('utf-8')
+        )
 
     @LogItWithReturn
     def hello_exchange(self, pin):
-        hello_output = crypto.generateServerHello(self.config.id, pin)
+        hello_output = crypto.generate_server_hello('654321', pin)
+
+        logger.debug(
+            self.config.host +
+            ' -- (hello output) ' +
+            str(hello_output)
+        )
 
         if not hello_output:
             return {}
@@ -231,13 +342,27 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             auth_Data=dict(
                 auth_type='SPC',
                 GeneratorServerHello=crypto.bytes2str(
-                    binascii.hexlify(hello_output['serverHello'])
+                    hello_output['serverHello']
                 ).upper()
             )
         )
 
+        logger.debug(
+            self.config.host +
+            ' <-- (' +
+            self.url.step2 +
+            ') ' +
+            str(content)
+        )
+
         response = requests.post(self.url.step2, json=content)
-        logger.debug('step 2: ' + response.content.decode('utf-8'))
+        logger.debug(
+            self.config.host +
+            ' --> (' +
+            self.url.step2 +
+            ') ' +
+            response.content.decode('utf-8')
+        )
 
         try:
             auth_data = json.loads(response.json()['auth_data'])
@@ -246,28 +371,49 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         except (ValueError, KeyError):
             return {}
 
-        self.last_request_id = int(request_id)
-
-        return crypto.parseClientHello(
+        client_response = crypto.parse_client_hello(
             client_hello,
-            hello_output['hash'],
+            # hello_output['hash'],
             hello_output['AES_key'],
-            self.config.id
+            '654321'
         )
 
+        logger.debug(
+            self.config.host +
+            ' -- (hello_exchange) ' +
+            str(client_response)
+        )
+
+        return client_response, int(request_id)
+
     @LogItWithReturn
-    def acknowledge_exchange(self):
-        server_ack_message = crypto.generateServerAcknowledge(self.sk_prime)
+    def acknowledge_exchange(self, last_request_id, sk_prime):
+        server_ack_message = crypto.generate_server_acknowledge(sk_prime)
         content = dict(
             auth_Data=dict(
                 auth_type='SPC',
-                request_id=str(self.last_request_id),
+                request_id=str(last_request_id),
                 ServerAckMsg=server_ack_message
             )
         )
 
+        logger.debug(
+            self.config.host +
+            ' <-- (' +
+            self.url.step3 +
+            ') ' +
+            str(content)
+        )
+
         response = requests.post(self.url.step3, json=content)
-        logger.debug("step 3: " + response.content.decode('utf-8'))
+
+        logger.debug(
+            self.config.host +
+            ' --> (' +
+            self.url.step3 +
+            ') ' +
+            response.content.decode('utf-8')
+        )
 
         if "secure-mode" in response.content.decode('utf-8'):
             raise RuntimeError(
@@ -283,9 +429,13 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 "Unable to get session_id and/or ClientAckMsg!!!"
             )
 
-        logger.debug("session_id: " + session_id)
+        logger.debug(
+            self.config.host +
+            ' -- (session id) ' +
+            session_id
+        )
 
-        if not crypto.parseClientAcknowledge(client_ack, self.sk_prime):
+        if not crypto.parse_client_acknowledge(client_ack, sk_prime):
             raise RuntimeError("Parse client ack message failed.")
 
         return session_id
@@ -296,7 +446,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         return False
 
     @LogIt
-    def power(self, value):
+    def _set_power(self, value):
         event = threading.Event()
 
         if value and not self.power:
@@ -306,11 +456,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 event.wait(1.0)
 
                 while not self.power and count < 20:
-                    if self._thread is None:
-                        try:
-                            self.open()
-                        except:
-                            pass
                     wake_on_lan.send_wol(self.mac_address)
                     event.wait(1.0)
 
@@ -318,66 +463,97 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
                 if count == 20:
                     logger.error(
-                        'Unable to power on the TV, '
+                        self.config.model +
+                        ' -- unable to power on the TV, '
                         'check network connectivity'
                     )
             else:
-                logging.error('Unable to get TV\'s mac address')
+                logging.error(
+                    self.config.host +
+                    ' -- unable to get TV\'s mac address'
+                )
 
         elif not value and self.power:
             count = 0
             event = threading.Event()
 
-            self.sock.send('1::/com.samsung.companion')
-            time.sleep(0.35)
-
-            self.sock.send(self.aes_lib.generate_command('KEY_POWER'))
-            time.sleep(0.35)
+            self.send('KEY_POWER')
             event.wait(2.0)
+            # self.send('KEY_POWEROFF')
 
-            self.sock.send('1::/com.samsung.companion')
-            time.sleep(0.35)
-
-            self.sock.send(self.aes_lib.generate_command('KEY_POWEROFF'))
-            time.sleep(0.35)
-
-            while self.power and count < 10:
+            while self.power and count < 20:
                 event.wait(1.0)
                 count += 1
 
-            if count == 10:
-                logger.info('Unable to power off the TV')
+            if count == 20:
+                logger.info(
+                    self.config.host +
+                    ' -- unable to power off the TV'
+                )
 
-    power = property(fget=websocket_base.WebSocketBase.power, fset=power)
+    def on_message(self, data):
+        data = self.aes.decrypt(data)
+        logger.debug(
+            self.config.host +
+            ' --> ' +
+            data.decode('utf-8')
+        )
 
-    @LogItWithReturn
-    def control(self, key):
-        if key == 'KEY_POWERON':
-            if not self.power:
-                self.power = True
-            return
-        elif key == 'KEY_POWEROFF':
-            if self.power:
-                self.power = False
-            return
-        elif key == 'KEY_POWER':
-            self.power = not self.power
-            return
+    def _send_key(self, command):
+        with self._send_lock:
+            command = dict(
+                method="POST",
+                body=dict(
+                    plugin="RemoteControl",
+                    param1="uuid:12345",
+                    param2="Click",
+                    param3=command,
+                    param4=False,
+                    api="SendRemoteKey",
+                    version="1.000"
+                )
+            )
 
-        elif self.sock is None:
-            if not self.config.paired:
-                self.open()
+            command_bytes = self.aes.encrypt(json.dumps(command))
+
+            if isinstance(command_bytes, str):
+                int_array = ','.join([str(ord(x)) for x in command_bytes])
             else:
-                logger.info('Is the TV on?!?')
-                return False
-        try:
-            self.sock.send('1::/com.samsung.companion')
-            time.sleep(0.35)
+                int_array = ','.join((list(map(str, command_bytes))))
 
-            self.sock.send(self.aes_lib.generate_command(key))
-            time.sleep(0.35)
-            return True
-        except:
-            traceback.print_exc()
-            self.close()
-            return False
+            res = dict(
+                name="callCommon",
+                args=[
+                    dict(
+                        Session_Id=self.session_id,
+                        body=[int_array]
+                    )
+                ]
+            )
+
+            packet = '5::/com.samsung.companion:' + json.dumps(res)
+
+            logger.debug(
+                self.config.host +
+                ' <-- "1::/com.samsung.companion"'
+            )
+
+            try:
+                self.sock.send('1::/com.samsung.companion')
+                time.sleep(0.35)
+
+                logger.debug(
+                    self.config.host +
+                    ' <-- ' +
+                    repr(packet)
+                )
+
+                self.sock.send(packet)
+
+                time.sleep(0.35)
+                return True
+
+            except:
+                traceback.print_exc()
+                self.close()
+                return False

@@ -1,5 +1,5 @@
 import copy
-from .paddings import PaddingBase
+
 from .constants import (
     shifts, r_con, num_rounds, S, Si,
     U1, U2, U3, U4,
@@ -212,14 +212,14 @@ class Rijndael(object):
         result = []
         for i in range(b_c):
             tt = k_d[rounds][i]
-            result.append((Si[(t[i] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF)
-            result.append(
-                (Si[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF
+            result.extend(
+                [
+                    (Si[(t[i] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF,
+                    (Si[(t[(i + s1) % b_c] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF,
+                    (Si[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF,
+                    (Si[t[(i + s3) % b_c] & 0xFF] ^ tt) & 0xFF
+                ]
             )
-            result.append(
-                (Si[(t[(i + s2) % b_c] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF
-            )
-            result.append((Si[t[(i + s3) % b_c] & 0xFF] ^ tt) & 0xFF)
 
         out = bytes()
         if isinstance(out, str):

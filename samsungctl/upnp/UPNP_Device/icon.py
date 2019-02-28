@@ -30,7 +30,8 @@ class Icon(object):
 
     @property
     def data(self):
-        return requests.get(self.url).content
+        content = requests.get(self.url).content
+        return "".join(map(chr, list(content)))
 
     @property
     def access_point(self):

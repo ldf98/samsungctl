@@ -20,6 +20,10 @@ except ImportError:
     from embedded_device import EmbeddedDevice
     from instance_singleton import InstanceSingleton
 
+import logging
+
+logger = logging.getLogger('UPNP_Device')
+
 
 class UPNPObject(object):
 
@@ -27,12 +31,14 @@ class UPNPObject(object):
         self.ip_address = ip
         self._devices = {}
         self._services = {}
+        self.__name__ = self.__class__.__name__
         if load_on_startup:
-            self.build(locations, dump)
+            self.build(ip, locations, dump)
 
-    def build(self, locations, dump=''):
+    def build(self, ip_address, locations, dump=''):
         self._devices.clear()
         self._services.clear()
+        self.ip_address = ip_address
 
         for location in locations:
             parsed = urlparse(location)
@@ -42,7 +48,6 @@ class UPNPObject(object):
                 parsed.port
             )
             response = requests.get(location)
-            content = response.content.decode('utf-8')
 
             path = parsed.path
             if path.startswith('/'):
@@ -58,6 +63,7 @@ class UPNPObject(object):
                 file_name += '.xml'
 
             if dump:
+                content = response.content.decode('utf-8')
                 if path:
                     output = os.path.join(dump, path)
 
@@ -97,10 +103,20 @@ class UPNPObject(object):
                                 count += 1
                             line = '    ' * (count / 2) + line.strip()
                         f.write(line + '\n')
+
+            logger.debug(
+                self.__name__ + ' <-- ' + response.content.decode('utf-8')
+            )
+
             try:
-                root = etree.fromstring(content)
+                root = etree.fromstring(response.content.decode('utf-8'))
             except etree.XMLSyntaxError:
-                continue
+                return
+            except ValueError:
+                try:
+                    root = etree.fromstring(response.content)
+                except etree.XMLSyntaxError:
+                    return
 
             root = strip_xmlns(root)
             node = root.find('device')
@@ -137,6 +153,9 @@ class UPNPObject(object):
 
                 if control_url.startswith('/'):
                     control_url = control_url[1:]
+
+                if scpdurl.startswith('/'):
+                    scpdurl = scpdurl[1:]
 
                 service_id = service.find('serviceId').text
                 service_type = service.find('serviceType').text

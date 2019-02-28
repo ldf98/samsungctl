@@ -3,11 +3,11 @@ from __future__ import print_function
 import requests
 import atexit
 import socket
-import ifaddr
 import json
 import threading
 from lxml import etree
 from .UPNP_Device.xmlns import strip_xmlns
+from .UPNP_Device import adapter_addresses
 from ..config import Config
 from .. import wake_on_lan
 
@@ -57,9 +57,6 @@ def convert_ssdp_response(packet, addr):
 
     packet['TYPE'] = packet_type
 
-    logger.debug('SSDP: inbound packet for IP ' + addr)
-    logger.debug(json.dumps(packet, indent=4))
-
     return packet
 
 
@@ -86,8 +83,10 @@ def get_mac(host):
 
 class UPNPDiscoverSocket(threading.Thread):
 
-    def __init__(self, parent, local_address):
+    def __init__(self, parent, local_address, _logging):
+        self._local_address = local_address
         self._parent = parent
+        self.logging = _logging
         self._event = threading.Event()
         sock = self.sock = socket.socket(
             family=socket.AF_INET,
@@ -96,20 +95,36 @@ class UPNPDiscoverSocket(threading.Thread):
         )
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((local_address, 0))
-        sock.settimeout(5.0)
+        try:
+            sock.bind((local_address, 0))
+            sock.settimeout(5.0)
+        except socket.error:
+            import traceback
+            traceback.print_exc()
+            print(local_address)
+            try:
+                sock.close()
+            except socket.error:
+                pass
+
+            self.sock = None
         threading.Thread.__init__(self)
+
+    def start(self):
+        if self.sock is not None:
+            threading.Thread.start(self)
 
     def run(self):
 
         while not self._event.isSet():
             for service in SERVICES:
                 packet = IPV4_SSDP.format(service)
-                logger.debug(
-                    'SSDP: %s\n%s',
-                    IPV4_MCAST_GRP,
-                    packet
-                )
+                if self.logging:
+                    logger.debug(
+                        'SSDP: %s\n%s',
+                        IPV4_MCAST_GRP,
+                        packet
+                    )
                 self.sock.sendto(
                     packet.encode('utf-8'),
                     (IPV4_MCAST_GRP, 1900)
@@ -133,6 +148,10 @@ class UPNPDiscoverSocket(threading.Thread):
                     ):
                         continue
 
+                    if self.logging:
+                        logger.debug('SSDP: inbound packet for IP ' + addr[0])
+                        logger.debug(json.dumps(packet, indent=4))
+
                     if addr[0] not in found:
                         found[addr[0]] = set()
 
@@ -142,6 +161,9 @@ class UPNPDiscoverSocket(threading.Thread):
                 self._parent.callback(
                     dict((addr, packet) for addr, packet in found.items())
                 )
+                if self.logging:
+                    logging.debug(self._local_address + ': New Loop')
+
             except socket.error:
                 break
 
@@ -151,14 +173,15 @@ class UPNPDiscoverSocket(threading.Thread):
             pass
 
     def stop(self):
-        self._event.set()
-        try:
-            self.sock.shutdown(socket.SHUT_RDWR)
-            self.sock.close()
-        except socket.error:
-            pass
+        if self.sock is not None:
+            self._event.set()
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.close()
+            except socket.error:
+                pass
 
-        self.join(2.0)
+            self.join(2.0)
 
 
 class Discover(object):
@@ -168,27 +191,32 @@ class Discover(object):
         self._powered_on = []
         self._powered_off = []
         self._threads = []
+        self._logging = False
+
+    @property
+    def logging(self):
+        return self._logging
+
+    @logging.setter
+    def logging(self, value):
+        self._logging = value
+        for thread in self._threads:
+            thread.logging = value
 
     def start(self):
-        adapter_ips = []
-
-        for adapter in ifaddr.get_adapters():
-            for adapter_ip in adapter.ips:
-                if (
-                    isinstance(adapter_ip.ip, tuple) or
-                    adapter_ip.nice_name == 'lo0'
-                ):
-                    # adapter_ips += [adapter_ip.ip[0]]
-                    continue
-                else:
-                    adapter_ips += [adapter_ip.ip]
-
-        for adapter_ip in adapter_ips:
-            thread = UPNPDiscoverSocket(self, adapter_ip)
+        for adapter_ip in adapter_addresses.get_adapter_ips():
+            thread = UPNPDiscoverSocket(self, adapter_ip, self._logging)
             self._threads += [thread]
             thread.start()
 
         atexit.register(self.stop)
+
+    def is_on(self, uuid):
+        for config in self._powered_on:
+            if config.uuid == uuid:
+                return config
+
+
 
     def stop(self):
         del self._callbacks[:]
@@ -197,7 +225,10 @@ class Discover(object):
             thread = self._threads.pop(0)
             thread.stop()
 
-        atexit.unregister(self.stop)
+        try:
+            atexit.unregister(self.stop)
+        except (NameError, AttributeError):
+            pass
 
     def register_callback(self, callback, uuid=None):
         self._callbacks += [(callback, uuid)]
@@ -220,6 +251,8 @@ class Discover(object):
             self._callbacks.remove((callback, uuid))
 
     def callback(self, found):
+        if self._logging:
+            logging.debug(str(found))
         powered_on = []
         for host, packet in found.items():
             services = list(service for service, _ in packet)
@@ -230,12 +263,16 @@ class Discover(object):
                     continue
 
                 response = requests.get(location)
-                content = response.content.decode('utf-8')
 
                 try:
-                    root = etree.fromstring(content)
-                except etree.XMLSyntaxError:
+                    root = etree.fromstring(response.content.decode('utf-8'))
+                except etree.ParseError:
                     continue
+                except ValueError:
+                    try:
+                        root = etree.fromstring(response.content)
+                    except etree.ParseError:
+                        continue
 
                 root = strip_xmlns(root)
                 node = root.find('device')
@@ -246,7 +283,8 @@ class Discover(object):
                 description = node.find('modelDescription')
                 if (
                     description is None or
-                    description.text != 'Samsung TV DMR'
+                    'Samsung' not in description.text or
+                    'TV' not in description.text
                 ):
                     continue
 
@@ -275,7 +313,7 @@ class Discover(object):
                         H=2014,
                         J=2015
                     )
-                    year = years[model[5].upper()]
+                    year = years[model[4].upper()]
                 else:
                     product_cap = product_cap.text.split(',')
 
@@ -425,7 +463,7 @@ class Discover(object):
 auto_discover = Discover()
 
 
-def discover(timeout=5):
+def discover(host=None, timeout=5):
     event = threading.Event()
 
     def discover_callback(config):
@@ -442,5 +480,12 @@ def discover(timeout=5):
         auto_discover.register_callback(discover_callback)
         event.wait(timeout)
         auto_discover.unregister_callback(discover_callback)
+
+    if host:
+        for config in configs:
+            if config.host == host:
+                return [config]
+
+        return []
 
     return configs

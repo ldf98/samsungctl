@@ -37,12 +37,23 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     @LogItWithReturn
     def has_ssl(self):
         try:
+            logger.debug(
+                self.config.host +
+                ' <-- http://{0}:8001/api/v2/'.format(self.config.host)
+            )
             response = requests.get(
-                ' http://{0}:8001/api/v2/'.format(self.config.host),
+                'http://{0}:8001/api/v2/'.format(self.config.host),
                 timeout=3
             )
-            return(
-                json.loads(response.content.decode('utf-8'))['device']['TokenAuthSupport']
+            logger.debug(
+                self.config.host +
+                ' --> ' +
+                response.content.decode('utf-8')
+            )
+            return (
+                json.loads(
+                    response.content.decode('utf-8')
+                )['device']['TokenAuthSupport']
             )
         except (ValueError, KeyError):
             return False
@@ -51,145 +62,168 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def open(self):
-        if self.sock is not None:
-            return True
+        with self.auth_lock:
+            if self.sock is not None:
+                return True
 
-        if self.config.port == 8002 or self.has_ssl:
-            self.config.port = 8002
+            if self.config.port == 8002:
 
-            if self.config.token:
-                logger.debug('using saved token: ' + self.config.token)
-                token = "&token=" + self.config.token
+                if self.config.token:
+                    token = "&token=" + self.config.token
+                else:
+                    token = ''
+
+                sslopt = {"cert_reqs": ssl.CERT_NONE}
+                url = SSL_URL_FORMAT.format(
+                    self.config.host,
+                    self.config.port,
+                    self._serialize_string(self.config.name)
+                ) + token
             else:
-                token = ''
+                sslopt = {}
+                url = URL_FORMAT.format(
+                    self.config.host,
+                    self.config.port,
+                    self._serialize_string(self.config.name)
+                )
 
-            sslopt = {"cert_reqs": ssl.CERT_NONE}
-            url = SSL_URL_FORMAT.format(
-                self.config.host,
-                self.config.port,
-                self._serialize_string(self.config.name)
-            ) + token
-        else:
-            self.config.port = 8001
+            auth_event = threading.Event()
+            unauth_event = threading.Event()
 
-            sslopt = {}
-            url = URL_FORMAT.format(
-                self.config.host,
-                self.config.port,
-                self._serialize_string(self.config.name)
-            )
+            def unauthorized_callback(_):
+                self.unregister_receive_callback(
+                    auth_callback,
+                    'event',
+                    'ms.channel.connect'
+                )
+                unauth_event.set()
+                auth_event.set()
 
-        try:
-            self.sock = websocket.create_connection(url, sslopt=sslopt)
-        except:
-            if not self.config.paired:
-                raise RuntimeError('Unable to connect to the TV')
+            token = None
 
-            return False
+            def auth_callback(data):
+                global token
 
-        auth_event = threading.Event()
+                if 'data' in data and 'token' in data["data"]:
+                    token = data['data']["token"]
+                    logger.debug(
+                        self.config.host +
+                        ' -- (token) ' +
+                        self.config.token
+                    )
 
-        def unauthorized_callback(_):
-            auth_event.set()
+                logger.debug(
+                    self.config.host +
+                    ' -- access granted'
+                )
+                self.unregister_receive_callback(
+                    unauthorized_callback,
+                    'event',
+                    'ms.channel.unauthorized'
+                )
+                auth_event.set()
 
-            self.unregister_receive_callback(
+            self.register_receive_callback(
                 auth_callback,
                 'event',
                 'ms.channel.connect'
             )
 
-            if self.config.port == 8001:
-                logger.debug(
-                    "Websocket connection failed. Trying ssl connection"
-                )
-                self.config.port = 8002
-                self.open()
-            else:
-                self.close()
-                raise RuntimeError('Authentication denied')
-
-        def auth_callback(data):
-            if 'data' in data and 'token' in data["data"]:
-                self.config.token = data['data']["token"]
-
-                logger.debug('new token: ' + self.config.token)
-
-            logger.debug("Access granted.")
-            auth_event.set()
-
-            self.unregister_receive_callback(
+            self.register_receive_callback(
                 unauthorized_callback,
                 'event',
                 'ms.channel.unauthorized'
             )
 
-            if 'data' in data and 'token' in data["data"]:
-                self.config.token = data['data']["token"]
-                logger.debug('new token: ' + self.config.token)
+            logger.debug(
+                self.config.host +
+                ' <-- websocket url: ' +
+                url +
+                ' - ssl options:' +
+                str(sslopt)
+            )
 
-            logger.debug("Access granted.")
+            self._thread = threading.Thread(target=self.loop)
+            self._thread.start()
 
+            try:
+                self.sock = websocket.create_connection(url, sslopt=sslopt)
+            except:
+                if not self.config.paired:
+                    raise RuntimeError('Unable to connect to the TV')
+
+                return False
+
+            if self.config.paired:
+                auth_event.wait(5.0)
+            else:
+                auth_event.wait(30.0)
+
+            if not auth_event.isSet() or unauth_event.isSet():
+                self.close()
+
+                if not self.config.paired:
+                    if self.config.port == 8001 and self.has_ssl:
+                        logger.debug(
+                            self.config.host +
+                            ' -- trying SSL connection.'
+                        )
+                        self.config.port = 8002
+                        return self.open()
+
+                    raise RuntimeError('Auth Failure')
+
+                return False
+
+            self.config.token = token
             self.config.paired = True
+
             if self.config.path:
                 self.config.save()
 
-            auth_event.set()
-
-        self.register_receive_callback(
-            auth_callback,
-            'event',
-            'ms.channel.connect'
-        )
-
-        self.register_receive_callback(
-            unauthorized_callback,
-            'event',
-            'ms.channel.unauthorized'
-        )
-
-        if self.config.paired:
-            auth_event.wait(5.0)
-        else:
-            auth_event.wait(30.0)
-
-        if not auth_event.isSet():
-            if not self.config.paired and self.config.port == 8001:
-                logger.debug(
-                        "Websocket connection failed. Trying ssl connection"
-                )
-                self.config.port = 8002
-                return self.open()
-            else:
-                self.sock.close()
-                raise RuntimeError('Auth Failure')
-
-        self._thread = threading.Thread(target=self.loop)
-        self._thread.start()
-
-        self.send_event.wait(0.5)
-        return True
+            self.send_event.wait(0.5)
+            self.connect()
+            return True
 
     @LogIt
     def send(self, method, **params):
         if self.sock is None:
-            if method != 'ms.remote.control':
-                if self.power:
-                    self.open()
-                else:
-                    logger.info('Is the TV on?!?')
+            logger.info(
+                self.config.host +
+                ' -- is the TV on?!?'
+            )
+            return False
 
-        payload = dict(
-            method=method,
-            params=params
-        )
-        try:
-            self.sock.send(json.dumps(payload))
-            self.send_event.wait(0.3)
-        except:
-            pass
+        with self._send_lock:
+            payload = dict(
+                method=method,
+                params=params
+            )
+            logger.debug(
+                self.config.host +
+                ' <-- ' +
+                str(payload)
+            )
+
+            try:
+                self.sock.send(json.dumps(payload))
+                self.send_event.wait(0.3)
+            except:
+                pass
 
     @LogIt
-    def power(self, value):
+    def _set_power(self, value):
+        """
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"Click",
+                "DataOfCmd":"KEY_POWER",
+                "Option":"false",
+                "TypeOfRemote":"SendRemoteKey"
+            }
+        }
+        """
         event = threading.Event()
 
         if value and not self.power:
@@ -198,23 +232,22 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 wake_on_lan.send_wol(self.mac_address)
                 event.wait(1.0)
 
-                while self.sock is None and count < 20:
-                    if self._thread is None:
-                        try:
-                            self.open()
-                        except:
-                            pass
+                while not self.power and count < 20:
                     wake_on_lan.send_wol(self.mac_address)
                     event.wait(1.0)
                     count += 1
 
                 if count == 20:
                     logger.error(
-                        'Unable to power on the TV, '
+                        self.config.model +
+                        ' -- unable to power on the TV, '
                         'check network connectivity'
                     )
             else:
-                logging.error('Unable to get TV\'s mac address')
+                logging.error(
+                    self.config.host +
+                    ' -- unable to get TV\'s mac address'
+                )
 
         elif not value and self.power:
             count = 0
@@ -231,61 +264,46 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 TypeOfRemote="SendRemoteKey"
             )
 
-            logger.info("Sending control command: " + str(power))
             self.send("ms.remote.control", **power)
-            logger.info("Sending control command: " + str(power_off))
-            self.send("ms.remote.control", **power_off)
-            event.wait(1.0)
+            # self.send("ms.remote.control", **power_off)
+            event.wait(2.0)
 
             while self.power and count < 20:
                 event.wait(1.0)
                 count += 1
 
             if count == 20:
-                logger.info('Unable to power off the TV')
+                logger.info(
+                    self.config.host +
+                    ' unable to power off the TV'
+                )
 
-    power = property(fget=websocket_base.WebSocketBase.power, fset=power)
-
-    @LogIt
-    def control(self, key, cmd='Click'):
+    def _send_key(self, key, cmd='Click'):
         """
         Send a control command.
         cmd can be one of the following
-        'Click'
-        'Press'
-        'Release'
+
+
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"Click", "Press" or "Release",
+                "DataOfCmd":"KEY_*",
+                "Option":"false",
+                "TypeOfRemote":"SendRemoteKey"
+            }
+        }
+
         """
 
-        if key == 'KEY_POWERON':
-            if not self.power:
-                self.power = True
-            return
-        elif key == 'KEY_POWEROFF':
-            if self.power:
-                self.power = False
-            return
-        elif key == 'KEY_POWER':
-            self.power = not self.power
-            return
+        params = dict(
+            Cmd=cmd,
+            DataOfCmd=key,
+            Option="false",
+            TypeOfRemote="SendRemoteKey"
+        )
 
-        elif self.sock is None:
-            if not self.power:
-                logger.info('Is the TV on?!?')
-                return
-
-            if self._thread is None:
-                self.open()
-
-        with self.receive_lock:
-            params = dict(
-                Cmd=cmd,
-                DataOfCmd=key,
-                Option="false",
-                TypeOfRemote="SendRemoteKey"
-            )
-
-            logger.info("Sending control command: " + str(params))
-            self.send("ms.remote.control", **params)
+        self.send("ms.remote.control", **params)
 
     _key_interval = 0.5
 
@@ -298,6 +316,25 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     @property
     @LogItWithReturn
     def applications(self):
+        """
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "data":"",
+                "event":"ed.edenApp.get",
+                "to":"host",
+            }
+        }
+        {
+            "method":"ms.channel.emit",
+            "params":{
+                "data":"",
+                "event":"ed.installedApp.get",
+                "to":"host",
+            }
+        }
+
+        """
         eden_event = threading.Event()
         installed_event = threading.Event()
 
@@ -306,14 +343,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
         @LogIt
         def eden_app_get(data):
-            logger.debug('eden apps: ' + str(data))
             if 'data' in data:
                 eden_data.extend(data['data']['data'])
             eden_event.set()
 
         @LogIt
         def installed_app_get(data):
-            logger.debug('installed apps: ' + str(data))
             if 'data' in data:
                 installed_data.extend(data['data']['data'])
             installed_event.set()
@@ -338,8 +373,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             self.send('ms.channel.emit', **params)
 
-        eden_event.wait(10.0)
-        installed_event.wait(10.0)
+        eden_event.wait(30.0)
+        installed_event.wait(30.0)
 
         self.unregister_receive_callback(
             eden_app_get,
@@ -354,10 +389,16 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         )
 
         if not eden_event.isSet():
-            logger.debug('ed.edenApp.get timed out')
+            logger.debug(
+                self.config.host +
+                ' -- (ed.edenApp.get) timed out'
+            )
 
         if not installed_event.isSet():
-            logger.debug('ed.installedApp.get timed out')
+            logger.debug(
+                self.config.host +
+                ' -- (ed.installedApp.get) timed out'
+            )
 
         if eden_data and installed_data:
             updated_apps = []
@@ -379,8 +420,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             updated_apps.remove(app)
             updated_apps += [application.Application(self, **app)]
 
-        logger.debug('applications returned: ' + str(updated_apps))
-
         return updated_apps
 
     @LogIt
@@ -395,14 +434,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     @LogIt
     def on_message(self, message):
         response = json.loads(message)
-        logger.debug('incoming message: ' + message)
 
         for callback, key, data in self._registered_callbacks[:]:
             if key in response and (data is None or response[key] == data):
                 callback(response)
                 self._registered_callbacks.remove([callback, key, data])
                 break
-
         else:
             if 'params' in response and 'event' in response['params']:
                 event = response['params']['event']
@@ -520,7 +557,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         )
 
         if not event.isSet():
-            logging.debug('get_motion_timer: timed out')
+            logging.debug(
+                self.config.host +
+                ' -- (get_motion_timer) timed out'
+            )
         else:
             return response[0]
 
@@ -626,7 +666,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         )
 
         if not event.isSet():
-            logging.debug('get_motion_sensitivity: timed out')
+            logging.debug(
+                self.config.host +
+                ' -- (get_motion_sensitivity) timed out'
+            )
         else:
             return response[0]
 
@@ -659,108 +702,111 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             self.send('ms.channel.emit', **params)
 
-    @property
-    def color_temperature(self):
-        """
-        {
-            "method":"ms.channel.emit",
-            "params":{
-                "clientIp":"192.168.1.20",
-                "data":"{
-                    \"request\":\"get_color_temperature\",
-                    \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
-                }",
-                "deviceName":"W1Bob25lXWlQaG9uZQ==",
-                "event":"art_app_request",
-                "to":"host"
-            }
-        }"
-        """
-
-        params = self._build_art_app_request('get_color_temperature')
-
-        response = []
-        event = threading.Event()
-
-        def color_temperature_callback(data):
-            """
-            {
-                "method":"ms.channel.emit",
-                "params":{
-                    "clientIp":"127.0.0.1",
-                    "data":"{
-                        \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
-                        \"event\":\"color_temperature\",
-                        \"value\":\"2\",
-                        \"min\":\"1\",
-                        \"max\":\"3\",
-                        \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
-                    }",
-                    "deviceName":"Smart Device",
-                    "event":"d2d_service_message",
-                    "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
-                }
-            }
-            """
-            response.append(
-                dict(
-                    value=int(data['value']),
-                    min=int(data['min']),
-                    max=int(data['max'])
-                )
-            )
-
-            event.set()
-
-        self.register_receive_callback(
-            color_temperature_callback,
-            'color_temperature',
-            None
-        )
-
-        self.send('ms.channel.emit', **params)
-
-        event.wait(2.0)
-
-        self.unregister_receive_callback(
-            color_temperature_callback,
-            'color_temperature',
-            None
-        )
-
-        if not event.isSet():
-            logging.debug('get_color_temperature: timed out')
-        else:
-            return response[0]
-
-    @color_temperature.setter
-    def color_temperature(self, value):
-        """
-        {
-            "method":"ms.channel.emit",
-            "params":{
-                "clientIp":"192.168.1.20",
-                "data":"{
-                    \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
-                    \"value\":\"2\",
-                    \"request\":\"set_color_temperature\"
-                }",
-                "deviceName":"W1Bob25lXWlQaG9uZQ==",
-                "event":"art_app_request",
-                "to":"host"
-            }
-        }
-        """
-        value = int(value)
-
-        res = self.color_temperature
-        if res and res['min'] <= value <= res['max']:
-            params = self._build_art_app_request(
-                'set_color_temperature',
-                str(value)
-            )
-
-            self.send('ms.channel.emit', **params)
+    # @property
+    # def color_temperature(self):
+    #     """
+    #     {
+    #         "method":"ms.channel.emit",
+    #         "params":{
+    #             "clientIp":"192.168.1.20",
+    #             "data":"{
+    #                 \"request\":\"get_color_temperature\",
+    #                 \"id\":\"30852acd-1b7d-4496-8bef-53e1178fa839\"
+    #             }",
+    #             "deviceName":"W1Bob25lXWlQaG9uZQ==",
+    #             "event":"art_app_request",
+    #             "to":"host"
+    #         }
+    #     }"
+    #     """
+    #
+    #     params = self._build_art_app_request('get_color_temperature')
+    #
+    #     response = []
+    #     event = threading.Event()
+    #
+    #     def color_temperature_callback(data):
+    #         """
+    #         {
+    #             "method":"ms.channel.emit",
+    #             "params":{
+    #                 "clientIp":"127.0.0.1",
+    #                 "data":"{
+    #                     \"id\":\"259320d8-f368-48a4-bf03-789f24a22c0f\",
+    #                     \"event\":\"color_temperature\",
+    #                     \"value\":\"2\",
+    #                     \"min\":\"1\",
+    #                     \"max\":\"3\",
+    #                     \"target_client_id\":\"84b12082-5f28-461e-8e81-b98ad1c1ffa\"
+    #                 }",
+    #                 "deviceName":"Smart Device",
+    #                 "event":"d2d_service_message",
+    #                 "to":"84b12082-5f28-461e-8e81-b98ad1c1ffa"
+    #             }
+    #         }
+    #         """
+    #         response.append(
+    #             dict(
+    #                 value=int(data['value']),
+    #                 min=int(data['min']),
+    #                 max=int(data['max'])
+    #             )
+    #         )
+    #
+    #         event.set()
+    #
+    #     self.register_receive_callback(
+    #         color_temperature_callback,
+    #         'color_temperature',
+    #         None
+    #     )
+    #
+    #     self.send('ms.channel.emit', **params)
+    #
+    #     event.wait(2.0)
+    #
+    #     self.unregister_receive_callback(
+    #         color_temperature_callback,
+    #         'color_temperature',
+    #         None
+    #     )
+    #
+    #     if not event.isSet():
+    #         logging.debug(
+    #             self.config.host +
+    #             ' -- (get_color_temperature) timed out'
+    #         )
+    #     else:
+    #         return response[0]
+    #
+    # @color_temperature.setter
+    # def color_temperature(self, value):
+    #     """
+    #     {
+    #         "method":"ms.channel.emit",
+    #         "params":{
+    #             "clientIp":"192.168.1.20",
+    #             "data":"{
+    #                 \"id\":\"545fc0c1-bd9b-48f5-8444-02f9c519aaec\",
+    #                 \"value\":\"2\",
+    #                 \"request\":\"set_color_temperature\"
+    #             }",
+    #             "deviceName":"W1Bob25lXWlQaG9uZQ==",
+    #             "event":"art_app_request",
+    #             "to":"host"
+    #         }
+    #     }
+    #     """
+    #     value = int(value)
+    #
+    #     res = self.color_temperature
+    #     if res and res['min'] <= value <= res['max']:
+    #         params = self._build_art_app_request(
+    #             'set_color_temperature',
+    #             str(value)
+    #         )
+    #
+    #         self.send('ms.channel.emit', **params)
     #
     # @property
     # def brightness(self):
@@ -931,7 +977,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         )
 
         if not event.isSet():
-            logging.debug('get_brightness_sensor_setting: timed out')
+            logging.debug(
+                self.config.host +
+                ' -- (get_brightness_sensor_setting) timed out'
+            )
         else:
             return response[0]
 
@@ -1027,7 +1076,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         )
 
         if not event.isSet():
-            logging.debug('get_artmode_status: timed out')
+            logging.debug(
+                self.config.host +
+                ' -- (get_artmode_status) timed out'
+            )
         else:
             return response[0]
 
@@ -1059,6 +1111,16 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def input_text(self, text):
+        """
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":base64.b64encode,
+                "TypeOfRemote":"SendInputString",
+                "DataOfCmd":"base64",
+            }
+        }
+        """
 
         params = dict(
             Cmd=self._serialize_string(text),
@@ -1070,73 +1132,97 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def start_voice_recognition(self):
-        """Activates voice recognition."""
-        with self.receive_lock:
-            event = threading.Event()
+        """Activates voice recognition.
 
-            def voice_callback(_):
-                event.set()
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"Press",
+                "TypeOfRemote":"SendRemoteKey",
+                "DataOfCmd":"KEY_BT_VOICE",
+                "Option":"false"
+            }
+        }
 
-            self.register_receive_callback(
-                voice_callback,
-                'event',
-                'ms.voiceApp.standby'
+        """
+        event = threading.Event()
+
+        def voice_callback(_):
+            event.set()
+
+        self.register_receive_callback(
+            voice_callback,
+            'event',
+            'ms.voiceApp.standby'
+        )
+
+        params = dict(
+            Cmd='Press',
+            DataOfCmd='KEY_BT_VOICE',
+            Option="false",
+            TypeOfRemote="SendRemoteKey"
+        )
+
+        self.send("ms.remote.control", **params)
+
+        event.wait(2.0)
+        self.unregister_receive_callback(
+            voice_callback,
+            'event',
+            'ms.voiceApp.standby'
+        )
+
+        if not event.isSet():
+            logger.debug(
+                self.config.host +
+                ' -- (ms.voiceApp.standby) timed out'
             )
-
-            params = dict(
-                Cmd='Press',
-                DataOfCmd='KEY_BT_VOICE',
-                Option="false",
-                TypeOfRemote="SendRemoteKey"
-            )
-
-            logger.info("Sending control command: " + str(params))
-            self.send("ms.remote.control", **params)
-
-            event.wait(2.0)
-            self.unregister_receive_callback(
-                voice_callback,
-                'event',
-                'ms.voiceApp.standby'
-            )
-
-            if not event.isSet():
-                logger.debug('ms.voiceApp.standby timed out')
 
     @LogIt
     def stop_voice_recognition(self):
-        """Activates voice recognition."""
+        """Activates voice recognition.
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"Release",
+                "TypeOfRemote":"SendRemoteKey",
+                "DataOfCmd":"KEY_BT_VOICE",
+                "Option":"false"
+            }
+        }
+        """
 
-        with self.receive_lock:
-            event = threading.Event()
+        event = threading.Event()
 
-            def voice_callback(_):
-                event.set()
+        def voice_callback(_):
+            event.set()
 
-            self.register_receive_callback(
-                voice_callback,
-                'event',
-                'ms.voiceApp.hide'
+        self.register_receive_callback(
+            voice_callback,
+            'event',
+            'ms.voiceApp.hide'
+        )
+
+        params = dict(
+            Cmd='Release',
+            DataOfCmd='KEY_BT_VOICE',
+            Option="false",
+            TypeOfRemote="SendRemoteKey"
+        )
+
+        self.send("ms.remote.control", **params)
+
+        event.wait(2.0)
+        self.unregister_receive_callback(
+            voice_callback,
+            'event',
+            'ms.voiceApp.hide'
+        )
+        if not event.isSet():
+            logger.debug(
+                self.config.host +
+                ' -- (ms.voiceApp.hide) timed out'
             )
-
-            params = dict(
-                Cmd='Release',
-                DataOfCmd='KEY_BT_VOICE',
-                Option="false",
-                TypeOfRemote="SendRemoteKey"
-            )
-
-            logger.info("Sending control command: " + str(params))
-            self.send("ms.remote.control", **params)
-
-            event.wait(2.0)
-            self.unregister_receive_callback(
-                voice_callback,
-                'event',
-                'ms.voiceApp.hide'
-            )
-            if not event.isSet():
-                logger.debug('ms.voiceApp.hide timed out')
 
     @staticmethod
     def _serialize_string(string):
@@ -1176,34 +1262,60 @@ class Mouse(object):
     @LogIt
     def _send(self, cmd, **kwargs):
         """Send a control command."""
-
-        if not self._remote.connection:
-            raise exceptions.ConnectionClosed()
-
         if not self.is_running:
-            params = {
-                "Cmd": cmd,
-                "TypeOfRemote": "ProcessMouseDevice"
-            }
+            params = dict(
+                Cmd=cmd,
+                TypeOfRemote="ProcessMouseDevice"
+            )
             params.update(kwargs)
 
-            payload = json.dumps({
-                "method": "ms.remote.control",
-                "params": params
-            })
+            payload = dict(
+                method="ms.remote.control",
+                params=params
+            )
 
             self._commands += [payload]
 
     @LogIt
     def left_click(self):
+        """
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"LeftClick",
+                "TypeOfRemote":"ProcessMouseDevice"
+            }
+        }
+        """
         self._send('LeftClick')
 
     @LogIt
     def right_click(self):
+        """
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"RightClick",
+                "TypeOfRemote":"ProcessMouseDevice"
+            }
+        }
+        """
         self._send('RightClick')
 
     @LogIt
     def move(self, x, y):
+        """
+        {
+            "method":"ms.remote.control",
+            "params":{
+                "Cmd":"Move",
+                "x": 0,
+                "y": 0,
+                "Time": time.time,
+                "TypeOfRemote":"ProcessMouseDevice"
+            }
+        }
+        """
         position = dict(
             x=x,
             y=y,
@@ -1227,10 +1339,6 @@ class Mouse(object):
 
     @LogIt
     def run(self):
-        if self._remote.sock is None:
-            logger.error('Is the TV on??')
-            return
-
         if not self.is_running:
             self._send_event.clear()
             self._ime_start_event.clear()
@@ -1239,49 +1347,44 @@ class Mouse(object):
 
             self._is_running = True
 
-            with self._remote.receive_lock:
+            @LogIt
+            def ime_start(_):
+                self._ime_start_event.set()
 
-                @LogIt
-                def ime_start(_):
-                    self._ime_start_event.set()
+            @LogIt
+            def ime_update(_):
+                self._ime_update_event.set()
 
-                @LogIt
-                def ime_update(_):
-                    self._ime_update_event.set()
+            @LogIt
+            def touch_enable(_):
+                self._touch_enable_event.set()
 
-                @LogIt
-                def touch_enable(_):
-                    self._touch_enable_event.set()
+            self._remote.register_receive_callback(
+                ime_start,
+                'event',
+                'ms.remote.imeStart'
+            )
 
-                self._remote.register_receive_callback(
-                    ime_start,
-                    'event',
-                    'ms.remote.imeStart'
-                )
+            self._remote.register_receive_callback(
+                ime_update,
+                'event',
+                'ms.remote.imeUpdate'
+            )
 
-                self._remote.register_receive_callback(
-                    ime_update,
-                    'event',
-                    'ms.remote.imeUpdate'
-                )
+            self._remote.register_receive_callback(
+                touch_enable,
+                'event',
+                'ms.remote.touchEnable'
+            )
 
-                self._remote.register_receive_callback(
-                    touch_enable,
-                    'event',
-                    'ms.remote.touchEnable'
-                )
-
-                for payload in self._commands:
-                    if isinstance(payload, (float, int)):
-                        self._send_event.wait(payload)
-                        if self._send_event.isSet():
-                            self._is_running = False
-                            return
-                    else:
-                        logger.info(
-                            "Sending mouse control command: " + str(payload)
-                        )
-                        self._remote.sock.send(payload)
+            for payload in self._commands:
+                if isinstance(payload, (float, int)):
+                    self._send_event.wait(payload)
+                    if self._send_event.isSet():
+                        self._is_running = False
+                        return
+                else:
+                    self._remote.send(**payload)
 
                 self._ime_start_event.wait(len(self._commands))
                 self._ime_update_event.wait(len(self._commands))

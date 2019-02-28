@@ -161,16 +161,13 @@ class StringBase(object):
 class IntegerBase(object):
     py_data_type = (int,)
     _label = ''
-    _min = -9223372036854775808
-    _max = 9223372036854775807
+    _min = -sys.maxsize if -9223372036854775808 < -sys.maxsize else -9223372036854775808
+    _max = sys.maxsize if 9223372036854775807 > sys.maxsize else 9223372036854775807
 
     def __init__(self, name, data_type_name, node, direction):
         self.__name__ = name
         self.data_type_name = data_type_name
         self.direction = direction
-        self.minimum = None
-        self.maximum = None
-        self.step = None
 
         allowed_range = node.find('allowedValueRange')
         if allowed_range is not None:
@@ -180,10 +177,22 @@ class IntegerBase(object):
 
             if minimum is not None and minimum.text and minimum.text.isdigit():
                 self.minimum = int(minimum.text)
+            else:
+                self.minimum = self._min
+
             if maximum is not None and maximum.text and maximum.text.isdigit():
                 self.maximum = int(maximum.text)
+            else:
+                self.maximum = self._max
+
             if step is not None and step.text and step.text.isdigit():
                 self.step = int(step.text)
+            else:
+                self.step = 1
+        else:
+            self.minimum = self._min
+            self.maximum = self._max
+            self.step = 1
 
         default_value = node.find('defaultValue')
         if default_value is not None:
@@ -412,14 +421,13 @@ class Boolean(object):
 class FloatBase(object):
     py_data_type = (float,)
     _label = ''
+    _min = sys.float_info.min
+    _max = sys.float_info.max
 
     def __init__(self, name, data_type_name, node, direction):
         self.__name__ = name
         self.data_type_name = data_type_name
         self.direction = direction
-        self.minimum = None
-        self.maximum = None
-        self.step = None
 
         allowed_range = node.find('allowedValueRange')
         if allowed_range is not None:
@@ -429,10 +437,22 @@ class FloatBase(object):
 
             if minimum is not None and minimum.text:
                 self.minimum = float(minimum.text)
+            else:
+                self.minimum = self._min
             if maximum is not None and maximum.text:
                 self.maximum = float(maximum.text)
+            else:
+                self.maximum = self._max
             if step is not None and step.text:
                 self.step = float(step.text)
+            else:
+                self.step = 1.0
+
+        else:
+            self.minimum = self._min
+            self.maximum = self._max
+            self.step = 1.0
+
 
         default_value = node.find('defaultValue')
         if default_value is not None:
@@ -525,6 +545,8 @@ class FloatBase(object):
 
 class Fixed144(FloatBase):
     _label = '8 byte float'
+    _min = sys.float_info.min if -4.94065645841247E-324 < sys.float_info.min else -4.94065645841247E-324
+    _max = sys.float_info.max if 1.79769313486232E308 > sys.float_info.max else 1.79769313486232E308
 
     def __call__(self, value):
         value = FloatBase.__call__(self, value)
@@ -559,6 +581,8 @@ class Float(FloatBase):
 
 class R8(FloatBase):
     _label = '8 byte float'
+    _min = sys.float_info.min if -4.94065645841247E-324 < sys.float_info.min else -4.94065645841247E-324
+    _max = sys.float_info.max if 1.79769313486232E308 > sys.float_info.max else 1.79769313486232E308
 
     def __call__(self, value):
         value = FloatBase.__call__(self, value)
@@ -593,6 +617,8 @@ class Number(R8):
 
 class R4(FloatBase):
     _label = '4 byte float'
+    _min = sys.float_info.min if 1.17549435E-38 < sys.float_info.min else 1.17549435E-38
+    _max = sys.float_info.max if 3.40282347E+38 > sys.float_info.max else 3.40282347E+38
 
     def __call__(self, value):
         value = FloatBase.__call__(self, value)
@@ -619,50 +645,50 @@ class I8(IntegerBase):
 
 class I4(IntegerBase):
     _label = 'signed 32bit int'
-    _min = -2147483648
-    _max = 2147483647
+    _min = -sys.maxsize if -2147483648 < -sys.maxsize else -2147483648
+    _max = sys.maxsize if 2147483647 > sys.maxsize else 2147483647
 
 
 class I2(IntegerBase):
     _label = 'signed 16bit int'
-    _min = -32768
-    _max = 32767
+    _min = -sys.maxsize if -32768 < -sys.maxsize else -32768
+    _max = sys.maxsize if 32767 > sys.maxsize else 32767
 
 
 class I1(IntegerBase):
     _label = 'signed 8bit int'
-    _min = -128
-    _max = 127
+    _min = -sys.maxsize if -128 < -sys.maxsize else -128
+    _max = sys.maxsize if 127 > sys.maxsize else 127
 
 
 class UI8(IntegerBase):
     _label = 'unsigned 64bit int'
     _min = 0
-    _max = 18446744073709551615
+    _max = sys.maxsize if 18446744073709551615 > sys.maxsize else 18446744073709551615
 
 
 class UI4(IntegerBase):
     _label = 'unsigned 32bit int'
     _min = 0
-    _max = 4294967295
+    _max = sys.maxsize if 4294967295 > sys.maxsize else 4294967295
 
 
 class Long(IntegerBase):
     _label = 'Long (unsigned 32bit int)'
     _min = 0
-    _max = 4294967295
+    _max = sys.maxsize if 4294967295 > sys.maxsize else 4294967295
 
 
 class UI2(IntegerBase):
     _label = 'unsigned 16bit int'
     _min = 0
-    _max = 65535
+    _max = sys.maxsize if 65535 > sys.maxsize else 65535
 
 
 class UI1(IntegerBase):
     _label = 'unsigned 8bit int'
     _min = 0
-    _max = 255
+    _max = sys.maxsize if 255 > sys.maxsize else 255
 
 
 class UUID(StringBase):

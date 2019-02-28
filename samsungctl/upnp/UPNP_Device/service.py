@@ -14,6 +14,10 @@ except ImportError:
     from icon import Icon
     from xmlns import strip_xmlns
 
+import logging
+
+logger = logging.getLogger('UPNP_Device')
+
 
 class Service(object):
 
@@ -47,14 +51,23 @@ class Service(object):
 
         self.service = service
 
+        self.__name__ = service.split(':')[-2]
+
         location = location.replace(url, '')
         location = location.replace('//', '/')
 
-        if not location.startswith('/'):
+        if not location.startswith('/') and not url.endswith('/'):
             location = '/' + location
 
+        logger.debug(
+            self.__name__ + ' --> ' + url + location
+        )
+
         response = requests.get(url + location)
-        content = response.content.decode('utf-8')
+
+        logger.debug(
+            self.__name__ + ' <-- ' + response.content.decode('utf-8')
+        )
 
         if dump:
             path = location
@@ -74,12 +87,17 @@ class Service(object):
                 file_name += '.xml'
 
             with open(os.path.join(path, file_name), 'w') as f:
-                f.write(content)
+                f.write(response.content.decode('utf-8'))
 
         try:
-            root = etree.fromstring(response.content)
+            root = etree.fromstring(response.content.decode('utf-8'))
         except etree.XMLSyntaxError:
             return
+        except ValueError:
+            try:
+                root = etree.fromstring(response.content)
+            except etree.XMLSyntaxError:
+                return
 
         root = strip_xmlns(root)
         actions = root.find('actionList')
@@ -133,7 +151,6 @@ class Service(object):
                 return value.text
 
         raise AttributeError(item)
-
     @property
     def as_dict(self):
         res = dict(

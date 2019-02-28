@@ -338,8 +338,8 @@ def main():
                 k: v for k, v in vars(args).items()
                 if v is not None
             }
-
             config = Config.load(args.config_file)(**config)
+
     except exceptions.ConfigError:
         import traceback
         traceback.print_exc()
@@ -350,6 +350,35 @@ def main():
 
     if config.upnp_locations is None:
         config.upnp_locations = []
+
+    if not config.paired:
+        from .upnp.discover import discover
+
+        configs = discover(config.host)
+        if len(configs) > 1:
+            while True:
+                for i, cfg in enumerate(configs):
+                    print(i + 1, ':', config.model)
+                try:
+                    answer = raw_input(
+                        'Enter the number of the TV you want to pair with:'
+                    )
+                except NameError:
+                    answer = input(
+                        'Enter the number of the TV you want to pair with:'
+                    )
+
+                try:
+                    answer = int(answer) - 1
+                    config.copy(configs[answer])
+                    break
+                except ValueError:
+                    pass
+        elif configs:
+            config.copy(configs[0])
+        else:
+            print('Unable to discover any TV\'s')
+            sys.exit(0)
 
     try:
         with Remote(config) as remote:

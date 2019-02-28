@@ -6,6 +6,12 @@ import struct
 import sys
 import platform
 
+from .upnp.UPNP_Device import adapter_addresses
+
+NULL = None
+PVOID = ctypes.c_void_p
+UBYTE = ctypes.c_ubyte
+POINTER = ctypes.POINTER
 
 PY2 = sys.version_info[0] == 2
 
@@ -38,36 +44,40 @@ def get_mac_address(ip):
     """
 
     if WINDOWS:
+        from ctypes.wintypes import DWORD, ULONG
+        wsock32 = ctypes.windll.wsock32
+
+        IPAddr = ULONG
+        PULONG = POINTER(ULONG)
+        INADDR_ANY = 0x00000000
+
+        SendARP = ctypes.windll.Iphlpapi.SendARP
+        SendARP.argtype = [IPAddr, IPAddr, PVOID, PULONG]
+        SendARP.restype = DWORD
+
         if not PY2:
             ip = ip.encode()
-        try:
-            from ctypes.wintypes import DWORD, ULONG
-            IPAddr = ULONG
-            PULONG = ctypes.POINTER(ULONG)
-            PVOID = ctypes.c_void_p
-            INADDR_ANY = 0x00000000
-
-            SendARP = ctypes.windll.Iphlpapi.SendARP
-            SendARP.argtype = [IPAddr, IPAddr, PVOID, PULONG]
-            SendARP.restype = DWORD
-
-        except AttributeError:
-            return None
 
         try:
-            dst_addr = ctypes.windll.wsock32.inet_addr(ip)
+            dst_addr = wsock32.inet_addr(ip)
             if dst_addr in (0, -1):
                 raise ValueError
         except:
             dst_ip = socket.gethostbyname(ip)
-            dst_addr = ctypes.windll.wsock32.inet_addr(dst_ip)
+            dst_addr = wsock32.inet_addr(dst_ip)
 
         src_addr = ULONG(INADDR_ANY)
-        buf = (ctypes.c_ubyte * 6)()
+        buf = (UBYTE * 6)()
 
-        add_len = ctypes.c_ulong(ctypes.sizeof(buf))
+        add_len = ULONG(ctypes.sizeof(buf))
 
-        res = SendARP(dst_addr, src_addr, ctypes.byref(buf), ctypes.byref(add_len))
+        res = SendARP(
+            dst_addr,
+            src_addr,
+            ctypes.byref(buf),
+            ctypes.byref(add_len)
+        )
+
         if res != 0:
             return None
 
@@ -115,7 +125,8 @@ def get_mac_address(ip):
         def _call_proc(executable, args):
             cmd = [executable] + shlex.split(args)
             env = dict(os.environ)
-            env['LC_ALL'] = 'C'  # Ensure ASCII output so we parse correctly
+            env['LC_ALL'] = 'C'  # Set system locale to use 'C' this will
+            # provide ascii output
 
             if PY2:
                 devnull = open(os.devnull, 'wb')
@@ -153,8 +164,6 @@ def get_mac_address(ip):
         def _read_arp_file():
             data = _read_file('/proc/net/arp')
             if data is not None and len(data) > 1:
-                # Need a space, otherwise a search for 192.168.16.2
-                # will match 192.168.16.254 if it comes first!
                 match = re.search(re.escape(ip) + r' .+' + mac_re_colon, data)
                 if match:
                     return match.groups()[0]
@@ -196,8 +205,7 @@ def get_mac_address(ip):
         methods = [
             _read_arp_file,
             _neighbor_show,
-            # -a: BSD-style format
-            # -n: shows numerical addresses
+            # -a BSD-style format -n shows numerical addresses
             _search(mac_re_colon, 'arp', ip),
             _search(mac_re_colon, 'arp', '-an'),
             _search(mac_re_colon, 'arp', '-an %s' % ip)
@@ -238,8 +246,7 @@ def get_mac_address(ip):
         if ':' not in mac and len(mac) == 12:
             mac = ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2))
 
-        # Pad single-character octets with a leading zero
-        # (e.g Darwin's ARP output)
+        # Darwin's ARP output pad single-character octets with a leading zero
         elif len(mac) < 17:
             parts = mac.split(':')
             new_mac = []
@@ -273,10 +280,19 @@ def send_wol(mac_address):
 
     # create the magic packet from MAC address
     packet = b'\xff' * 6 + hex_mac * 16
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.sendto(packet, ('255.255.255.255', 9))
-    sock.close()
+
+    for ip in adapter_addresses.get_adapter_ips():
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((ip, 0))
+            for _ in range(5):
+                sock.sendto(packet, ('255.255.255.255', 9))
+        except socket.error:
+            pass
+
+        sock.close()
 
 
 if __name__ == '__main__':
