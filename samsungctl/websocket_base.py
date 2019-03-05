@@ -27,7 +27,7 @@ class WebSocketBase(UPNPTV):
         self.sock = None
         self._loop_event = threading.Event()
         self._auth_lock = threading.RLock()
-        self._send_lock - threading.Lock()
+        self._send_lock = threading.Lock()
         self._registered_callbacks = []
         self._thread = None
         UPNPTV.__init__(self, config)
