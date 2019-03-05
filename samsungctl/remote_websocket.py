@@ -62,7 +62,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def open(self):
-        with self.auth_lock:
+        with self._auth_lock:
             if self.sock is not None:
                 return True
 

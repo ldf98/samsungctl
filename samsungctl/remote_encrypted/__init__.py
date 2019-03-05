@@ -139,7 +139,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogItWithReturn
     def open(self):
-        with self.auth_lock:
+        with self._auth_lock:
             if self.sock is not None:
                 return True
 

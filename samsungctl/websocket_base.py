@@ -134,7 +134,7 @@ class WebSocketBase(UPNPTV):
     @property
     @LogItWithReturn
     def power(self):
-        with self.auth_lock:
+        with self._auth_lock:
             return self.sock is not None
         # try:
         #     requests.get(
