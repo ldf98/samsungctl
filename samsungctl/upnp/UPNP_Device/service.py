@@ -3,16 +3,10 @@ from __future__ import print_function
 import requests
 import os
 from lxml import etree
-try:
-    from .data_type import StateVariable
-    from .action import Action
-    from .icon import Icon
-    from .xmlns import strip_xmlns
-except ImportError:
-    from data_type import StateVariable
-    from action import Action
-    from icon import Icon
-    from xmlns import strip_xmlns
+from .data_type import StateVariable
+from .action import Action
+from .icon import Icon
+from .xmlns import strip_xmlns
 
 try:
     from urlparse import urlparse

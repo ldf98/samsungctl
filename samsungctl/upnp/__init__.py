@@ -92,6 +92,9 @@ class UPNPTV(UPNPObject):
     @property
     def tv_options(self):
         if self._tv_options is None:
+            if not self.is_connected:
+                return None
+
             try:
                 url = 'http://{0}:8001/api/v2/'.format(self.config.host)
                 response = requests.get(url)
@@ -1713,6 +1716,9 @@ class UPNPTV(UPNPObject):
     @property
     def operating_system(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'OS' in options:
             return options['OS']
         return 'Unknown'
@@ -1720,6 +1726,9 @@ class UPNPTV(UPNPObject):
     @property
     def frame_tv_support(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'FrameTVSupport' in options:
             return options['FrameTVSupport'] == 'true'
         return 'Unknown'
@@ -1727,6 +1736,9 @@ class UPNPTV(UPNPObject):
     @property
     def game_pad_support(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'GamePadSupport' in options:
             return options['GamePadSupport'] == 'true'
         return 'Unknown'
@@ -1734,6 +1746,9 @@ class UPNPTV(UPNPObject):
     @property
     def dmp_drm_playready(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'DMP_DRM_PLAYREADY' in options:
             return options['DMP_DRM_PLAYREADY'] == 'true'
         return False
@@ -1741,6 +1756,9 @@ class UPNPTV(UPNPObject):
     @property
     def dmp_drm_widevine(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'DMP_DRM_WIDEVINE' in options:
             return options['DMP_DRM_WIDEVINE'] == 'true'
         return False
@@ -1748,6 +1766,9 @@ class UPNPTV(UPNPObject):
     @property
     def dmp_available(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'DMP_available' in options:
             return options['DMP_available'] == 'true'
         return False
@@ -1755,6 +1776,9 @@ class UPNPTV(UPNPObject):
     @property
     def eden_available(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'EDEN_available' in options:
             return options['EDEN_available'] == 'true'
         return False
@@ -1762,6 +1786,9 @@ class UPNPTV(UPNPObject):
     @property
     def apps_list_available(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if options:
             return True
         return False
@@ -1769,6 +1796,9 @@ class UPNPTV(UPNPObject):
     @property
     def ime_synced_support(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'ImeSyncedSupport' in options:
             return options['ImeSyncedSupport'] == 'true'
         return False
@@ -1776,6 +1806,9 @@ class UPNPTV(UPNPObject):
     @property
     def remote_four_directions(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'remote_fourDirections' in options:
             return options['remote_fourDirections'] == 'true'
         return False
@@ -1783,6 +1816,9 @@ class UPNPTV(UPNPObject):
     @property
     def remote_touch_pad(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'remote_touchPad' in options:
             return options['remote_touchPad'] == 'true'
         return False
@@ -1790,6 +1826,9 @@ class UPNPTV(UPNPObject):
     @property
     def voice_support(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'VoiceSupport' in options:
             return options['VoiceSupport'] == 'true'
         return 'Unknown'
@@ -1797,6 +1836,9 @@ class UPNPTV(UPNPObject):
     @property
     def firmware_version(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'firmwareVersion' in options:
             return options['firmwareVersion']
 
@@ -1805,6 +1847,9 @@ class UPNPTV(UPNPObject):
     @property
     def network_type(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'networkType' in options:
             return options['networkType']
         return 'Unknown'
@@ -1812,6 +1857,9 @@ class UPNPTV(UPNPObject):
     @property
     def resolution(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'resolution' in options:
             return options['resolution']
         return 'Unknown'
@@ -1819,6 +1867,9 @@ class UPNPTV(UPNPObject):
     @property
     def token_auth_support(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'TokenAuthSupport' in options:
             return options['TokenAuthSupport'] == 'true'
         return 'Unknown'
@@ -1826,6 +1877,9 @@ class UPNPTV(UPNPObject):
     @property
     def wifi_mac(self):
         options = self.tv_options
+        if options is None:
+            return None
+
         if 'wifiMac' in options:
             return options['wifiMac']
         return 'Unknown'
@@ -1849,15 +1903,21 @@ class UPNPTV(UPNPObject):
             H='DLP',
             K='OLED',
         )
+        model = self.model
+        if model is None:
+            return None
 
         try:
-            return technology_mapping[self.model[0]]
+            return technology_mapping[model[0]]
         except KeyError:
             return 'Unknown'
 
     @property
     def panel_type(self):
         model = self.model
+        if model is None:
+            return None
+
         if model[0] == 'Q' and model[4] == 'Q':
             return 'UHD'
         if model[5].isdigit():
@@ -1878,10 +1938,17 @@ class UPNPTV(UPNPObject):
 
     @property
     def model(self):
-        if self.config.model is not None:
-            return self.config.model
-        else:
-            return 'Unknown'
+        if self.config.model is None:
+            if not self.is_connected:
+                return None
+            try:
+                self.config.model = self.MediaRenderer.model_name
+                if self.config.path:
+                    self.config.save()
+            except AttributeError:
+                return None
+
+        return self.config.model
 
     @property
     def year(self):
@@ -1928,7 +1995,7 @@ class UPNPTV(UPNPObject):
                     else:
                         year = '0'
             else:
-                year = '0'
+                return None
         else:
             year = dtv_information.find('SupportTVVersion').text
 
@@ -1945,6 +2012,9 @@ class UPNPTV(UPNPObject):
 
         model = self.model
 
+        if model is None:
+            return None
+
         if model[1] == 'N':
             region = 'North America'
         elif model[1] == 'E':
@@ -1957,8 +2027,12 @@ class UPNPTV(UPNPObject):
 
     @property
     def tuner_count(self):
+
         dtv_information = self.dtv_information
         if dtv_information is None:
+            if not self.is_connected:
+                return None
+
             return 'Unknown'
 
         tuner_count = dtv_information.find('TunerCount')
@@ -1971,6 +2045,9 @@ class UPNPTV(UPNPObject):
     def dtv_support(self):
         dtv_information = self.dtv_information
         if dtv_information is None:
+            if not self.is_connected:
+                return None
+
             return 'Unknown'
 
         dtv = dtv_information.find('SupportDTV')
@@ -1980,6 +2057,9 @@ class UPNPTV(UPNPObject):
     def pvr_support(self):
         dtv_information = self.dtv_information
         if dtv_information is None:
+            if not self.is_connected:
+                return None
+
             return 'Unknown'
 
         pvr = dtv_information.find('SupportPVR')
