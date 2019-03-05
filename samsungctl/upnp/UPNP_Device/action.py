@@ -10,7 +10,7 @@ except ImportError:
 
 import logging
 
-logger = logging.getLogger('UPNP_Device')
+logger = logging.getLogger(__name__)
 
 
 class Action(object):
@@ -24,9 +24,24 @@ class Action(object):
 
         self.__name__ = node.find('name').text
 
-        logger.debug('upnp action added: ' + self.__name__)
-        logger.debug(self.__name__ + ': control url - ' + control_url)
-        logger.debug(self.__name__ + ': service - ' + service)
+        logger.debug(
+            parent.ip_address +
+            ' -- (action) ' +
+            self.__name__
+        )
+
+        logger.debug(
+            parent.ip_address +
+            ' -- (control url) ' +
+            control_url
+        )
+
+        logger.debug(
+            parent.ip_address +
+            ' -- (service) ' +
+            service
+
+        )
 
         for arguments in node:
             if arguments.tag != 'argumentList':
@@ -38,11 +53,24 @@ class Action(object):
                 variable = state_variables[variable](name, direction)
 
                 if direction == 'in':
+                    logger.debug(
+                        parent.ip_address +
+                        ' -- (' +
+                        self.__name__ +
+                        ') parameter added ' +
+                        name
+                    )
                     self.params += [variable]
-                    logger.debug(self.__name__ + ': parameter added - ' + name)
                 else:
+                    logger.debug(
+                        parent.ip_address +
+                        ' -- (' +
+                        self.__name__ +
+                        ') return value added ' +
+                        name
+                    )
+
                     self.ret_vals += [variable]
-                    logger.debug(self.__name__ + ': parameter added - ' + name)
 
                 logger.debug(
                     name + ': data type - ' + str(variable.py_data_type)
@@ -90,8 +118,6 @@ class Action(object):
         doc.appendChild(envelope)
         pure_xml = doc.toxml()
 
-        logger.debug(self.__name__ + ' --> ' + pure_xml)
-
         header = {
             'SOAPAction':   '"{service}#{method}"'.format(
                 service=self.service,
@@ -99,6 +125,16 @@ class Action(object):
             ),
             'Content-Type': 'text/xml'
         }
+
+        logger.debug(
+            self.__parent.ip_address +
+            ' <-- (' +
+            self.control_url +
+            ') header: ' +
+            str(header) +
+            ' body: ' +
+            pure_xml
+        )
         try:
             response = requests.post(
                 self.control_url,
@@ -111,7 +147,13 @@ class Action(object):
         ):
             return [None] * len(self.ret_vals)
 
-        logger.debug(self.__name__ + ' <-- ' + response.content.decode('utf-8'))
+        logger.debug(
+            self.__parent.ip_address +
+            ' --> (' +
+            self.control_url +
+            ') ' +
+            response.content.decode('utf-8')
+        )
 
         try:
             envelope = etree.fromstring(response.content.decode('utf-8'))

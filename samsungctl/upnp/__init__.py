@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 import requests
 import six
+import sys
 from xml.sax import saxutils
 from lxml import etree
 from .discover import discover
-
 from .UPNP_Device.upnp_class import UPNPObject
 from .UPNP_Device.instance_singleton import InstanceSingleton
 from .UPNP_Device.xmlns import strip_xmlns
 
-import threading
 import logging
-logger = logging.getLogger('samsungctl')
+
+logger = logging.getLogger(__name__)
+
+PY2 = sys.version_info[0] < 3
 
 
 class UPNPTV(UPNPObject):
@@ -20,7 +22,7 @@ class UPNPTV(UPNPObject):
         self.config = config
         self.is_connected = False
         self._dtv_information = None
-        self._tv_options = {}
+        self._tv_options = None
         self.name = self.__class__.__name__
         UPNPObject.__init__(self, config.host, [], False)
 
@@ -89,7 +91,7 @@ class UPNPTV(UPNPObject):
 
     @property
     def tv_options(self):
-        if not self._tv_options:
+        if self._tv_options is None:
             try:
                 url = 'http://{0}:8001/api/v2/'.format(self.config.host)
                 response = requests.get(url)
@@ -121,7 +123,7 @@ class UPNPTV(UPNPObject):
             ):
                 result = {}
 
-            self._tv_options.update(result)
+            self._tv_options = result
 
         return self._tv_options
 
@@ -286,16 +288,27 @@ class UPNPTV(UPNPObject):
     @property
     def channels(self):
         try:
-            channel_list_url = self.channel_list_url[3]
+            channel_list_url = self.channel_list_url[2]
             if channel_list_url is None:
                 return None
 
             response = requests.get(channel_list_url)
+
+            import binascii
+
+            channel_list = binascii.hexlify(response.content).upper()
+
+            channel_list = binascii.a2b_hex(channel_list)
+
+
             logger.debug(
-                self.config.host + ' --> ' + response.content.decode('utf-8')
+                self.config.host + ' --> ' + repr(channel_list)
             )
 
-            supported_channels = []
+            if PY2:
+                return str(channel_list)[1:-1]
+
+            return str(channel_list)[2:-1]
 
             # for channel in channels:
             #     channel_num = (
@@ -304,8 +317,6 @@ class UPNPTV(UPNPObject):
             #     )
             #
             #     supported_channels += [Channel(channel_num, channel, self)]
-
-            return supported_channels
 
         except AttributeError:
             pass
@@ -361,31 +372,47 @@ class UPNPTV(UPNPObject):
     @property
     def channel_list_url(self):
         try:
-            (
-                channel_list_version,
-                support_channel_list,
-                channel_list_url,
-                channel_list_type,
-                satellite_id
-            ) = self.MainTVAgent2.GetChannelListURL()[1:]
+            res = self.MainTVAgent2.GetChannelListURL()[1:]
+
+            print(res)
+
+            if len(res) == 5:
+                (
+                    channel_list_version,
+                    support_channel_list,
+                    channel_list_url,
+                    channel_list_type,
+                    satellite_id
+                ) = res
+                sort = None
+
+            else:
+                (
+                    channel_list_version,
+                    support_channel_list,
+                    channel_list_url,
+                    channel_list_type,
+                    satellite_id,
+                    sort
+                ) = res
 
             support_channel_list = saxutils.unescape(support_channel_list)
 
             try:
-                support_channel_list = etree.fromstring(
-                    support_channel_list.decode('utf-8'))
+                support_channel_list = etree.fromstring(support_channel_list)
             except etree.ParseError:
                 support_channel_list = None
+
             except ValueError:
                 try:
                     support_channel_list = etree.fromstring(
-                        support_channel_list)
+                        support_channel_list.encode('utf-8')
+                    )
                 except etree.ParseError:
                     support_channel_list = None
 
             if support_channel_list is None:
                 support_channel_list = []
-
             else:
                 lists = []
                 support_channel_list = strip_xmlns(support_channel_list)
@@ -397,14 +424,24 @@ class UPNPTV(UPNPObject):
 
                 support_channel_list = lists[:]
 
+            print(channel_list_version,
+                support_channel_list,
+                channel_list_url,
+                channel_list_type,
+                satellite_id,
+                sort)
             return (
                 channel_list_version,
                 support_channel_list,
                 channel_list_url,
                 channel_list_type,
-                satellite_id
+                satellite_id,
+                sort
             )
         except AttributeError:
+            import traceback
+
+            traceback.print_exc()
             pass
 
         return None, None, None, None, None
@@ -588,10 +625,14 @@ class UPNPTV(UPNPObject):
 
     def get_all_program_information_url(self, antenna_mode, channel):
         try:
-            return self.MainTVAgent2.GetAllProgramInformationURL(
+            url = self.MainTVAgent2.GetAllProgramInformationURL(
                 antenna_mode,
                 channel
             )[1]
+
+            response = requests.get(url)
+            return response
+
         except AttributeError:
             pass
 
@@ -717,7 +758,45 @@ class UPNPTV(UPNPObject):
     @property
     def network_information(self):
         try:
-            return self.MainTVAgent2.GetNetworkInformation()[1]
+            in_data = self.MainTVAgent2.GetNetworkInformation()[1]
+            import base64
+
+            if PY2:
+                in_data = base64.decodestring(in_data)
+
+                network_info = []
+                save_bytes = ''
+
+                for char in list(in_data):
+                    print(repr(char))
+                    if char == '\x00':
+                        if save_bytes:
+                            network_info += [save_bytes]
+                            save_bytes = ''
+                        continue
+
+                    save_bytes += chr(char)
+            else:
+                in_data = base64.decodebytes(in_data.encode('utf-8'))
+
+                network_info = []
+                save_bytes = ''
+
+                for char in list(in_data):
+                    print(repr(char))
+                    if char == 0:
+                        if save_bytes:
+                            network_info += [save_bytes]
+                            save_bytes = ''
+                        continue
+
+                    save_bytes += chr(char)
+
+            ssid, ap_mac, dns_server = network_info
+            ap_mac = ap_mac.upper()
+
+            return dict(ssid=ssid, ap_mac=ap_mac, dns_server=dns_server)
+
         except AttributeError:
             pass
 
@@ -839,9 +918,10 @@ class UPNPTV(UPNPObject):
     @property
     def program_information_url(self):
         try:
-            return (
-                self.MainTVAgent2.GetCurrentProgramInformationURL()[1]
-            )
+            url = self.MainTVAgent2.GetCurrentProgramInformationURL()[1]
+            response = requests.get(url)
+            return response.content.decode('utf-8')
+
         except AttributeError:
             pass
 
@@ -849,6 +929,9 @@ class UPNPTV(UPNPObject):
     def protocol_info(self):
         try:
             source, sink = self.ConnectionManager.GetProtocolInfo()
+
+            sink = sink.split(',')
+
             return source, sink
         except AttributeError:
             pass
@@ -934,7 +1017,14 @@ class UPNPTV(UPNPObject):
     @property
     def schedule_list_url(self):
         try:
-            return self.MainTVAgent2.GetScheduleListURL()[1]
+            url = self.MainTVAgent2.GetScheduleListURL()[1]
+            response = requests.get(url)
+
+            if PY2:
+                return response.content
+            else:
+                return response.content.decode('utf-8')
+
         except AttributeError:
             pass
 

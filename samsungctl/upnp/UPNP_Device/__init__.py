@@ -5,7 +5,7 @@
 import logging
 from logging import NullHandler
 
-logger = logging.getLogger('UPNP_Devices')
+logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 logging.basicConfig(format="%(message)s", level=None)
 

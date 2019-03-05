@@ -8,7 +8,11 @@ import uuid as _uuid
 from . import exceptions
 
 logger = logging.getLogger('samsungctl')
-upnp_logger = logging.getLogger('UPNP_Device')
+
+LOGGING_FORMAT = '''\
+'[%(levelname)s][%(thread)d] %(name)s.%(module)s.%(funcName)s
+%(message)s
+'''
 
 
 class Config(object):
@@ -83,11 +87,10 @@ class Config(object):
     @log_level.setter
     def log_level(self, log_level):
         if log_level is None or log_level == logging.NOTSET:
-            logging.basicConfig(format="%(message)s", level=None)
+            logging.basicConfig(format=LOGGING_FORMAT, level=None)
         else:
-            logging.basicConfig(format="%(message)s", level=log_level)
+            logging.basicConfig(format=LOGGING_FORMAT, level=log_level)
             logger.setLevel(log_level)
-            upnp_logger.setLevel(log_level)
 
     def __eq__(self, other):
         if isinstance(other, Config):

@@ -5,7 +5,10 @@ import requests
 import json
 import six
 import sys
+import logging
 from .utils import LogIt, LogItWithReturn
+
+logger = logging.getLogger(__name__)
 
 PY3 = sys.version_info[0] > 2
 

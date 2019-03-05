@@ -5,13 +5,15 @@ import logging
 import socket
 import threading
 import sys
+
 from . import exceptions
 from . import upnp
 from . import wake_on_lan
 from .upnp.discover import auto_discover
 from .utils import LogIt, LogItWithReturn
 
-logger = logging.getLogger('samsungctl')
+
+logger = logging.getLogger(__name__)
 
 PY3 = sys.version_info[0] > 2
 
@@ -91,7 +93,7 @@ class RemoteLegacy(upnp.UPNPTV):
                 if not self.power:
                     logger.error(
                         self.config.host +
-                        ' unable to acquire MAC address.'
+                        ' -- unable to acquire MAC address'
                     )
             if self.config.path:
                 self.config.save()
@@ -121,12 +123,12 @@ class RemoteLegacy(upnp.UPNPTV):
                 if count == 20:
                     logger.info(
                         self.config.host +
-                        ' power on may not be supported for this TV'
+                        ' -- power on may not be supported for this TV'
                     )
             else:
                 logging.error(
                     self.config.host +
-                    ' unable to get TV\'s mac address'
+                    ' -- unable to get TV\'s mac address'
                 )
 
         elif not value and self.power:
@@ -141,42 +143,42 @@ class RemoteLegacy(upnp.UPNPTV):
                 header = self.sock.recv(3)
                 logger.debug(
                     self.config.host +
-                    ' --> header: ' +
+                    ' --> (header) ' +
                     repr(header)
                 )
 
                 tv_name_len = ord(header[1:2].decode('utf-8'))
                 logger.debug(
                     self.config.host +
-                    ' --> tv name length: ' +
+                    ' --> (tv_name_len) ' +
                     repr(tv_name_len)
                 )
 
                 tv_name = self.sock.recv(tv_name_len)
                 logger.debug(
                     self.config.host +
-                    ' --> tv name: ' +
+                    ' --> (tv_name) ' +
                     repr(tv_name)
                 )
 
                 response_len = self.sock.recv(2)
                 logger.debug(
                     self.config.host +
-                    ' --> response len (hex): ' +
+                    ' --> (response_len(hex)) ' +
                     repr(response_len)
                 )
 
                 response_len = ord(response_len[:1].decode('utf-8'))
                 logger.debug(
                     self.config.host +
-                    ' --> response len (int): ' +
+                    ' --> (response_len(int)) ' +
                     repr(response_len)
                 )
 
                 response = self.sock.recv(response_len)
                 logger.debug(
                     self.config.host +
-                    ' --> response: ' +
+                    ' --> (response) ' +
                     repr(response)
                 )
 
@@ -186,13 +188,13 @@ class RemoteLegacy(upnp.UPNPTV):
                 if response == RESULTS[4]:
                     if self._registered_callbacks:
                         self._registered_callbacks[0]()
-            except socket.error:
+            except (socket.error, TypeError):
                 break
 
         if self.sock is not None:
             self.sock.close()
             self.sock = None
-            logging.debug(self.config.host + ' socket connection closed.')
+            logging.debug(self.config.host + ' -- socket connection closed')
 
         self._thread = None
         self._loop_event.clear()
@@ -217,58 +219,60 @@ class RemoteLegacy(upnp.UPNPTV):
 
                 logger.debug(
                     self.config.host +
-                    ' <-- handshake: ' +
+                    ' <-- (handshake) ' +
                     repr(packet)
                 )
 
                 sock.send(packet)
+                import time
+                loop_timer = None
 
                 while True:
                     header = sock.recv(3)
 
                     logger.debug(
                         self.config.host +
-                        ' --> header: ' +
+                        ' --> (header) ' +
                         repr(header)
                     )
 
                     tv_name_len = ord(header[1:2].decode('utf-8'))
                     logger.debug(
                         self.config.host +
-                        ' --> tv name length: ' +
+                        ' --> (tv_name_len) ' +
                         repr(tv_name_len)
                     )
 
                     tv_name = sock.recv(tv_name_len)
                     logger.debug(
                         self.config.host +
-                        ' --> tv name: ' +
+                        ' --> (tv name) ' +
                         repr(tv_name)
                     )
 
                     response_len = sock.recv(2)
                     logger.debug(
                         self.config.host +
-                        ' --> response len (hex): ' +
+                        ' --> (response_len(hex)) ' +
                         repr(response_len)
                     )
 
                     response_len = ord(response_len[:1].decode('utf-8'))
                     logger.debug(
                         self.config.host +
-                        ' --> response len (int): ' +
+                        ' --> (response_len(int)) ' +
                         repr(response_len)
                     )
 
                     response = sock.recv(response_len)
                     logger.debug(
                         self.config.host +
-                        ' --> response: ' +
+                        ' --> (response) ' +
                         repr(response)
                     )
 
                     if response == RESULTS[0]:
-                        logger.debug(self.config.host + ' Access granted.')
+                        logger.debug(self.config.host + ' -- access granted')
                         self.config.paired = True
                         if self.config.path:
                             self.config.save()
@@ -281,6 +285,13 @@ class RemoteLegacy(upnp.UPNPTV):
                     elif response == RESULTS[1]:
                         raise exceptions.AccessDenied()
                     elif response[0:1] == RESULTS[2]:
+                        if loop_timer is None or (time.time() - loop_timer) >= 5:
+                            loop_timer = time.time()
+                            logger.debug(
+                                self.config.host +
+                                ' -- waiting for user authorization...'
+                            )
+
                         continue
                     elif response[0:1] == RESULTS[3]:
                         raise RuntimeError('Authorization cancelled')
@@ -289,7 +300,9 @@ class RemoteLegacy(upnp.UPNPTV):
 
             except socket.error:
                 if not self.config.paired:
-                    raise RuntimeError('Unable to pair with TV.. Is the TV on?!?')
+                    raise RuntimeError(
+                        'Unable to pair with TV.. Is the TV on?!?'
+                    )
                 else:
                     self.sock = None
                     return False

@@ -31,10 +31,6 @@ if not os.path.exists(DATA_PATH):
     else:
         sys.exit(1)
 
-data_files = list(os.path.join(DATA_PATH, f) for f in os.listdir(DATA_PATH))
-for f in data_files:
-    print('removing file: ' + f)
-    os.remove(f)
 
 WRITE_LOCK = threading.RLock()
 
@@ -66,6 +62,12 @@ class STD:
 
             self._std.write(data)
             self._std.flush()
+
+    def __getattr__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+
+        return getattr(self._std, item)
 
 
 sys.stdout = STD(sys.stdout)
@@ -131,8 +133,15 @@ def run_test(config):
         auto_discover.logging = True
         return
 
-    config.path = os.path.join(DATA_PATH, config.uuid + '.config')
-    config.save()
+    data_files = list(os.path.join(DATA_PATH, f) for f in os.listdir(DATA_PATH))
+
+    config_file = os.path.join(DATA_PATH, config.uuid + '.config')
+    if os.path.exists(config_file):
+        config = samsungctl.Config.load(config_file)
+    else:
+        config.path = config_file
+        config.save()
+
     config.log_level = logging.DEBUG
 
     POWER_ON = []
@@ -196,6 +205,7 @@ def run_test(config):
     try:
         remote = samsungctl.Remote(config)
         remote.open()
+        config.save()
     except:
         traceback.print_exc()
         sys.exit(1)
@@ -360,10 +370,8 @@ def run_test(config):
 
     _program_information_url = get_property('program_information_url', [])
     if _program_information_url is not None:
-        import requests
-        response = requests.get(_program_information_url)
         with open(os.path.join(DATA_PATH, config.uuid + '-program_information_url.log'), 'w') as f:
-            f.write(response.content)
+            f.write(_program_information_url)
 
     _current_connection_ids = get_property('current_connection_ids', [])
     if _current_connection_ids is not None:
@@ -388,9 +396,9 @@ def run_test(config):
         else:
             set_property('aspect_ratio', 'Default')
 
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('aspect_ratio', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('aspect_ratio', _aspect_ratio)
 
     # aspect_ratio = ''
@@ -438,33 +446,33 @@ def run_test(config):
     _brightness = get_property('brightness', [])
     if _brightness is not None:
         set_property('brightness', 0)
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('brightness', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('brightness', _brightness)
 
     _color_temperature = get_property('color_temperature', [])
     if _color_temperature is not None:
         set_property('color_temperature', 0)
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('color_temperature', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('color_temperature', _color_temperature)
 
     _contrast = get_property('contrast', [])
     if _contrast is not None:
         set_property('contrast', 0)
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('contrast', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('contrast', _contrast)
 
     _sharpness = get_property('sharpness', [])
     if _sharpness is not None:
         set_property('sharpness', 0)
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('sharpness', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('sharpness', _sharpness)
 
     print('\nVOLUME TESTS\n')
@@ -472,17 +480,17 @@ def run_test(config):
     _mute = get_property('mute', [])
     if _mute is not None:
         set_property('mute', not _mute)
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('mute', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('mute', _mute)
 
     _volume = get_property('volume', [])
     if _volume is not None:
         set_property('volume', _volume + 1)
-        time.sleep(2)
+        time.sleep(0.5)
         get_property('volume', [])
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('volume', _volume - 1)
         print('VOLUME ADJUST WITH REMOTE COMMANDS')
         print('PLEASE WATCH THE TV')
@@ -524,11 +532,11 @@ def run_test(config):
         print('source.name: ' + _source.name)
         print('source.label: ' + _source.label)
         set_property('source', 'PC')
-        time.sleep(2)
+        time.sleep(0.5)
         _source_2 = get_property('source', [])
         print('source.name: ' + _source_2.name)
         print('source.label: ' + _source_2.label)
-        time.sleep(2)
+        time.sleep(0.5)
         set_property('source', _source)
 
     if _sources is not None:
@@ -554,18 +562,17 @@ def run_test(config):
         _support_channel_list,
         _channel_list_url,
         _channel_list_type,
-        _satellite_id
+        _satellite_id,
+        _sort
     ) = get_property(
         'channel_list_url',
         ['channel_list_version', 'support_channel_list', 'channel_list_url',
-            'channel_list_type', 'satellite_id']
+            'channel_list_type', 'satellite_id', 'sort']
     )
 
-    if _channel_list_url is not None:
-        import requests
-        response = requests.get(_channel_list_url)
+    if _channels is not None:
         with open(os.path.join(DATA_PATH, config.uuid + '-channel_list_url.log'), 'w') as f:
-            f.write(response.content)
+            f.write(_channels)
 
     if _channel is not None:
         print('channel.number: ' + str(_channel.number))
@@ -581,7 +588,7 @@ def run_test(config):
 
     print('\nBROWSER TESTS\n')
 
-    run_method('run_browser', [], 'http:\/\/www.microsoft.com')
+    run_method('run_browser', [], 'www.microsoft.com')
     get_property('browser_mode', [])
     get_property('browser_url', [])
     run_method('stop_browser', [])
@@ -624,15 +631,15 @@ def run_test(config):
                     print('       content.subtitle:', content.subtitle)
                     print('       content.subtitle2:', content.subtitle2)
                     print('       content.subtitle3:', content.subtitle3)
-
-    print('\nPOWER TESTS\n')
-    _power = get_property('power', [])
-    set_property('power', False)
-    time.sleep(5)
-    get_property('power', [])
-    set_property('power', True)
-    time.sleep(5)
-    get_property('power', [])
+    if remote.year > 2013:
+        print('\nPOWER TESTS\n')
+        _power = get_property('power', [])
+        set_property('power', False)
+        time.sleep(5)
+        get_property('power', [])
+        set_property('power', True)
+        time.sleep(5)
+        get_property('power', [])
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     log_file.close()
@@ -641,8 +648,8 @@ def run_test(config):
 
 
 start = time.time()
-while time.time() - start < 60:
-    event.wait(60.0)
+while time.time() - start < 10:
+    event.wait(10.0)
     event.clear()
     while tests_to_run:
         run_test(tests_to_run.pop(0))
@@ -650,5 +657,4 @@ while time.time() - start < 60:
 
 
 auto_discover.stop()
-
 log_file.close()

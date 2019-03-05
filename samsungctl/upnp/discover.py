@@ -5,15 +5,15 @@ import atexit
 import socket
 import json
 import threading
+import logging
 from lxml import etree
 from .UPNP_Device.xmlns import strip_xmlns
 from .UPNP_Device import adapter_addresses
 from ..config import Config
 from .. import wake_on_lan
 
-import logging
 
-logger = logging.getLogger('samsungctl')
+logger = logging.getLogger(__name__)
 
 
 IPV4_MCAST_GRP = "239.255.255.250"
@@ -99,9 +99,6 @@ class UPNPDiscoverSocket(threading.Thread):
             sock.bind((local_address, 0))
             sock.settimeout(5.0)
         except socket.error:
-            import traceback
-            traceback.print_exc()
-            print(local_address)
             try:
                 sock.close()
             except socket.error:
@@ -125,10 +122,23 @@ class UPNPDiscoverSocket(threading.Thread):
                         IPV4_MCAST_GRP,
                         packet
                     )
-                self.sock.sendto(
-                    packet.encode('utf-8'),
-                    (IPV4_MCAST_GRP, 1900)
-                )
+
+                try:
+                    self.sock.sendto(
+                        packet.encode('utf-8'),
+                        (IPV4_MCAST_GRP, 1900)
+                    )
+                except socket.error:
+                    print(self._local_address)
+                    import traceback
+                    traceback.print_exc()
+                    try:
+                        self.sock.close()
+                    except socket.error:
+                        pass
+
+                    self.sock = None
+                    return
 
             found = {}
             try:
@@ -149,7 +159,12 @@ class UPNPDiscoverSocket(threading.Thread):
                         continue
 
                     if self.logging:
-                        logger.debug('SSDP: inbound packet for IP ' + addr[0])
+                        logger.debug(
+                            addr[0] +
+                            ' --> ' +
+                            self._local_address +
+                            ' (SSDP)'
+                        )
                         logger.debug(json.dumps(packet, indent=4))
 
                     if addr[0] not in found:
@@ -162,8 +177,10 @@ class UPNPDiscoverSocket(threading.Thread):
                     dict((addr, packet) for addr, packet in found.items())
                 )
                 if self.logging:
-                    logging.debug(self._local_address + ': New Loop')
-
+                    logger.debug(
+                        self._local_address +
+                        ' -- (SSDP) loop restart'
+                    )
             except socket.error:
                 break
 
@@ -171,6 +188,8 @@ class UPNPDiscoverSocket(threading.Thread):
             self.sock.close()
         except socket.error:
             pass
+
+        self.sock = None
 
     def stop(self):
         if self.sock is not None:
@@ -216,8 +235,6 @@ class Discover(object):
             if config.uuid == uuid:
                 return config
 
-
-
     def stop(self):
         del self._callbacks[:]
 
@@ -262,7 +279,24 @@ class Discover(object):
                 if service != 'urn:schemas-upnp-org:device:MediaRenderer:1':
                     continue
 
+                if self.logging:
+                    logger.debug(
+                        host +
+                        ' <-- (' +
+                        location +
+                        ') ""'
+                    )
+
                 response = requests.get(location)
+
+                if self.logging:
+                    logger.debug(
+                        host +
+                        ' --> (' +
+                        location +
+                        ') ' +
+                        response.content.decode('utf-8')
+                    )
 
                 try:
                     root = etree.fromstring(response.content.decode('utf-8'))
@@ -463,7 +497,10 @@ class Discover(object):
 auto_discover = Discover()
 
 
-def discover(host=None, timeout=5):
+def discover(host=None, timeout=6):
+
+    if timeout < 6:
+        timeout = 6
     event = threading.Event()
 
     def discover_callback(config):
@@ -471,8 +508,8 @@ def discover(host=None, timeout=5):
 
     if not auto_discover.is_running:
         configs = []
-        auto_discover.start()
         auto_discover.register_callback(discover_callback)
+        auto_discover.start()
         event.wait(timeout)
         auto_discover.stop()
     else:

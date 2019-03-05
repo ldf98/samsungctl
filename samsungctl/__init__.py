@@ -5,9 +5,14 @@
 import logging
 from logging import NullHandler
 
-logger = logging.getLogger('samsungctl')
+LOGGING_FORMAT = '''\
+'[%(levelname)s][%(thread)d] %(name)s.%(module)s.%(funcName)s
+%(message)s
+'''
+
+logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
-logging.basicConfig(format="%(message)s", level=None)
+logging.basicConfig(format=LOGGING_FORMAT, level=None)
 
 
 __title__ = "samsungctl"
@@ -17,5 +22,7 @@ __author__ = "Lauri Niskanen, Kevin Schlosser"
 __author_email__ = "kevin.g.schlosser@gmail.com"
 __license__ = "MIT"
 
-from .remote import Remote # NOQA
 from .config import Config # NOQA
+from .remote import Remote  # NOQA
+
+

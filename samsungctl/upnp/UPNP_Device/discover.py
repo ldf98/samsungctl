@@ -10,7 +10,7 @@ import json
 
 from . import adapter_addresses
 
-logger = logging.getLogger('UPNP_Devices')
+logger = logging.getLogger(__name__)
 
 if sys.platform.startswith('win'):
     IPPROTO_IPV6 = 41

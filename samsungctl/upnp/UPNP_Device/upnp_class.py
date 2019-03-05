@@ -8,7 +8,6 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 
-
 try:
     from .xmlns import strip_xmlns
     from .service import Service
@@ -22,7 +21,7 @@ except ImportError:
 
 import logging
 
-logger = logging.getLogger('UPNP_Device')
+logger = logging.getLogger(__name__)
 
 
 class UPNPObject(object):
@@ -47,7 +46,22 @@ class UPNPObject(object):
                 parsed.hostname,
                 parsed.port
             )
+
+            logger.debug(
+                self.ip_address +
+                ' <-- (' +
+                location +
+                ') ""'
+            )
             response = requests.get(location)
+
+            logger.debug(
+                self.ip_address +
+                ' --> (' +
+                location +
+                ') ' +
+                response.content.decode('utf-8')
+            )
 
             path = parsed.path
             if path.startswith('/'):
@@ -103,10 +117,6 @@ class UPNPObject(object):
                                 count += 1
                             line = '    ' * (count / 2) + line.strip()
                         f.write(line + '\n')
-
-            logger.debug(
-                self.__name__ + ' <-- ' + response.content.decode('utf-8')
-            )
 
             try:
                 root = etree.fromstring(response.content.decode('utf-8'))

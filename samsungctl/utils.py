@@ -20,7 +20,7 @@ def LogIt(func):
 
     def wrapper(*args, **kwargs):
         func_name, arg_string = func_arg_string(func, args, kwargs)
-        logging.debug(func_name + arg_string)
+        logger.debug(func_name + arg_string)
         return func(*args, **kwargs)
 
     return update_wrapper(wrapper, func)
@@ -40,9 +40,9 @@ def LogItWithReturn(func):
 
     def wrapper(*args, **kwargs):
         func_name, arg_string = func_arg_string(func, args, kwargs)
-        logging.debug(func_name + arg_string)
+        logger.debug(func_name + arg_string)
         result = func(*args, **kwargs)
-        logging.debug(func_name + " => " + repr(result))
+        logger.debug(func_name + " => " + repr(result))
         return result
 
     return update_wrapper(wrapper, func)

@@ -6,6 +6,10 @@ except ImportError:
     from icon import Icon
     from service import Service
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class EmbeddedDevice(object):
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import, print_function
+from __future__ import print_function
 import logging
 import threading
 from .upnp.discover import auto_discover
@@ -8,7 +8,8 @@ from . import wake_on_lan
 from .upnp import UPNPTV
 from .utils import LogIt, LogItWithReturn
 
-logger = logging.getLogger('samsungctl')
+
+logger = logging.getLogger(__name__)
 
 
 class WebSocketBase(UPNPTV):

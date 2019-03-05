@@ -14,9 +14,14 @@ except ImportError:
     from icon import Icon
     from xmlns import strip_xmlns
 
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
+
 import logging
 
-logger = logging.getLogger('UPNP_Device')
+logger = logging.getLogger(__name__)
 
 
 class Service(object):
@@ -39,6 +44,9 @@ class Service(object):
         self.url = url
         self._icons = {}
 
+        parsed = urlparse(url)
+        self.ip_address = parsed.hostname
+
         if node is not None:
             icons = node.find('iconList')
 
@@ -60,13 +68,20 @@ class Service(object):
             location = '/' + location
 
         logger.debug(
-            self.__name__ + ' --> ' + url + location
+            self.ip_address +
+            ' <-- (' +
+            url + location +
+            ') ""'
         )
 
         response = requests.get(url + location)
 
         logger.debug(
-            self.__name__ + ' <-- ' + response.content.decode('utf-8')
+            self.ip_address +
+            ' --> (' +
+            url + location +
+            ') ' +
+            response.content.decode('utf-8')
         )
 
         if dump:
@@ -151,6 +166,7 @@ class Service(object):
                 return value.text
 
         raise AttributeError(item)
+
     @property
     def as_dict(self):
         res = dict(

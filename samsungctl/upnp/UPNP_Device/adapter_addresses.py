@@ -4,7 +4,13 @@ import ctypes
 import socket
 import struct
 import platform
+import sys
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+PY2 = sys.version_info[0] < 3
 
 USHORT = ctypes.c_uint16
 SHORT = ctypes.c_int16
@@ -18,6 +24,8 @@ PWCHAR = ctypes.c_wchar_p
 PCHAR = ctypes.c_char_p
 POINTER = ctypes.POINTER
 
+
+logging.debug(platform.system())
 
 if platform.system() == "Darwin" or "BSD" in platform.system():
 
@@ -63,20 +71,27 @@ def sockaddr_to_ip(sockaddr_ptr):
         if sockaddr_ptr[0].sa_familiy == socket.AF_INET:
             ipv4 = ctypes.cast(sockaddr_ptr, POINTER(sockaddr_in))
             ippacked = bytes(bytearray(ipv4[0].sin_addr))
-            byte_ip = list(struct.unpack(b'!B', b)[0] for b in ippacked)
 
-            ip_int = 0
-            for bv in byte_ip:
-                ip_int = (ip_int << 8) + bv
-            if ip_int:
-                res = '.'.join(
-                    str(
-                        struct.unpack(b'!B', b)[0]
-                        if isinstance(b, bytes) else b
+            if PY2:
+                byte_ip = list(struct.unpack(b'!B', b)[0] for b in ippacked)
+
+                ip_int = 0
+                for bv in byte_ip:
+                    ip_int = (ip_int << 8) + bv
+                if ip_int:
+                    res = '.'.join(
+                        str(
+                            struct.unpack(b'!B', b)[0]
+                            if isinstance(b, bytes) else b
+                        )
+                        for b in struct.pack(b'!I', ip_int)
                     )
-                    for b in struct.pack(b'!I', ip_int)
-                )
-                return res
+                else:
+                    res = None
+            else:
+                res = '.'.join(str(b) for b in ippacked)
+
+            return res
     return None
 
 
@@ -173,6 +188,7 @@ if platform.system() == 'Windows':
                 while True:
                     ip = sockaddr_to_ip(address.Address.lpSockaddr)
                     if ip and ip != '127.0.0.1':
+                        logging.debug('adapter ip: ' + ip)
                         yield ip
 
                     if not address.Next:
@@ -223,6 +239,7 @@ else:
                         addr[0].ifa_addr[0].sa_familiy
                     )
 
+                logging.debug('adapter ip: ' + ip)
                 yield ip
 
             addr = addr[0].ifa_next
@@ -231,5 +248,10 @@ else:
 
 
 if __name__ == '__main__':
+    from logging import NullHandler
+    logger.addHandler(NullHandler())
+    logging.basicConfig(format="%(message)s", level=logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
+
     for _ip in get_adapter_ips():
         print(_ip)

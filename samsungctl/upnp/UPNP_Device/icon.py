@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import requests
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Icon(object):

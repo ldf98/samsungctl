@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import, print_function
+from __future__ import print_function
 import base64
 import logging
 import threading
@@ -11,13 +11,13 @@ import time
 import json
 import socket
 import uuid
-from . import exceptions
+
 from . import application
 from . import websocket_base
 from . import wake_on_lan
 from .utils import LogIt, LogItWithReturn
 
-logger = logging.getLogger('samsungctl')
+logger = logging.getLogger(__name__)
 
 
 URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.remote.control?name={}"

@@ -5,8 +5,11 @@ import socket
 import struct
 import sys
 import platform
-
+import logging
 from .upnp.UPNP_Device import adapter_addresses
+
+
+logger = logging.getLogger(__name__)
 
 NULL = None
 PVOID = ctypes.c_void_p
