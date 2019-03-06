@@ -143,7 +143,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if self.sock is not None:
                 return True
 
-            if not self.config.paired:
+            if self.config.token is None:
                 if self.check_pin_page():
                     logger.debug(
                         self.config.host +
@@ -226,6 +226,9 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                             )
                 finally:
                     self.close_pin_page()
+
+            if self.config.token is None:
+                raise RuntimeError('Unknown Authentication Error')
 
             aes_key, current_session_id = self.config.token.rsplit(':', 1)
             self.current_session_id = int(current_session_id)

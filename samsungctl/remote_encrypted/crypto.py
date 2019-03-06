@@ -4,6 +4,7 @@ import struct
 import logging
 import binascii
 from .aes import AES, AES_CIPHER, MODE_CBC
+
 from .rijndael import RIJNDAEL_CIPHER
 from .keys import PUBLIC_KEY, BN_PRIVATE_KEY, BN_PRIME
 
@@ -47,7 +48,11 @@ def unpack(data):
 def encrypt_parameter_data_with_aes(data):
     output = b''
     for num in range(0, 128, 16):
-        output += AES_CIPHER.encrypt(data[num:num + 16], add_padding=False)
+        output += AES_CIPHER.encrypt(
+            data[num:num + 16],
+            add_padding=False,
+            encoding=None
+        )
 
     return output
 
@@ -55,7 +60,11 @@ def encrypt_parameter_data_with_aes(data):
 def decrypt_parameter_data_with_aes(data):
     output = b''
     for num in range(0, 128, 16):
-        output += AES_CIPHER.decrypt(data[num:num + 16])
+        output += AES_CIPHER.decrypt(
+            data[num:num + 16],
+            remove_padding=False,
+            unhexlify=None
+        )
 
     return output
 
@@ -69,7 +78,12 @@ def generate_server_hello(user_id, pin):
     aes_key = pin_hash[:16]
     debug('AES key', aes_key)
 
-    encrypted = AES_CIPHER.encrypt(PUBLIC_KEY)
+    cipher = AES(aes_key, MODE_CBC)
+    encrypted = cipher.encrypt(
+        PUBLIC_KEY,
+        add_padding=False,
+        encoding=None
+    )
     debug('AES encrypted', encrypted)
 
     swapped = encrypt_parameter_data_with_aes(encrypted)
@@ -165,7 +179,11 @@ def parse_client_hello(client_hello, aes_key, g_user_id):
     debug('pEncGx', p_enc_gx)
 
     cipher = AES(aes_key, MODE_CBC)
-    p_gx = cipher.decrypt(p_enc_gx, remove_padding=False)
+    p_gx = cipher.decrypt(
+        p_enc_gx,
+        remove_padding=False,
+        unhexlify=None
+    )
     debug('pGx', p_gx)
 
     bn_pgx = int(bytes2str(p_gx), 16)

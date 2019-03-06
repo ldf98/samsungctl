@@ -32,23 +32,39 @@ class AES:
     """
 
     def __init__(self, key, mode=_AES.MODE_ECB, *args):
-        self.key = binascii.unhexlify(key)
+        try:
+            self.key = binascii.unhexlify(key)
+        except TypeError:
+            self.key = key
+
         if mode == MODE_CBC:
             self._cipher = _AES.new(self.key, mode, IV)
         else:
             self._cipher = _AES.new(self.key, mode, *args)
 
-    def decrypt(self, enc, remove_padding=True):
-        if remove_padding:
-            return unpad(self._cipher.decrypt(binascii.unhexlify(enc)))
+    def decrypt(self, enc, remove_padding=True, unhexlify=binascii.unhexlify):
+        if unhexlify is not None:
+            data = unhexlify(enc)
         else:
-            return self._cipher.decrypt(binascii.unhexlify(enc))
+            data = enc
 
-    def encrypt(self, raw, add_padding=True):
-        if add_padding:
-            return self._cipher.encrypt(pad(raw).encode("utf8"))
+        data = self._cipher.decrypt(data)
+
+        if remove_padding:
+            return unpad(data)
         else:
-            return self._cipher.encrypt(raw.encode("utf8"))
+            return data
+
+    def encrypt(self, raw, add_padding=True, encoding="utf8"):
+        if add_padding:
+            data = pad(raw)
+        else:
+            data = raw
+
+        if encoding is not None:
+            data = data.encode(encoding)
+
+        return self._cipher.encrypt(data)
 
 
 AES_CIPHER = AES(wbKey, MODE_CBC)
