@@ -36,6 +36,28 @@ else:
     DATA_PATH = r'/tests'
 
 
+INTRO = '''\
+This is going to test the functionality of the TV.
+It will log all tests to the screen as well as to a series of files.
+The files will be located in {0} on your HDD. If you can please Zip
+the contents of that folder and attach it to a post here
+
+https://github.com/kdschlosser/samsungctl/issues/106
+
+it would be appreciated
+
+press any key to continue...
+'''
+
+try:
+    raw_input(INTRO.format(DATA_PATH))
+except NameError:
+    input(INTRO.format(DATA_PATH))
+
+print()
+print()
+
+
 with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
     f.write(
         TEMPLATE.format(
@@ -70,6 +92,9 @@ if not os.path.exists(DATA_PATH):
         os.mkdir(DATA_PATH)
     else:
         sys.exit(1)
+
+    print()
+    print()
 
 
 WRITE_LOCK = threading.RLock()
@@ -175,6 +200,9 @@ def run_test(config):
 
         auto_discover.logging = True
         return
+
+    print()
+    print()
 
     config_file = os.path.join(DATA_PATH, config.uuid + '.config')
     if os.path.exists(config_file):
@@ -549,6 +577,9 @@ def run_test(config):
         else:
             response = False
 
+        print()
+        print()
+
         print('KEY_VOLUP: ' + str(response))
 
         remote.control('KEY_VOLDOWN')
@@ -563,6 +594,9 @@ def run_test(config):
             response = True
         else:
             response = False
+
+        print()
+        print()
 
         print('KEY_VOLDOWN: ' + str(response))
 
