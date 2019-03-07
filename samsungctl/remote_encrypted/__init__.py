@@ -193,7 +193,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                             logger.debug(
                                 self.config.host +
                                 ' -- (sk prime) ' +
-                                sk_prime
+                                repr(sk_prime)
                             )
 
                             current_session_id = self.acknowledge_exchange(

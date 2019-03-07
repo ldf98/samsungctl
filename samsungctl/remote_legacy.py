@@ -38,6 +38,7 @@ else:
         "\x00\x00\x00\x00"
     ]
 
+
 class RemoteLegacy(upnp.UPNPTV):
     """Object for remote control connection."""
 
@@ -46,7 +47,7 @@ class RemoteLegacy(upnp.UPNPTV):
         """Make a new connection."""
         self.sock = None
         self.config = config
-        self.auth_lock = threading.Lock()
+        self._auth_lock = threading.Lock()
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
         self._receive_event = threading.Event()
@@ -62,7 +63,7 @@ class RemoteLegacy(upnp.UPNPTV):
         if not auto_discover.is_running:
             auto_discover.start()
 
-        self._connect(auto_discover.is_on(config.uuid), True)
+        self.open()
 
     def _connect(self, config, power):
         if config is None:
@@ -102,7 +103,7 @@ class RemoteLegacy(upnp.UPNPTV):
     @property
     @LogItWithReturn
     def power(self):
-        with self.auth_lock:
+        with self._auth_lock:
             return self.sock is not None
 
     @power.setter
@@ -201,7 +202,7 @@ class RemoteLegacy(upnp.UPNPTV):
 
     @LogIt
     def open(self):
-        with self.auth_lock:
+        with self._auth_lock:
             if self.sock is not None:
                 return True
 

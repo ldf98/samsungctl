@@ -1784,14 +1784,28 @@ class UPNPTV(UPNPObject):
         return False
 
     @property
-    def apps_list_available(self):
+    def tv_location(self):
         options = self.tv_options
         if options is None:
             return None
 
-        if options:
-            return True
-        return False
+        if 'countryCode' in options:
+            code = options['countryCode']
+            if code in COUNTRIES:
+                return COUNTRIES[code]
+
+            return code
+
+        return 'Unknown'
+
+    @property
+    def apps_list_available(self):
+        year = self.year
+
+        if year is None:
+            return None
+
+        return year > 2015
 
     @property
     def ime_synced_support(self):
@@ -1953,53 +1967,56 @@ class UPNPTV(UPNPObject):
     @property
     def year(self):
         dtv_information = self.dtv_information
-        if dtv_information is None:
-            if self.is_connected:
-                for service in self.services:
-                    try:
-                        product_cap = service.ProductCap
-                        product_cap = product_cap.split(',')
-                        for item in product_cap:
-                            if (
-                                item.lower().startswiith('y') and
-                                len(item) == 5 and
-                                item[1:].isdigit()
-                            ):
-                                year = item[1:]
-                                break
-                        else:
-                            continue
+        if dtv_information is not None:
+            support_tv_version = dtv_information.find('SupportTVVersion')
 
-                        break
-                    except AttributeError:
-                        continue
-                else:
-                    model = self.model
+            if support_tv_version is not None:
+                return int(support_tv_version.text)
 
-                    years = dict(
-                        A=2008,
-                        B=2009,
-                        C=2010,
-                        D=2011,
-                        E=2012,
-                        F=2013,
-                        H=2014,
-                        J=2015,
-                        K=2016,
-                        M=2017,
-                        Q=2017,
-                        N=2018,
-                    )
-                    if model[5].upper() in years:
-                        year = str(years[model[5].upper()])
+
+        if self.is_connected:
+            for service in self.services:
+                try:
+                    product_cap = service.ProductCap
+                    product_cap = product_cap.split(',')
+                    for item in product_cap:
+                        if (
+                            item.lower().startswiith('y') and
+                            len(item) == 5 and
+                            item[1:].isdigit()
+                        ):
+                            year = item[1:]
+                            break
                     else:
-                        year = '0'
-            else:
-                return None
-        else:
-            year = dtv_information.find('SupportTVVersion').text
+                        continue
 
-        return int(year)
+                    break
+                except AttributeError:
+                    continue
+            else:
+                model = self.model
+
+                years = dict(
+                    A=2008,
+                    B=2009,
+                    C=2010,
+                    D=2011,
+                    E=2012,
+                    F=2013,
+                    H=2014,
+                    J=2015,
+                    K=2016,
+                    M=2017,
+                    Q=2017,
+                    N=2018,
+                )
+                if model[5].upper() in years:
+                    year = str(years[model[5].upper()])
+                    int(year)
+                else:
+                    return 0
+        else:
+            return None
 
     @property
     def region(self):
@@ -2007,8 +2024,10 @@ class UPNPTV(UPNPObject):
 
         if dtv_information is not None:
             location = dtv_information.find('TargetLocation')
-            if location is not None:
+            try:
                 return location.text.replace('TARGET_LOCATION_', '')
+            except AttributeError:
+                pass
 
         model = self.model
 
@@ -2052,6 +2071,66 @@ class UPNPTV(UPNPObject):
 
         dtv = dtv_information.find('SupportDTV')
         return True if dtv.text == 'Yes' else False
+
+    @property
+    def antenna_modes(self):
+
+        dtv_information = self.dtv_information
+        if dtv_information is None:
+            if not self.is_connected:
+                return None
+
+            return []
+
+        support_ant_mode = dtv_information.find('SupportAntMode')
+        if support_ant_mode is None:
+            return []
+
+        return list(int(itm) for itm in support_ant_mode.text.split(','))
+
+    @property
+    def bluetooth_support(self):
+        dtv_information = self.dtv_information
+        if dtv_information is None:
+            if not self.is_connected:
+                return None
+
+            return 'Unknown'
+
+        support_bluetooth = dtv_information.find('SupportBluetooth')
+        if support_bluetooth is None:
+            return 'Unknown'
+
+        return support_bluetooth.text == 'Yes'
+
+    @property
+    def stream_support(self):
+        dtv_information = self.dtv_information
+        if dtv_information is None:
+            if not self.is_connected:
+                return None
+
+            return {}
+
+        stream_support = dtv_information.find('SupportStream')
+        if stream_support is None:
+            return {}
+
+        def convert_tag_to_key(tag):
+            output = ''
+
+            for char in list(tag):
+                if char.isupper() and output:
+                    output += '_'
+                output += char.lower()
+
+            return output
+
+        res = {}
+        for node in stream_support:
+            res[convert_tag_to_key(node.tag)] = node.text
+
+        return res
 
     @property
     def pvr_support(self):
@@ -2383,3 +2462,256 @@ class Source(object):
 
     def __str__(self):
         return self.label
+
+
+COUNTRIES = dict(
+    AF=u'Afghanistan',
+    AX=u'Åland Islands',
+    AL=u'Albania',
+    DZ=u'Algeria',
+    AS=u'American Samoa',
+    AD=u'Andorra',
+    AO=u'Angola',
+    AI=u'Anguilla',
+    AQ=u'Antarctica',
+    AG=u'Antigua and Barbuda',
+    AR=u'Argentina',
+    AM=u'Armenia',
+    AW=u'Aruba',
+    AU=u'Australia',
+    AT=u'Austria',
+    AZ=u'Azerbaijan',
+    BS=u'Bahamas',
+    BH=u'Bahrain',
+    BD=u'Bangladesh',
+    BB=u'Barbados',
+    BY=u'Belarus',
+    BE=u'Belgium',
+    BZ=u'Belize',
+    BJ=u'Benin',
+    BM=u'Bermuda',
+    BT=u'Bhutan',
+    BO=u'Bolivia (Plurinational State of)',
+    BQ=u'Bonaire, Sint Eustatius and Saba',
+    BA=u'Bosnia and Herzegovina',
+    BW=u'Botswana',
+    BV=u'Bouvet Island',
+    BR=u'Brazil',
+    IO=u'British Indian Ocean Territory',
+    BN=u'Brunei Darussalam',
+    BG=u'Bulgaria',
+    BF=u'Burkina Faso',
+    BI=u'Burundi',
+    CV=u'Cabo Verde',
+    KH=u'Cambodia',
+    CM=u'Cameroon',
+    CA=u'Canada',
+    KY=u'Cayman Islands',
+    CF=u'Central African Republic',
+    TD=u'Chad',
+    CL=u'Chile',
+    CN=u'China',
+    CX=u'Christmas Island',
+    CC=u'Cocos (Keeling) Islands',
+    CO=u'Colombia',
+    KM=u'Comoros',
+    CG=u'Congo',
+    CD=u'Congo (Democratic Republic of the)',
+    CK=u'Cook Islands',
+    CR=u'Costa Rica',
+    CI=u'Côte d\'Ivoire',
+    HR=u'Croatia',
+    CU=u'Cuba',
+    CW=u'Curaçao',
+    CY=u'Cyprus',
+    CZ=u'Czechia',
+    DK=u'Denmark',
+    DJ=u'Djibouti',
+    DM=u'Dominica',
+    DO=u'Dominican Republic',
+    EC=u'Ecuador',
+    EG=u'Egypt',
+    SV=u'El Salvador',
+    GQ=u'Equatorial Guinea',
+    ER=u'Eritrea',
+    EE=u'Estonia',
+    SZ=u'Eswatini',
+    ET=u'Ethiopia',
+    FK=u'Falkland Islands (Malvinas)',
+    FO=u'Faroe Islands',
+    FJ=u'Fiji',
+    FI=u'Finland',
+    FR=u'France',
+    GF=u'French Guiana',
+    PF=u'French Polynesia',
+    TF=u'French Southern Territories',
+    GA=u'Gabon',
+    GM=u'Gambia',
+    GE=u'Georgia',
+    DE=u'Germany',
+    GH=u'Ghana',
+    GI=u'Gibraltar',
+    GR=u'Greece',
+    GL=u'Greenland',
+    GD=u'Grenada',
+    GP=u'Guadeloupe',
+    GU=u'Guam',
+    GT=u'Guatemala',
+    GG=u'Guernsey',
+    GN=u'Guinea',
+    GW=u'Guinea-Bissau',
+    GY=u'Guyana',
+    HT=u'Haiti',
+    HM=u'Heard Island and McDonald Islands',
+    VA=u'Holy See',
+    HN=u'Honduras',
+    HK=u'Hong Kong',
+    HU=u'Hungary',
+    IS=u'Iceland',
+    IN=u'India',
+    ID=u'Indonesia',
+    IR=u'Iran',
+    IQ=u'Iraq',
+    IE=u'Ireland',
+    IM=u'Isle of Man',
+    IL=u'Israel',
+    IT=u'Italy',
+    JM=u'Jamaica',
+    JP=u'Japan',
+    JE=u'Jersey',
+    JO=u'Jordan',
+    KZ=u'Kazakhstan',
+    KE=u'Kenya',
+    KI=u'Kiribati',
+    KP=u'Korea',
+    KR=u'Korea',
+    KW=u'Kuwait',
+    KG=u'Kyrgyzstan',
+    LA=u'Lao',
+    LV=u'Latvia',
+    LB=u'Lebanon',
+    LS=u'Lesotho',
+    LR=u'Liberia',
+    LY=u'Libya',
+    LI=u'Liechtenstein',
+    LT=u'Lithuania',
+    LU=u'Luxembourg',
+    MO=u'Macao',
+    MK=u'Macedonia',
+    MG=u'Madagascar',
+    MW=u'Malawi',
+    MY=u'Malaysia',
+    MV=u'Maldives',
+    ML=u'Mali',
+    MT=u'Malta',
+    MH=u'Marshall Islands',
+    MQ=u'Martinique',
+    MR=u'Mauritania',
+    MU=u'Mauritius',
+    YT=u'Mayotte',
+    MX=u'Mexico',
+    FM=u'Micronesia (Federated States of)',
+    MD=u'Moldova (Republic of)',
+    MC=u'Monaco',
+    MN=u'Mongolia',
+    ME=u'Montenegro',
+    MS=u'Montserrat',
+    MA=u'Morocco',
+    MZ=u'Mozambique',
+    MM=u'Myanmar',
+    NA=u'Namibia',
+    NR=u'Nauru',
+    NP=u'Nepal',
+    NL=u'Netherlands',
+    NC=u'New Caledonia',
+    NZ=u'New Zealand',
+    NI=u'Nicaragua',
+    NE=u'Niger',
+    NG=u'Nigeria',
+    NU=u'Niue',
+    NF=u'Norfolk Island',
+    MP=u'Northern Mariana Islands',
+    NO=u'Norway',
+    OM=u'Oman',
+    PK=u'Pakistan',
+    PW=u'Palau',
+    PS=u'Palestine',
+    PA=u'Panama',
+    PG=u'Papua New Guinea',
+    PY=u'Paraguay',
+    PE=u'Peru',
+    PH=u'Philippines',
+    PN=u'Pitcairn',
+    PL=u'Poland',
+    PT=u'Portugal',
+    PR=u'Puerto Rico',
+    QA=u'Qatar',
+    RE=u'Réunion',
+    RO=u'Romania',
+    RU=u'Russian Federation',
+    RW=u'Rwanda',
+    BL=u'Saint Barthélemy',
+    SH=u'Saint Helena Ascension and Tristan da Cunha',
+    KN=u'Saint Kitts and Nevis',
+    LC=u'Saint Lucia',
+    MF=u'Saint Martin (French part)',
+    PM=u'Saint Pierre and Miquelon',
+    VC=u'Saint Vincent and the Grenadines',
+    WS=u'Samoa',
+    SM=u'San Marino',
+    ST=u'Sao Tome and Principe',
+    SA=u'Saudi Arabia',
+    SN=u'Senegal',
+    RS=u'Serbia',
+    SC=u'Seychelles',
+    SL=u'Sierra Leone',
+    SG=u'Singapore',
+    SX=u'Sint Maarten (Dutch part)',
+    SK=u'Slovakia',
+    SI=u'Slovenia',
+    SB=u'Solomon Islands',
+    SO=u'Somalia',
+    ZA=u'South Africa',
+    GS=u'South Georgia and the South Sandwich Islands',
+    SS=u'South Sudan',
+    ES=u'Spain',
+    LK=u'Sri Lanka',
+    SD=u'Sudan',
+    SR=u'Suriname',
+    SJ=u'Svalbard and Jan Mayen',
+    SE=u'Sweden',
+    CH=u'Switzerland',
+    SY=u'Syrian Arab Republic',
+    TW=u'Taiwan',
+    TJ=u'Tajikistan',
+    TZ=u'Tanzania',
+    TH=u'Thailand',
+    TL=u'Timor-Leste',
+    TG=u'Togo',
+    TK=u'Tokelau',
+    TO=u'Tonga',
+    TT=u'Trinidad and Tobago',
+    TN=u'Tunisia',
+    TR=u'Turkey',
+    TM=u'Turkmenistan',
+    TC=u'Turks and Caicos Islands',
+    TV=u'Tuvalu',
+    UG=u'Uganda',
+    UA=u'Ukraine',
+    AE=u'United Arab Emirates',
+    GB=u'United Kingdom of Great Britain and Northern Ireland',
+    US=u'United States of America',
+    UM=u'United States Minor Outlying Islands',
+    UY=u'Uruguay',
+    UZ=u'Uzbekistan',
+    VU=u'Vanuatu',
+    VE=u'Venezuela (Bolivarian Republic of)',
+    VN=u'Viet Nam',
+    VG=u'Virgin Islands (British)',
+    VI=u'Virgin Islands (U.S.)',
+    WF=u'Wallis and Futuna',
+    EH=u'Western Sahara',
+    YE=u'Yemen',
+    ZM=u'Zambia',
+    ZW=u'Zimbabwe',
+)

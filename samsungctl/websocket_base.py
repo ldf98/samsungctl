@@ -51,7 +51,7 @@ class WebSocketBase(UPNPTV):
                 self.config.copy(config)
                 self.open()
 
-            elif not power:
+            elif not power and self._thread:
                 self.close()
 
     def _send_key(self, *args, **kwargs):
@@ -110,7 +110,10 @@ class WebSocketBase(UPNPTV):
                     )
                     self.on_message(data)
                 else:
-                    raise RuntimeError
+                    if self.config.method == 'legacy':
+                        raise RuntimeError
+                    else:
+                        self._loop_event.wait(0.1)
             except:
                 self.disconnect()
                 del self._registered_callbacks[:]

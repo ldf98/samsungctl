@@ -390,7 +390,12 @@ def run_test(config):
     get_property('hts_speaker_layout', [])
     get_property('mbr_device_list', [])
     get_property('mbr_dongle_status', [])
+    get_property('tv_location', [])
+    get_property('antenna_modes', [])
+    get_property('bluetooth_support', [])
+    get_property('stream_support', [])
     run_method('list_presets', [])
+    
     get_property(
         'watching_information',
         ['tv_mode', 'information']
