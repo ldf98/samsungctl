@@ -9,6 +9,11 @@ from .UPNP_Device.upnp_class import UPNPObject
 from .UPNP_Device.instance_singleton import InstanceSingleton
 from .UPNP_Device.xmlns import strip_xmlns
 
+try:
+    from . import cec_control
+except ImportError:
+    cec_control = None
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +30,37 @@ class UPNPTV(UPNPObject):
         self._tv_options = None
         self.name = self.__class__.__name__
         UPNPObject.__init__(self, config.host, [], False)
+
+        if config.cec is not None and cec_control is not None:
+
+            cec_config = cec_control.PyCECConfiguration(
+                adapter_name=config.cec.name,
+                adapter_port=config.cec.port,
+                adapter_types=config.cec.types,
+                power_off=config.cec.power_off,
+                power_standby=config.cec.power_standby,
+                wake_avr=config.cec.wake_avr,
+                keypress_combo=config.cec.keypress_combo,
+                keypress_combo_timeout=config.cec.keypress_combo_timeout,
+                keypress_repeat=config.cec.keypress_repeat,
+                keypress_release_delay=config.cec.keypress_release_delay,
+                keypress_double_tap=config.cec.keypress_double_tap,
+                hdmi_port=config.cec.hdmi_port,
+                avr_audio=config.cec.avr_audio
+            )
+
+            cec_config = cec_control.discover(cec_config)
+            if cec_config is None:
+                logger.error('No cec adapters located')
+                self._cec = None
+            else:
+
+                config.cec.adapter_port = cec_config.strDevicePort
+                config.cec.adapter_types = cec_config.adapter_types
+
+                self._cec = cec_control.PyCECAdapter(cec_config)
+
+            self._cec_config = cec_config
 
     def __getattr__(self, item):
         if item in self.__dict__:
@@ -427,12 +463,14 @@ class UPNPTV(UPNPObject):
 
                 support_channel_list = lists[:]
 
-            print(channel_list_version,
+            print(
+                channel_list_version,
                 support_channel_list,
                 channel_list_url,
                 channel_list_type,
                 satellite_id,
-                sort)
+                sort
+            )
             return (
                 channel_list_version,
                 support_channel_list,
@@ -736,6 +774,12 @@ class UPNPTV(UPNPObject):
 
     @property
     def mute(self):
+
+        if self._cec is not None:
+            if self.is_connected:
+                return self._cec.mute
+            return None
+
         try:
             status = self.MainTVAgent2.GetMuteStatus()[1]
         except (AttributeError, TypeError):
@@ -751,12 +795,16 @@ class UPNPTV(UPNPObject):
 
     @mute.setter
     def mute(self, desired_mute):
-        try:
-            self.MainTVAgent2.SetMute(desired_mute)
-        except AttributeError:
-            self.set_channel_mute('Master', desired_mute)
-        except TypeError:
-            self.MainTVAgent2.SetMute('Enable' if desired_mute else 'Disable')
+        if self._cec is not None:
+            if self.is_connected:
+                self._cec.mute = desired_mute
+        else:
+            try:
+                self.MainTVAgent2.SetMute(desired_mute)
+            except AttributeError:
+                self.set_channel_mute('Master', desired_mute)
+            except TypeError:
+                self.MainTVAgent2.SetMute('Enable' if desired_mute else 'Disable')
 
     @property
     def network_information(self):
@@ -922,9 +970,7 @@ class UPNPTV(UPNPObject):
     def program_information_url(self):
         try:
             url = self.MainTVAgent2.GetCurrentProgramInformationURL()[1]
-            response = requests.get(url)
-            return response.content.decode('utf-8')
-
+            return url
         except AttributeError:
             pass
 
@@ -1225,6 +1271,12 @@ class UPNPTV(UPNPObject):
 
             return sources
         except AttributeError:
+
+            if self._cec is not None:
+                if not self.is_connected:
+                    return
+
+
             pass
 
     def start_ext_source_view(self, source, id):
@@ -1428,6 +1480,12 @@ class UPNPTV(UPNPObject):
 
     @property
     def volume(self):
+        if self._cec is not None:
+            if self.is_connected:
+                return self._cec.volume
+
+            return None
+
         try:
             current_volume = self.MainTVAgent2.GetVolume()[1]
         except AttributeError:
@@ -1437,10 +1495,14 @@ class UPNPTV(UPNPObject):
 
     @volume.setter
     def volume(self, desired_volume):
-        try:
-            self.MainTVAgent2.SetVolume(desired_volume)
-        except AttributeError:
-            self.set_channel_volume('Master', desired_volume)
+        if self._cec is not None:
+            if self.is_connected:
+                self._cec.volume = desired_volume
+        else:
+            try:
+                self.MainTVAgent2.SetVolume(desired_volume)
+            except AttributeError:
+                self.set_channel_volume('Master', desired_volume)
 
     @property
     def watching_information(self):
@@ -2145,6 +2207,90 @@ class UPNPTV(UPNPObject):
         return True if pvr.text == 'Yes' else False
 
 
+class ChannelContent(object):
+
+    def __init__(
+        self,
+        channel,
+        remote,
+        program_number,
+        node
+    ):
+        self.channel = channel
+        self._remote = remote
+        self.program_number = program_number
+        self._node = node
+
+
+    def __getattr__(self, item):
+
+        if item in self.__dict__:
+            return self.__dict__[item]
+
+        if item in self.__class__.__dict__:
+            if hasattr(self.__class__.__dict__[item], 'fget'):
+                return self.__class__.__dict__[item].fget(self)
+
+        for child in self._node:
+            if child.tag == item:
+                value = child.text
+                if value.isdigit():
+                    value = int(value)
+
+                return value
+
+        raise AttributeError(item)
+
+    @property
+    def start_time(self):
+        try:
+            return self.StartTime
+        except AttributeError:
+            return None
+
+    @property
+    def end_time(self):
+        try:
+            return self.EndTime
+        except AttributeError:
+            return None
+
+    @property
+    def title(self):
+        try:
+            return self.Title
+        except AttributeError:
+            return None
+
+    @property
+    def detail_info(self):
+        try:
+            return self.DetailInfo
+        except AttributeError:
+            return None
+
+    @property
+    def free_ca_mode(self):
+        try:
+            return self.FreeCAMode
+        except AttributeError:
+            return None
+
+    @property
+    def genre(self):
+        try:
+            return self.Genre
+        except AttributeError:
+            return None
+
+    @property
+    def series_id(self):
+        try:
+            return self.SeriesID
+        except AttributeError:
+            return None
+
+
 @six.add_metaclass(InstanceSingleton)
 class Channel(object):
 
@@ -2267,6 +2413,57 @@ class Channel(object):
             satellite_id,
             channel
         )
+
+    def __iter__(self):
+        url = self._parent.program_information_url
+        response = requests.get(url)
+
+        try:
+            program_information = etree.fromstring(
+                response.content.decode('utf-8')
+            )
+        except etree.ParseError:
+            return
+        except ValueError:
+            try:
+                program_information = etree.fromstring(response.content)
+            except etree.ParseError:
+                return
+
+        program_information = strip_xmlns(program_information)
+
+        for program_info in program_information:
+            channel = program_info.find('Channel')
+            if channel is None:
+                continue
+
+            major = channel.find('MajorCh')
+            minor = channel.find('MinorCh')
+
+            if None in (major, minor):
+                continue
+
+            major = major.text
+            minor = minor.text
+
+            if major.isdigiit():
+                major = int(major)
+
+            if minor.isdigit():
+                minor = int(minor)
+
+            if major != self.MajorCh or minor != self.MinorCh:
+                continue
+
+            prog_num = channel.find('ProgNum')
+
+            if prog_num is None:
+                continue
+
+            prog_num = int(prog_num.text)
+            program_info
+
+            yield ChannelContent(self, self._parent, prog_num, program_info)
 
 
 @six.add_metaclass(InstanceSingleton)

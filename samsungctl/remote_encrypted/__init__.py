@@ -527,7 +527,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 name="callCommon",
                 args=[
                     dict(
-                        Session_Id=self.session_id,
+                        Session_Id=self.current_session_id,
                         body=[int_array]
                     )
                 ]

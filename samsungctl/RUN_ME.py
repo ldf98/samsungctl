@@ -395,7 +395,7 @@ def run_test(config):
     get_property('bluetooth_support', [])
     get_property('stream_support', [])
     run_method('list_presets', [])
-    
+
     get_property(
         'watching_information',
         ['tv_mode', 'information']
@@ -445,7 +445,7 @@ def run_test(config):
     _program_information_url = get_property('program_information_url', [])
     if _program_information_url is not None:
         with open(os.path.join(DATA_PATH, config.uuid + '-program_information_url.' + PY_VERSION_STR + '.log'), 'w') as f:
-            f.write(_program_information_url)
+            f.write(repr(_program_information_url))
 
     _current_connection_ids = get_property('current_connection_ids', [])
     if _current_connection_ids is not None:
@@ -654,7 +654,7 @@ def run_test(config):
 
     if _channels is not None:
         with open(os.path.join(DATA_PATH, config.uuid + '-channel_list_url.' + PY_VERSION_STR + '.log'), 'w') as f:
-            f.write(_channels)
+            f.write(repr(_channels))
 
     if _channel is not None:
         print('channel.number: ' + str(_channel.number))

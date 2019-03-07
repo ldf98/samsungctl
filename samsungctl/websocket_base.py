@@ -8,7 +8,6 @@ from . import wake_on_lan
 from .upnp import UPNPTV
 from .utils import LogIt, LogItWithReturn
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +29,7 @@ class WebSocketBase(UPNPTV):
         self._send_lock = threading.Lock()
         self._registered_callbacks = []
         self._thread = None
+
         UPNPTV.__init__(self, config)
 
         auto_discover.register_callback(

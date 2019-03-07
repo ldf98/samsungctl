@@ -15,6 +15,128 @@ LOGGING_FORMAT = '''\
 '''
 
 
+class CEC(object):
+
+    def __init__(
+        self,
+        name=None,
+        port=None,
+        types=None,
+        power_off=None,
+        power_standby=None,
+        wake_avr=None,
+        keypress_combo=None,
+        keypress_combo_timeout=None,
+        keypress_repeat=None,
+        keypress_release_delay=None,
+        keypress_double_tap=None,
+        hdmi_port=None,
+        avr_audio=None,
+    ):
+        self.name = name
+        self.port = port
+        self.types = types
+        self.power_off = power_off
+        self.power_standby = power_standby
+        self.wake_avr = wake_avr
+        self.keypress_combo = keypress_combo
+        self.keypress_combo_timeout = keypress_combo_timeout
+        self.keypress_repeat = keypress_repeat
+        self.keypress_release_delay = keypress_release_delay
+        self.keypress_double_tap = keypress_double_tap
+        self.hdmi_port = hdmi_port
+        self.avr_audio = avr_audio
+
+    def __iter__(self):
+        yield 'name', self.name
+        yield 'port', self.port
+        yield 'types', self.types
+        yield 'power_off', self.power_off
+        yield 'power_standby', self.power_standby
+        yield 'wake_avr', self.wake_avr
+        yield 'keypress_combo', self.keypress_combo
+        yield 'keypress_combo_timeout', self.keypress_combo_timeout
+        yield 'keypress_repeat', self.keypress_repeat
+        yield 'keypress_release_delay', self.keypress_release_delay
+        yield 'keypress_double_tap', self.keypress_double_tap
+        yield 'hdmi_port', self.hdmi_port
+        yield 'avr_audio', self.avr_audio
+
+    def __str__(self):
+        data = {}
+
+        for key, value in self:
+            if isinstance(value, list):
+                if value:
+                    value = ', '.join(value)
+                else:
+                    value = None
+
+            data[key] = value
+
+        return CEC_TEMPLATE.format(**data)
+
+
+def read_data(data):
+    config = dict()
+    cec = None
+    try:
+        data = json.loads(data)
+        config.update(data)
+    except ValueError:
+        for line in data.split('\n'):
+            if not line.strip():
+                continue
+
+            if line.strip().startswith('cec:'):
+                cec = {}
+                continue
+            elif (
+                cec is not None and
+                line.startswith(' ') and
+                line.strip().lower() in ('null', 'none')
+            ):
+                cec = None
+                continue
+
+            try:
+                key, value = line.split('=', 1)
+            except ValueError:
+                if line.count('=') == 1:
+                    key = line.replace('=', '')
+                    value = ''
+                else:
+                    continue
+
+            key = key.lower()
+            value = value.strip()
+
+            if value.lower() in ('none', 'null'):
+                value = None
+            elif not value:
+                value = None
+
+            elif ',' in value:
+                value = list(
+                    val.strip() for val in value.split(',')
+                    if val.strip()
+                )
+            else:
+                try:
+                    value = int(value)
+                except ValueError:
+                    pass
+
+            if key.startswith(' ') and cec is not None:
+                cec[key.strip()] = value
+            else:
+                config[key.strip()] = value
+
+        config['cec'] = cec
+
+    return config
+
+
 class Config(object):
     LOG_OFF = logging.NOTSET
     LOG_CRITICAL = logging.CRITICAL
@@ -41,7 +163,7 @@ class Config(object):
         uuid=None,
         model=None,
         app_id=None,
-        # user_id=None,
+        cec=None,
         **_
     ):
 
@@ -68,6 +190,11 @@ class Config(object):
         self.model = model
         self.mac = mac
         self._display_name = display_name
+
+        if cec is not None:
+            cec = CEC(**cec)
+
+        self.cec = cec
 
     @property
     def display_name(self):
@@ -119,53 +246,10 @@ class Config(object):
             path = os.path.expandvars(path)
 
         if os.path.isfile(path):
-            config = dict()
+
             with open(path, 'r') as f:
-                loaded_config = f.read()
+                config = read_data(f.read())
 
-                try:
-                    loaded_config = json.loads(loaded_config)
-                    config.update(loaded_config)
-
-                except ValueError:
-                    for line in loaded_config.split('\n'):
-                        if not line.strip():
-                            continue
-
-                        try:
-                            key, value = line.split('=', 1)
-                        except ValueError:
-                            if line.count('=') == 1:
-                                key = line.replace('=', '')
-                                value = ''
-                            else:
-                                continue
-
-                        key = key.lower().strip()
-                        value = value.strip()
-
-                        if value.lower() in ('none', 'null'):
-                            value = None
-                        elif not value:
-                            value = None
-                        elif key in ('port', 'timeout'):
-                            try:
-                                value = int(value)
-                            except ValueError:
-                                value = 0
-                        elif key == 'upnp_locations':
-
-                            if value.startswith('['):
-                                value = value.replace("'", '').replace('"', '')
-                                value = value[1:-1]
-
-                            value = list(
-                                val.strip() for val in value.split(',')
-                                if val.strip()
-                            )
-
-                        config[key] = value
-            logger.debug(str(config))
             self = Config(**config)
             self.path = path
 
@@ -191,6 +275,7 @@ class Config(object):
                 app_id=None,
                 model=None,
                 display_name=None,
+                cec=None,
                 **_
             ):
                 if os.path.isdir(pth):
@@ -220,7 +305,8 @@ class Config(object):
                     uuid=uuid,
                     app_id=app_id,
                     model=model,
-                    display_name=display_name
+                    display_name=display_name,
+                    cec=cec,
                 )
                 self.path = cfg_path
 
@@ -293,32 +379,21 @@ class Config(object):
         yield 'app_id', self.app_id
         yield 'model', self.model
         yield 'display_name', self._display_name
+        yield 'cec', self.cec
 
     def __str__(self):
-        upnp_locations = self.upnp_locations
+        data = {}
 
-        if upnp_locations:
-            upnp_locations = ', '.join(upnp_locations)
-        else:
-            upnp_locations = None
+        for key, value in self:
+            if isinstance(value, list):
+                if value:
+                    value = ', '.join(value)
+                else:
+                    value = None
 
-        return TEMPLATE.format(
-            name=self.name,
-            description=self.description,
-            host=self.host,
-            port=self.port,
-            id=self.id,
-            method=self.method,
-            timeout=self.timeout,
-            token=self.token,
-            upnp_locations=upnp_locations,
-            paired=self.paired,
-            mac=self.mac,
-            model=self.model,
-            app_id=self.app_id,
-            uuid=self.uuid,
-            display_name=self._display_name
-        )
+            data[key] = value
+
+        return TEMPLATE.format(**data)
 
 
 TEMPLATE = '''\
@@ -337,4 +412,21 @@ model = {model}
 app_id = {app_id}
 uuid = {uuid}
 display_name = {display_name}
+cec:
+  {cec}
+'''
+
+CEC_TEMPLATE = '''name = {name}
+  port = {port}
+  types = {types}
+  power_off = {power_off}
+  power_standby = {power_standby}
+  wake_avr = {wake_avr}
+  keypress_combo = {keypress_combo}
+  keypress_combo_timeout = {keypress_combo_timeout}
+  keypress_repeat = {keypress_repeat}
+  keypress_release_delay = {keypress_release_delay}
+  keypress_double_tap = {keypress_double_tap}
+  hdmi_port = {hdmi_port}
+  avr_audio = {avr_audio}
 '''

@@ -166,6 +166,20 @@ class Application(object):
         else:
             self._accelerators = []
 
+    def __getattr__(self, item):
+
+        if item in self.__dict__:
+            return self.__dict__[item]
+
+        if item in Application.__dict__:
+            if hasattr(Application.__dict__[item], 'fget'):
+                return Application.__dict__[item].fget(self)
+
+        if item in self._kwargs:
+            return self._kwargs[item]
+
+        raise AttributeError(item)
+
     @property
     @LogItWithReturn
     def action_type(self):
@@ -466,6 +480,20 @@ class AppData(object):
         self.subtitle3 = subtitle3
         self._icon = icon
         self._kwargs.update(kwargs)
+
+    def __getattr__(self, item):
+
+        if item in self.__dict__:
+            return self.__dict__[item]
+
+        if item in AppData.__dict__:
+            if hasattr(AppData.__dict__[item], 'fget'):
+                return AppData.__dict__[item].fget(self)
+
+        if item in self._kwargs:
+            return self._kwargs[item]
+
+        raise AttributeError(item)
 
     @property
     @LogItWithReturn
