@@ -4,6 +4,28 @@ import sys
 import time
 import threading
 import traceback
+import platform
+
+import warnings
+warnings.simplefilter("ignore")
+
+if platform.system() == 'Windows':
+    version = platform.win32_ver()
+
+elif 'Darwin' in platform.system():
+    version = platform.mac_ver()
+
+else:
+    version =platform.linux_distribution()
+
+
+TEMPLATE = '''\
+OS: {system} {version}
+Python: {python_version}
+Python Compiler: {compiler}
+Processor: {processor}
+Architecture: {architecture}
+'''
 
 PY_VERSION_STR = '.'.join(str(itm) for itm in sys.version_info[:2])
 
@@ -12,6 +34,19 @@ if sys.platform.startswith('win'):
     DATA_PATH = r'C:\tests'
 else:
     DATA_PATH = r'/tests'
+
+
+with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
+    f.write(
+        TEMPLATE.format(
+            system=platform.system(),
+            version=' '.join(version),
+            python_version=platform.python_version(),
+            compiler=platform.python_compiler(),
+            processor=platform.machine(),
+            architecture=platform.architecture()[0]
+        )
+    )
 
 SSDP_FILENAME = os.path.join(DATA_PATH, 'ssdp_output' + PY_VERSION_STR + '.log')
 
