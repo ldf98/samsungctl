@@ -129,14 +129,10 @@ class UPNPDiscoverSocket(threading.Thread):
                         (IPV4_MCAST_GRP, 1900)
                     )
                 except socket.error:
-                    print(self._local_address)
-                    import traceback
-                    traceback.print_exc()
                     try:
                         self.sock.close()
                     except socket.error:
                         pass
-
                     self.sock = None
                     return
 

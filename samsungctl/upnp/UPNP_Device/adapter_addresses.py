@@ -188,7 +188,7 @@ if platform.system() == 'Windows':
                 while True:
                     ip = sockaddr_to_ip(address.Address.lpSockaddr)
                     if ip and ip != '127.0.0.1':
-                        logging.debug('adapter ip: ' + ip)
+                        logger.debug('adapter ip: ' + ip)
                         yield ip
 
                     if not address.Next:
