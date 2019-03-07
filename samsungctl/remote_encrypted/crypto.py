@@ -3,20 +3,30 @@ import hashlib
 import struct
 import logging
 import binascii
-from .aes import AES, AES_CIPHER, MODE_CBC
+from . import keys
 
-from .rijndael import RIJNDAEL_CIPHER
-from .keys import PUBLIC_KEY, BN_PRIVATE_KEY, BN_PRIME
+import hashlib
+import struct
+import logging
+import binascii
+from Crypto.Cipher import AES as _AES
+from .aes import AES, AES_CIPHER, MODE_CBC
+#
+from .rijndael import Rijndael
+from .keys import PUBLIC_KEY, BN_PRIVATE_KEY, BN_PRIME, TRANS_KEY
+from ..utils import LogItWithReturn
 
 
 logger = logging.getLogger('samsungctl')
 
+
 BLOCK_SIZE = 16
 SHA_DIGEST_LENGTH = 20
-
 USER_ID_POS = 15
 USER_ID_LEN_POS = 11
 GX_SIZE = 0x80
+IV = b"\x00" * BLOCK_SIZE
+
 
 
 try:
@@ -42,62 +52,50 @@ def pack(data):
 
 
 def unpack(data):
-    struct.unpack('>I', data)
+    return struct.unpack('>I', data)
 
 
+@LogItWithReturn
 def encrypt_parameter_data_with_aes(data):
-    output = b''
+    output = b""
     for num in range(0, 128, 16):
-        output += AES_CIPHER.encrypt(
-            data[num:num + 16],
-            add_padding=False,
-            encoding=None
-        )
-
+        cipher = _AES.new(binascii.unhexlify(keys.wbKey), _AES.MODE_CBC, IV)
+        output += cipher.encrypt(data[num:num + 16])
     return output
 
 
+@LogItWithReturn
 def decrypt_parameter_data_with_aes(data):
-    output = b''
+    output = b""
     for num in range(0, 128, 16):
-        output += AES_CIPHER.decrypt(
-            data[num:num + 16],
-            remove_padding=False,
-            unhexlify=None
-        )
-
+        cipher = _AES.new(binascii.unhexlify(keys.wbKey), _AES.MODE_CBC, IV)
+        output += cipher.decrypt(data[num:num + 16])
     return output
 
 
 def apply_samy_go_key_transform(data):
-    return RIJNDAEL_CIPHER.encrypt(data)
+    r = Rijndael(TRANS_KEY)
+    return r.encrypt(data)
 
 
+@LogItWithReturn
 def generate_server_hello(user_id, pin):
     pin_hash = generate_sha1(pin.encode('utf-8'))
     aes_key = pin_hash[:16]
-    debug('AES key', aes_key)
+    debug("AES key", aes_key)
 
-    cipher = AES(aes_key, MODE_CBC)
-    encrypted = cipher.encrypt(
-        PUBLIC_KEY,
-        add_padding=False,
-        encoding=None
-    )
-    debug('AES encrypted', encrypted)
+    cipher = _AES.new(aes_key, _AES.MODE_CBC, IV)
+    encrypted = cipher.encrypt(PUBLIC_KEY)
+    debug("AES encrypted", encrypted)
 
     swapped = encrypt_parameter_data_with_aes(encrypted)
-    debug('AES swapped', swapped)
+    debug("AES swapped", swapped)
 
-    data = (
-        pack(len(user_id)) +
-        user_id.encode('utf-8') +
-        swapped
-    )
-    debug('data buffer', data.upper())
+    data = pack(len(user_id)) + user_id.encode('utf-8') + swapped
+    debug("data buffer", data.upper())
 
     data_hash = generate_sha1(data)
-    debug('hash', data_hash)
+    debug("hash", data_hash)
 
     server_hello = (
         b'\x01\x02\x00\x00\x00\x00\x00' +
@@ -105,63 +103,15 @@ def generate_server_hello(user_id, pin):
         data +
         b'\x00\x00\x00\x00\x00'
     )
-    return dict(serverHello=server_hello, hash=data_hash, AES_key=aes_key)
+    return {"serverHello": server_hello, "hash": data_hash, "AES_key": aes_key}
 
 
-def check_pin_validity(user_id, data, stop, secret):
-    secret2 = user_id + secret
-    debug('secret2', secret2)
-
-    sha1 = hashlib.sha1()
-    sha1.update(secret2)
-    data_hash_2 = sha1.digest()
-    debug('data_hash_2', data_hash_2)
-
-    data_hash_3 = data[:stop]
-    debug('data_hash_3', data_hash_3)
-
-    if data_hash_2 != data_hash_3:
-        logger.debug('pin error!!!')
-        return False
-        # logger.debug("Pin OK :)\n")
-
-    start = stop
-    stop += 1
-    if ord(data[start:stop]):
-        logger.debug('first flag error!!!')
-        return False
-
-    start = stop
-    stop += 4
-    if unpack(data[start:stop])[0]:
-        logger.debug('second flag error!!!')
-        return False
-
-    return True
-
-
+@LogItWithReturn
 def parse_client_hello(client_hello, aes_key, g_user_id):
-    # client_hello, data_hash, aes_key, g_user_id):
-
     data = binascii.unhexlify(client_hello)
     debug('client_hello', data)
 
-    # first_len = struct.unpack('>I', data[7:11])[0]
     user_id_len = unpack(data[11:15])[0]
-
-    # Always equals first_len????:)
-    # dest_len = user_id_len + 132 + SHA_DIGEST_LENGTH
-    # third_len = user_id_len + 132
-
-    # logger.debug('(third_len) ' + str(third_len))
-
-    # start = USER_ID_LEN_POS
-    # stop = third_len + USER_ID_LEN_POS
-    # dest = data[start:stop] + data_hash
-    # debug('dest', dest)
-
-    # dest_hash = generate_sha1(dest)
-    # debug('dest_hash', dest_hash)
 
     start = USER_ID_POS
     stop = user_id_len + USER_ID_POS
@@ -178,16 +128,11 @@ def parse_client_hello(client_hello, aes_key, g_user_id):
     p_enc_gx = decrypt_parameter_data_with_aes(p_enc_wbgx)
     debug('pEncGx', p_enc_gx)
 
-    cipher = AES(aes_key, MODE_CBC)
-    p_gx = cipher.decrypt(
-        p_enc_gx,
-        remove_padding=False,
-        unhexlify=None
-    )
+    cipher = _AES.new(aes_key, _AES.MODE_CBC, IV)
+    p_gx = cipher.decrypt(p_enc_gx)
     debug('pGx', p_gx)
 
     bn_pgx = int(bytes2str(p_gx), 16)
-
     secret_int = pow(bn_pgx, BN_PRIVATE_KEY, BN_PRIME)
     secret = hex(secret_int).upper().rstrip('L').lstrip('0X')
     secret = ((len(secret) % 2) * '0') + secret
@@ -196,8 +141,8 @@ def parse_client_hello(client_hello, aes_key, g_user_id):
 
     if not check_pin_validity(
         user_id,
-        data[stop:],
-        stop + SHA_DIGEST_LENGTH,
+        data,
+        stop,
         secret
     ):
         return False
@@ -221,12 +166,45 @@ def parse_client_hello(client_hello, aes_key, g_user_id):
     return dict(ctx=ctx, SKPrime=sk_prime)
 
 
+@LogItWithReturn
+def check_pin_validity(user_id, data, start, secret):
+    stop = start + SHA_DIGEST_LENGTH
+
+    data_hash_2 = data[start:stop]
+    debug('data_hash_2', data_hash_2)
+
+    secret2 = user_id + secret
+    debug("secret2", secret2)
+
+    data_hash_3 = generate_sha1(secret2)
+    debug("data_hash_3", data_hash_3)
+
+    if data_hash_2 != data_hash_3:
+        logger.debug('pin error!!!')
+        return False
+
+    start = stop
+    stop += 1
+    if ord(data[start:stop]):
+        logger.debug('first flag error!!!')
+        return False
+
+    start = stop
+    stop += 4
+    if unpack(data[start:stop])[0]:
+        logger.debug('second flag error!!!')
+        return False
+
+    return True
+
+
 def generate_sha1(data):
     sha1 = hashlib.sha1()
     sha1.update(data)
     return sha1.digest()
 
 
+@LogItWithReturn
 def generate_server_acknowledge(sk_prime):
     sk_prime_hash = generate_sha1(sk_prime + b'\x01')
 
@@ -237,6 +215,7 @@ def generate_server_acknowledge(sk_prime):
     )
 
 
+@LogItWithReturn
 def parse_client_acknowledge(client_ack, sk_prime):
     sk_prime_hash = generate_sha1(sk_prime + b'\x02')
 

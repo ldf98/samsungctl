@@ -12,6 +12,7 @@ privateKey = (
     '90436c4a0cb2c524e15bc1bfeae703bcbc4b74a0540202e8d79cadaae85c6f9c218bc1107'
     'd1f5b4b9bd87160e782f4e436eeb17485ab4d'
 )
+transKey = '6c9474469ddf7578f3e5ad8a4c703d99'
 wbKey = 'abbb120c09e7114243d1fa0102163b27'
 prime = (
     'b361eb0ab01c3439f2c16ffda7b05e3e320701ebee3e249123c3586765fd5bf6c1dfa88bb'
@@ -24,4 +25,4 @@ prime = (
 BN_PRIME = int(prime, 16)
 BN_PRIVATE_KEY = int(privateKey, 16)
 PUBLIC_KEY = binascii.unhexlify(publicKey)
-
+TRANS_KEY = binascii.unhexlify(transKey)

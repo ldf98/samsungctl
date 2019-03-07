@@ -5,10 +5,15 @@ import time
 import threading
 import traceback
 
+PY_VERSION_STR = '.'.join(str(itm) for itm in sys.version_info[:2])
+
+
 if sys.platform.startswith('win'):
     DATA_PATH = r'C:\tests'
 else:
     DATA_PATH = r'/tests'
+
+SSDP_FILENAME = os.path.join(DATA_PATH, 'ssdp_output' + PY_VERSION_STR + '.log')
 
 if not os.path.exists(DATA_PATH):
     try:
@@ -35,7 +40,7 @@ if not os.path.exists(DATA_PATH):
 WRITE_LOCK = threading.RLock()
 
 
-log_file = open(os.path.join(DATA_PATH, 'ssdp_output.log'), 'w')
+log_file = open(SSDP_FILENAME, 'w')
 
 
 def print(*args):
@@ -116,9 +121,10 @@ def run_test(config):
     global log_file
 
     auto_discover.logging = False
-    log_file.close()
-    log_path = os.path.join(DATA_PATH, config.uuid + '.log')
-    log_file = open(log_path, 'w')
+    log_path = os.path.join(DATA_PATH, config.uuid + '.' + PY_VERSION_STR + '.log')
+    with WRITE_LOCK:
+        log_file.close()
+        log_file = open(log_path, 'w')
 
     print('FOUND TV')
     print(config)
@@ -128,12 +134,12 @@ def run_test(config):
         answer = input('Run tests on TV ' + str(config.model) + '? ((y/n):')
 
     if not answer.lower().startswith('y'):
-        log_file.close()
-        log_file = open(os.path.join(DATA_PATH, 'ssdp_output.log'), 'a')
+        with WRITE_LOCK:
+            log_file.close()
+            log_file = open(SSDP_FILENAME, 'a')
+
         auto_discover.logging = True
         return
-
-    data_files = list(os.path.join(DATA_PATH, f) for f in os.listdir(DATA_PATH))
 
     config_file = os.path.join(DATA_PATH, config.uuid + '.config')
     if os.path.exists(config_file):
@@ -370,7 +376,7 @@ def run_test(config):
 
     _program_information_url = get_property('program_information_url', [])
     if _program_information_url is not None:
-        with open(os.path.join(DATA_PATH, config.uuid + '-program_information_url.log'), 'w') as f:
+        with open(os.path.join(DATA_PATH, config.uuid + '-program_information_url.' + PY_VERSION_STR + '.log'), 'w') as f:
             f.write(_program_information_url)
 
     _current_connection_ids = get_property('current_connection_ids', [])
@@ -496,6 +502,7 @@ def run_test(config):
         print('PLEASE WATCH THE TV')
         time.sleep(3)
         remote.control('KEY_VOLUP')
+        time.sleep(0.5)
         try:
             response = raw_input('Did the volume go up? (y/n):')
 
@@ -510,6 +517,7 @@ def run_test(config):
         print('KEY_VOLUP: ' + str(response))
 
         remote.control('KEY_VOLDOWN')
+        time.sleep(0.5)
         try:
             response = raw_input('Did the volume go down? (y/n):')
 
@@ -571,7 +579,7 @@ def run_test(config):
     )
 
     if _channels is not None:
-        with open(os.path.join(DATA_PATH, config.uuid + '-channel_list_url.log'), 'w') as f:
+        with open(os.path.join(DATA_PATH, config.uuid + '-channel_list_url.' + PY_VERSION_STR + '.log'), 'w') as f:
             f.write(_channels)
 
     if _channel is not None:
@@ -642,8 +650,10 @@ def run_test(config):
         get_property('power', [])
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
-    log_file.close()
-    log_file = open(os.path.join(DATA_PATH, 'ssdp_output.log'), 'a')
+    with WRITE_LOCK:
+        log_file.close()
+        log_file = open(SSDP_FILENAME, 'a')
+
     auto_discover.logging = True
 
 

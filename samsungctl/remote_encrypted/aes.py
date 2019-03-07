@@ -34,13 +34,20 @@ class AES:
     def __init__(self, key, mode=_AES.MODE_ECB, *args):
         try:
             self.key = binascii.unhexlify(key)
-        except TypeError:
+        except (TypeError, binascii.Error):
             self.key = key
 
-        if mode == MODE_CBC:
-            self._cipher = _AES.new(self.key, mode, IV)
+        self._mode = mode
+        self._args = args
+
+    @property
+    def _cipher(self):
+        if self._mode == MODE_CBC:
+            cipher = _AES.new(self.key, self._mode, IV)
         else:
-            self._cipher = _AES.new(self.key, mode, *args)
+            cipher = _AES.new(self.key, self._mode, *self._args)
+
+        return cipher
 
     def decrypt(self, enc, remove_padding=True, unhexlify=binascii.unhexlify):
         if unhexlify is not None:

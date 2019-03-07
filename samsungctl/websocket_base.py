@@ -40,18 +40,19 @@ class WebSocketBase(UPNPTV):
         if not auto_discover.is_running:
             auto_discover.start()
 
-        self._connect(auto_discover.is_on(config.uuid), True)
+        self.open()
 
     def _connect(self, config, power):
-        if config is None:
-            return
+        with self._auth_lock:
+            if config is None:
+                return
 
-        if power and not self._thread:
-            self.config.copy(config)
-            self.open()
+            if power and not self._thread:
+                self.config.copy(config)
+                self.open()
 
-        elif not power:
-            self.close()
+            elif not power:
+                self.close()
 
     def _send_key(self, *args, **kwargs):
         raise NotImplementedError

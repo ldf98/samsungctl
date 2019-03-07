@@ -53,7 +53,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             return (
                 json.loads(
                     response.content.decode('utf-8')
-                )['device']['TokenAuthSupport']
+                )['device']['TokenAuthSupport'] == 'true'
             )
         except (ValueError, KeyError):
             return False
@@ -91,11 +91,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             unauth_event = threading.Event()
 
             def unauthorized_callback(_):
-                self.unregister_receive_callback(
-                    auth_callback,
-                    'event',
-                    'ms.channel.connect'
-                )
                 unauth_event.set()
                 auth_event.set()
 
@@ -115,11 +110,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 logger.debug(
                     self.config.host +
                     ' -- access granted'
-                )
-                self.unregister_receive_callback(
-                    unauthorized_callback,
-                    'event',
-                    'ms.channel.unauthorized'
                 )
                 auth_event.set()
 
@@ -158,6 +148,17 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 auth_event.wait(5.0)
             else:
                 auth_event.wait(30.0)
+
+            self.unregister_receive_callback(
+                unauthorized_callback,
+                'event',
+                'ms.channel.unauthorized'
+            )
+            self.unregister_receive_callback(
+                auth_callback,
+                'event',
+                'ms.channel.connect'
+            )
 
             if not auth_event.isSet() or unauth_event.isSet():
                 self.close()

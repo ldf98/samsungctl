@@ -106,11 +106,8 @@ class Config(object):
 
     def copy(self, src):
         self.host = src.host
-        self.port = src.port
         self.upnp_locations = src.upnp_locations
         self.mac = src.mac
-        self.method = src.method
-        self.port = src.port
         self.app_id = src.app_id
         self.model = src.model
 
