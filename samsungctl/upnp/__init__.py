@@ -54,11 +54,14 @@ class UPNPTV(UPNPObject):
                 logger.error('No cec adapters located')
                 self._cec = None
             else:
-
                 config.cec.adapter_port = cec_config.strDevicePort
                 config.cec.adapter_types = cec_config.adapter_types
 
                 self._cec = cec_control.PyCECAdapter(cec_config)
+
+                self._cec.keypress_events = True
+                self._cec.status_events = True
+                self._cec.source_events = True
 
             self._cec_config = cec_config
 
@@ -1340,6 +1343,12 @@ class UPNPTV(UPNPObject):
             if self._cec is not None:
                 if not self.is_connected:
                     return
+
+                for device in self._cec:
+
+
+                    device.osd_name
+                    device.active_source
 
             pass
 
@@ -2685,6 +2694,7 @@ class Source(object):
         name,
         parent,
         editable,
+        cec_device=None
     ):
         self._id = id
         self.__name__ = name
@@ -2695,6 +2705,7 @@ class Source(object):
         self._device_name = None
         self._label = name
         self._active = False
+        self._cec_device = cec_device
 
     def _update(self, node, active):
         self._viewable = node.find('SupportView').text == 'Yes'
@@ -2726,28 +2737,46 @@ class Source(object):
 
     @property
     def id(self):
+        if self._cec_device is not None:
+            return self._cec_device.logical_address
+
         return self._id
 
     @property
     def name(self):
+        if self._cec_device is not None:
+            return self._cec_device.name
+
         return self.__name__
 
     @property
     def is_viewable(self):
+        if self._cec_device is not None:
+            return self._cec_device.power
+
         _ = self._parent.sources
         return self._viewable
 
     @property
     def is_editable(self):
+        if self._cec_device is not None:
+            return True
+
         return self._editable
 
     @property
     def is_connected(self):
+        if self._cec_device is not None:
+            return self._cec_device.connected
+
         _ = self._parent.sources
         return self._connected
 
     @property
     def label(self):
+        if self._cec_device is not None:
+            return self._cec_device.osd_name
+
         _ = self._parent.sources
 
         label = self._label
@@ -2765,7 +2794,10 @@ class Source(object):
     @label.setter
     def label(self, value):
         if self.is_editable:
-            self._parent.MainTVAgent2.EditSourceName(self.name, value)
+            if self._cec_device is not None:
+                self._cec_device.osd_name = value
+            else:
+                self._parent.MainTVAgent2.EditSourceName(self.name, value)
 
     @property
     def device_name(self):
@@ -2781,6 +2813,9 @@ class Source(object):
 
     @property
     def is_active(self):
+        if self._cec_device is not None:
+            return self._cec_device.active_source
+
         _ = self._parent.sources
         return self._active
 
@@ -2798,18 +2833,22 @@ class Source(object):
 
     def activate(self):
         if self.is_connected:
-            try:
-                self._parent.MainTVAgent2.SetMainTVSource(
-                    self.name,
-                    str(self.id),
-                    str(self.id)
-                )
-            except ValueError:
-                self._parent.MainTVAgent2.SetMainTVSource(
-                    self.name,
-                    self.id,
-                    self.id
-                )
+
+            if self._cec_device is not None:
+                self._cec_device.active_source = True
+            else:
+                try:
+                    self._parent.MainTVAgent2.SetMainTVSource(
+                        self.name,
+                        str(self.id),
+                        str(self.id)
+                    )
+                except ValueError:
+                    self._parent.MainTVAgent2.SetMainTVSource(
+                        self.name,
+                        self.id,
+                        self.id
+                    )
 
     def __str__(self):
         return self.label

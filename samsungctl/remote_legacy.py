@@ -111,6 +111,27 @@ class RemoteLegacy(upnp.UPNPTV):
     def power(self, value):
         event = threading.Event()
         if value and not self.power:
+            if self._cec is not None:
+                from .cec_control import PyCECTV
+
+                for device in self._cec:
+                    if isinstance(device, PyCECTV):
+                        device.power = True
+                        count = 0
+
+                        while not self.power and count < 20:
+                            event.wait(1.0)
+                            count += 1
+
+                        if count == 20:
+                            logger.info(
+                                self.config.host +
+                                ' -- power on using CEC failed.'
+                            )
+
+                        else:
+                            return
+
             if self.mac_address:
                 count = 0
                 wake_on_lan.send_wol(self.mac_address)

@@ -48,6 +48,14 @@ https://github.com/kdschlosser/samsungctl/issues/106
 
 it would be appreciated
 
+
+I added CEC support to the library. so if you are running this from a 
+Raspberry Pi and you have the HDMI plugged in and libcec installed on the Pi.
+drop me a line on github and I will tell you how to get it going.
+
+Features are Power on for legacy TV's, Source list for 2016+ TV's, 
+volume and mute direct input will use CEC instead of UPNP.
+
 press any key to continue...
 '''
 
@@ -477,10 +485,7 @@ def run_test(config):
         time.sleep(0.5)
         set_property('aspect_ratio', _aspect_ratio)
 
-    # aspect_ratio = ''
-
     _play_mode = get_property('play_mode', [])
-    # play_mode = ''
 
     print('\nSPEAKER TESTS\n')
 
@@ -676,7 +681,6 @@ def run_test(config):
         print('channel.name: ' + str(_channel.name))
         # print('channel.is_recording: ' + str(_channel.is_recording))
         print('channel.is_active: ' + str(_channel.is_active))
-
 
     print('\nICON TESTS\n')
 

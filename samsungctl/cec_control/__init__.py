@@ -56,6 +56,7 @@ import cec
 import time
 import logging
 import six
+from . import dispatcher
 
 
 logger = logging.getLogger(__name__)
@@ -791,6 +792,17 @@ CONTROL_CODES = [
     cec.CEC_USER_CONTROL_CODE_UNKNOWN,
 ]
 
+DEVICE_POWER_EVENT = 0x00
+DEVICE_OSD_EVENT = 0x01
+DEVICE_CONNECTED_EVENT = 0x02
+DEVICE_DISCONNECT_EVENT = 0x03
+TV_SOURCE_EVENT = 0x04
+TV_REMOTE_EVENT = 0x05
+AUDIO_VOLUME_EVENT = 0x06
+AUDIO_MUTE_EVENT = 0x07
+AUDIO_STATE_EVENT = 0x08
+PLAYER_STATUS_EVENT = 0x09
+
 
 class KeyCodes(object):
 
@@ -911,10 +923,14 @@ class EventThread(threading.Thread):
 
             if new_audio != old_audio:
                 old_audio = new_audio
-                self._adapter.trigger_event(
-                    'AVRAudio.{0}'.format(
-                        'On' if new_audio else 'Off'
-                    )
+                dispatcher.send(
+                    AUDIO_STATE_EVENT,
+                    self._adapter,
+                    device=None,
+                    value=new_audio
+                )
+                logger.debug(
+                    'CEC.AVRAudio.{0}'.format('On' if new_audio else 'Off')
                 )
 
             if new_audio:
@@ -923,16 +939,27 @@ class EventThread(threading.Thread):
 
                 if new_mute != old_mute:
                     old_mute = new_mute
-                    self._adapter.trigger_event(
-                        'AVRAudio.Mute.{0}'.format(
-                            'On' if new_mute else 'Off'
-                        )
+                    dispatcher.send(
+                        AUDIO_MUTE_EVENT,
+                        self._adapter,
+                        device=None,
+                        value=new_mute
+                    )
+                    logger.debug(
+                        'CEC.AVRAudio.Mute.{0}'.format('On' if new_mute else 'Off')
                     )
 
                 if new_volume != old_volume:
                     old_volume = new_volume
-                    self._adapter.trigger_event(
-                        'AVRAudio.Volume.{0}'.format(int(new_volume))
+
+                    dispatcher.send(
+                        AUDIO_VOLUME_EVENT,
+                        self._adapter,
+                        device=None,
+                        value=int(new_volume)
+                    )
+                    logger.debug(
+                        'CEC.AVRAudio.Volume.{0}'.format(int(new_volume))
                     )
             else:
                 old_mute = None
@@ -946,8 +973,15 @@ class EventThread(threading.Thread):
                 if new_devices.IsSet(i):
                     if not device.connected:
                         device.connected = True
-                        self._adapter.trigger_event(
-                            '{0}.Connected'.format(name)
+
+                        dispatcher.send(
+                            DEVICE_CONNECTED_EVENT,
+                            self._adapter,
+                            device=device,
+                            value=None
+                        )
+                        logger.debug(
+                            'CEC.Device.{0}.Connected'.format(name)
                         )
 
                     power = device.power
@@ -978,20 +1012,33 @@ class EventThread(threading.Thread):
                         else:
                             power_count = 0
                             old[device]['power'] = power
-                            self._adapter.trigger_event(
-                                '{0}.Power.{1}'.format(
-                                    name,
-                                    self._adapter.PowerStatusToString(
-                                        power
-                                    ).title().replace(' ', '')
-                                )
+
+                            dispatcher.send(
+                                DEVICE_POWER_EVENT,
+                                self._adapter,
+                                device=device,
+                                value=device.power
+                            )
+
+                            state = self._adapter.PowerStatusToString(power)
+                            state = state.title().replace(' ', '')
+
+                            logger.debug(
+                                'CEC.Device.{0}.Power.{1}'.format(name, state)
                             )
 
                     if osd_name != old[device]['osd_name']:
                         old[device]['osd_name'] = osd_name
-                        self._adapter.trigger_event(
-                            '{0}.OSD.Changed'.format(name),
-                            osd_name
+
+                        dispatcher.send(
+                            DEVICE_OSD_EVENT,
+                            self._adapter,
+                            device=device,
+                            value=osd_name
+                        )
+
+                        logger.debug(
+                            'CEC.Device.{0}.OSD.Changed.{0}'.format(name, osd_name)
                         )
 
                 elif device.connected:
@@ -999,12 +1046,27 @@ class EventThread(threading.Thread):
 
                     if old[device]['power']:
                         old[device]['power'] = False
-                        self._adapter.trigger_event(
-                            '{0}.Power.Off'.format(name)
+
+                        dispatcher.send(
+                            DEVICE_POWER_EVENT,
+                            self._adapter,
+                            device=device,
+                            value=False
                         )
 
-                    self._adapter.trigger_event(
-                        '{0}.Disconnected'.format(name)
+                        logger.debug(
+                            'CEC.Device.{0}.Power.Off'.format(name)
+                        )
+
+                    dispatcher.send(
+                        DEVICE_DISCONNECT_EVENT,
+                        self._adapter,
+                        device=device,
+                        value=None
+                    )
+
+                    logger.debug(
+                        'CEC.Device.{0}.Disconnected'.format(name)
                     )
 
             self.__event.wait(self.__interval)
@@ -1453,40 +1515,64 @@ class PyCECPlayer(PyCECDevice):
                 self._reply = command
                 self._reply_event.set()
             if self._enable_notifications:
-                self._adapter.trigger_event(
-                    '{0}.Player.{1}.Status'.format(
-                        self.osd_name,
-                        self._adapter.DeckInfoToString(
-                            command.parameters.At(0)
-                        ).title().replace(' ', '')
-                    ),
-                    self._adapter[command.initiator].osd_name
+
+                status = self._adapter.DeckInfoToString(
+                    command.parameters.At(0)
+                ).title().replace(' ', '')
+
+                dispatcher.send(
+                    PLAYER_STATUS_EVENT,
+                    self._adapter[command.initiator],
+                    device=self,
+                    value=status
+                )
+
+                logger.debug(
+                    'CEC.Player.{0}.Status.{1}'.format(self.osd_name, status)
                 )
 
         elif command.opcode == cec.CEC_OPCODE_GIVE_DECK_STATUS:
-            self._adapter.trigger_event(
-                '{0}.Player.StatusRequest'.format(self.osd_name),
-                self._adapter[command.initiator].osd_name
+            dispatcher.send(
+                PLAYER_STATUS_EVENT,
+                self._adapter[command.initiator],
+                device=self,
+                value=None
             )
+
+            logger.debug(
+                'CEC.Player.{0}.StatusRequest'.format(self.osd_name)
+            )
+
         elif command.opcode == cec.CEC_OPCODE_DECK_CONTROL:
-            self._adapter.trigger_event(
-                '{0}.Player.{1}.Request'.format(
-                    self.osd_name,
-                    self._adapter.DeckControlModeToString(
-                        command.parameters.At(0)
-                    )
-                ),
-                self._adapter[command.initiator].osd_name
+            status = self._adapter.DeckControlModeToString(
+                command.parameters.At(0)
             )
+
+            dispatcher.send(
+                PLAYER_STATUS_EVENT,
+                self._adapter[command.initiator],
+                device=self,
+                value=status
+            )
+
+            logger.debug(
+                'CEC.Player.{0}.Request.{1}'.format(self.osd_name, status)
+            )
+
         elif command.opcode == cec.CEC_OPCODE_PLAY:
-            self._adapter.trigger_event(
-                '{0}.Player.{1}.Request'.format(
-                    self.osd_name,
-                    self._adapter.PlayModeToString(
-                        command.parameters.At(0)
-                    )
-                ),
-                self._adapter[command.initiator].osd_name
+            status = self._adapter.PlayModeToString(
+                command.parameters.At(0)
+            )
+
+            dispatcher.send(
+                PLAYER_STATUS_EVENT,
+                self._adapter[command.initiator],
+                device=self,
+                value=status
+            )
+
+            logger.debug(
+                'CEC.Player.{0}.Request.{1}'.format(self.osd_name, status)
             )
 
         else:
@@ -2151,13 +2237,31 @@ class PyCECAdapter(object):
     def __source_callback(self, logical_address, activated):
         if not self._source:
             return 0
-        self.trigger_event(
-            'Source.{0}.{1}'.format(
-                self[logical_address].osd_name,
-                self._adapter.MenuStateToString(not activated).title()
 
-            )
+        DEVICE_POWER_EVENT = 0x00
+        DEVICE_OSD_EVENT = 0x01
+        DEVICE_CONNECTED_EVENT = 0x02
+        DEVICE_DISCONNECT_EVENT = 0x03
+        TV_SOURCE_EVENT = 0x04
+        TV_REMOTE_EVENT = 0x05
+        AUDIO_VOLUME_EVENT = 0x06
+        AUDIO_MUTE_EVENT = 0x07
+        AUDIO_STATE_EVENT = 0x08
+
+        status = self._adapter.MenuStateToString(not activated).title()
+
+        dispatcher.send(
+            TV_SOURCE_EVENT,
+            self,
+            device=self[logical_address],
+            value=status
         )
+
+        logger.debug(
+            'CEC.{0}.Source.{1}'.format(self[logical_address].osd_name, status)
+        )
+
+        return 0
 
     def trigger_enduring_event(self, _):
         pass
@@ -2169,11 +2273,20 @@ class PyCECAdapter(object):
     def __keypress_callback(self, key, _):
         if not self._keypress:
             return 0
-        self.trigger_event(
-            'RemoteKeyPress.{0}'.format(
-                self._adapter.UserControlCodeToString(key).title()
-            )
+
+        key = self._adapter.UserControlCodeToString(key).title()
+
+        dispatcher.send(
+            TV_REMOTE_EVENT,
+            self,
+            device=None,
+            value=key
         )
+
+        logger.debug(
+            'CEC.RemoteKeyPress.{0}'.format(key)
+        )
+
         return 0
 
     # command received callback
