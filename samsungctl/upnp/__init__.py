@@ -2151,10 +2151,11 @@ class UPNPTV(UPNPObject):
                     N=2018,
                 )
                 if model[5].upper() in years:
-                    year = str(years[model[5].upper()])
-                    int(year)
-                else:
-                    return 0
+                    return years[model[5].upper()]
+                if model[4].upper() in years:
+                    return years[model[4].upper()]
+                
+                return 0
         else:
             return None
 
