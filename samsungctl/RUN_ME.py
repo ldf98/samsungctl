@@ -715,7 +715,7 @@ def run_test(config):
             for group in app:
                 print('   ', group.title)
                 for content in group:
-                    print('       content.title:', content.name)
+                    print('       content.title:', content.title)
                     print('       content.app_type:', content.app_type)
                     print('       content.mbr_index:', content.mbr_index)
                     print('       content.live_launcher_type:', content.live_launcher_type)

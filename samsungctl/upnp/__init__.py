@@ -65,6 +65,11 @@ class UPNPTV(UPNPObject):
 
             self._cec_config = cec_config
 
+        else:
+            self._cec = None
+            self._cec_config = None
+
+
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
