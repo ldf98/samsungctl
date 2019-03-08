@@ -653,14 +653,28 @@ def run_test(config):
     )
 
     if _channels is not None:
-        with open(os.path.join(DATA_PATH, config.uuid + '-channel_list_url.' + PY_VERSION_STR + '.log'), 'w') as f:
-            f.write(repr(_channels))
+        for channel in _channels:
+            print('channel.number: ' + str(_channel.number))
+            print('channel.name: ' + str(_channel.name))
+            print('channel.channel_type: ' + str(_channel.channel_type))
+            # print('channel.is_recording: ' + str(_channel.is_recording))
+            print('channel.is_active: ' + str(_channel.is_active))
+            for content in channel:
+                print('    start_time', content.start_time)
+                print('    end_time', content.end_time)
+                print('    title', content.title)
+                print('    genre', content.genre)
+                print('    series_id', content.series_id)
+                print('    detail_info', content.detail_info)
+                print('    detail_information', content.detail_information)
 
     if _channel is not None:
+        print('\n')
         print('channel.number: ' + str(_channel.number))
         print('channel.name: ' + str(_channel.name))
-        print('channel.is_recording: ' + str(_channel.is_recording))
+        # print('channel.is_recording: ' + str(_channel.is_recording))
         print('channel.is_active: ' + str(_channel.is_active))
+
 
     print('\nICON TESTS\n')
 

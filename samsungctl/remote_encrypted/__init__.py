@@ -494,11 +494,15 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 )
 
     def on_message(self, data):
-        data = self.aes.decrypt(data)
+        try:
+            data = self.aes.decrypt(data)
+        except:
+            pass
+
         logger.debug(
             self.config.host +
             ' --> ' +
-            data.decode('utf-8')
+            repr(data)
         )
 
     def _send_key(self, command):

@@ -332,30 +332,58 @@ class UPNPTV(UPNPObject):
                 return None
 
             response = requests.get(channel_list_url)
+            try:
+                data = response.content.decode('utf-8')
 
-            import binascii
+                data = list(
+                    itm[:-11] for itm in data.split('\xff\xff') if len(itm) != 11)
 
-            channel_list = binascii.hexlify(response.content).upper()
+                channels = []
 
-            channel_list = binascii.a2b_hex(channel_list)
+                for line in data:
+                    major = ''.join(itm for itm in line[:3] if itm != '\x00')
+                    line = line[3:]
+                    minor = ''.join(itm for itm in line[:5] if itm != '\x00')
+                    line = line[5:]
 
+                    if not minor:
+                        minor = 65534
 
-            logger.debug(
-                self.config.host + ' --> ' + repr(channel_list)
-            )
+                    major = int(major)
+                    minor = int(minor)
 
-            if PY2:
-                return str(channel_list)[1:-1]
+                    line = line[3:]
 
-            return str(channel_list)[2:-1]
+                    description = ''.join(
+                        itm for itm in line[:89] if itm != '\x00')
+                    channel_type = 'Radio' if line[1] == '\xa4' else 'TV'
+                    if 'HD' in description:
+                        channel_type = 'HDTV'
 
-            # for channel in channels:
-            #     channel_num = (
-            #         channel.find('MajorCh').text,
-            #         channel.find('MinorCh').text
-            #     )
-            #
-            #     supported_channels += [Channel(channel_num, channel, self)]
+                    channels += [
+                        Channel(
+                            (major, minor),
+                            None,
+                            self,
+                            channel_type,
+                            description
+                        )
+                    ]
+
+                logger.debug(
+                    self.config.host + ' --> ' + repr(channels)
+                )
+            except:
+                import traceback
+
+                traceback.print_exc()
+
+                print()
+
+                print(repr(response.content))
+                return None
+
+            return channels
 
         except AttributeError:
             pass
@@ -374,18 +402,31 @@ class UPNPTV(UPNPObject):
                 channel = etree.fromstring(channel.decode('utf-8'))
             except etree.ParseError:
                 return None
-            except ValueError:
+            except (ValueError, AttributeError):
                 try:
                     channel = etree.fromstring(channel)
                 except etree.ParseError:
                     return None
 
-            channel_num = (
-                channel.find('MajorCh').text,
-                channel.find('MinorCh').text
-            )
+            major = channel.find('MajorCh')
+            minor = channel.find('MinorCh')
 
-            return Channel(channel_num, channel, self)
+            if major is None:
+                return None
+
+            major = int(major.text)
+            minor = minor.text
+
+            if minor:
+                minor = int(minor)
+
+            else:
+                minor = 65534
+
+            _ = self.channels
+
+            return Channel((major, minor), channel, self, active=True)
+
         except AttributeError:
             pass
 
@@ -402,7 +443,7 @@ class UPNPTV(UPNPObject):
                     chnl.activate()
                     break
             else:
-                raise ValueError(
+                logger.error(
                     'Channel not found ({0})'.format(channel)
                 )
         except AttributeError:
@@ -653,7 +694,20 @@ class UPNPTV(UPNPObject):
             if self._dtv_information is None:
                 response, data = self.MainTVAgent2.GetDTVInformation()
                 data = saxutils.unescape(data)
-                self._dtv_information = etree.fromstring(data.encode('utf-8'))
+
+                try:
+                    self._dtv_information = etree.fromstring(data)
+                except etree.ParseError:
+                    pass
+
+                except ValueError:
+                    try:
+                        self._dtv_information = etree.fromstring(
+                            data.encode('utf-8')
+                        )
+                    except etree.ParseError:
+                        pass
+
             return self._dtv_information
         except AttributeError:
             pass
@@ -1247,7 +1301,19 @@ class UPNPTV(UPNPObject):
         try:
             source_list = self.MainTVAgent2.GetSourceList()[1]
             source_list = saxutils.unescape(source_list)
-            root = etree.fromstring(source_list.encode('utf-8'))
+
+            try:
+                root = etree.fromstring(source_list)
+            except etree.ParseError:
+                return None
+
+            except ValueError:
+                try:
+                    root = etree.fromstring(
+                        source_list.encode('utf-8')
+                    )
+                except etree.ParseError:
+                    return None
 
             sources = []
 
@@ -1271,11 +1337,9 @@ class UPNPTV(UPNPObject):
 
             return sources
         except AttributeError:
-
             if self._cec is not None:
                 if not self.is_connected:
                     return
-
 
             pass
 
@@ -1689,7 +1753,7 @@ class UPNPTV(UPNPObject):
             mbr_device_list = etree.fromstring(mbr_device_list.decode('utf-8'))
         except etree.ParseError:
             return None
-        except ValueError:
+        except (ValueError, AttributeError):
             try:
                 mbr_device_list = etree.fromstring(mbr_device_list)
             except etree.ParseError:
@@ -2035,7 +2099,6 @@ class UPNPTV(UPNPObject):
             if support_tv_version is not None:
                 return int(support_tv_version.text)
 
-
         if self.is_connected:
             for service in self.services:
                 try:
@@ -2048,11 +2111,12 @@ class UPNPTV(UPNPObject):
                             item[1:].isdigit()
                         ):
                             year = item[1:]
-                            break
+
+                            if year.isdigit():
+                                return int(year)
                     else:
                         continue
 
-                    break
                 except AttributeError:
                     continue
             else:
@@ -2214,13 +2278,14 @@ class ChannelContent(object):
         channel,
         remote,
         program_number,
-        node
+        node,
+        channel_node
     ):
         self.channel = channel
         self._remote = remote
         self.program_number = program_number
         self._node = node
-
+        self._channel_node = channel_node
 
     def __getattr__(self, item):
 
@@ -2290,14 +2355,75 @@ class ChannelContent(object):
         except AttributeError:
             return None
 
+    @property
+    def detail_information(self):
+        channel = etree.tostring(self._node)
+        channel = saxutils.escape(channel)
+
+        return self._remote.get_detail_program_information(
+            1,
+            channel,
+            self.start_time
+        )
+
 
 @six.add_metaclass(InstanceSingleton)
 class Channel(object):
 
-    def __init__(self, channel_num, node, parent):
-        self._channel_num = channel_num
+    def __call__(
+        self,
+        channel_num,
+        node,
+        parent,
+        channel_type=None,
+        label=None,
+        active=False
+    ):
+        if node is not None:
+            self._node = node
+
+        if channel_type is not None:
+            self.channel_type = channel_type
+
+        if label is not None:
+            self._label = label
+
+        self._is_active = active
+
+    def __init__(
+        self,
+        channel_num,
+        node,
+        parent,
+        channel_type=None,
+        label=None,
+        active=False
+    ):
+        self._major, self._minor = channel_num
+        self.channel_type = channel_type
+
+        if label is None:
+            label = '{0}.{1}'.format(self._major, self._minor)
+
+        self._label = label
         self._node = node
         self._parent = parent
+        self._is_active = active
+
+    def __eq__(self, other):
+        if isinstance(other, (tuple, list)):
+            return tuple(other) == self.number
+
+        if isinstance(other, Channel):
+            return other.number == self.number
+
+        if isinstance(other, int):
+            if self._minor != 65534:
+                return False
+
+            return other == self._major
+
+        return other in (self.name, self.label)
 
     def __getattr__(self, item):
 
@@ -2320,7 +2446,7 @@ class Channel(object):
 
     @property
     def number(self):
-        return self._channel_number
+        return self._major, self._minor
 
     @number.setter
     def number(self, channel_number=(0, 0)):
@@ -2371,11 +2497,23 @@ class Channel(object):
         raise NotImplementedError
 
     @property
-    def name(self):
-        return self._node.find('PTC').text
+    def major(self):
+        return self._major
 
-    @name.setter
-    def name(self, value):
+    @property
+    def minor(self):
+        return self._minor
+
+    @property
+    def name(self):
+        return '{0}.{1}'.format(self._major, self._minor)
+
+    @property
+    def label(self):
+        return self._label
+
+    @label.setter
+    def label(self, value):
         """
         return self.MainTVAgent2.ModifyChannelName(
             antenna_mode,
@@ -2388,15 +2526,29 @@ class Channel(object):
     @property
     def is_recording(self):
         channel = self._parent.MainTVAgent2.GetRecordChannel()[1]
-        channel_num = (
-            channel.find('MajorCh').text,
-            channel.find('MinorCh').text
-        )
-        return self._channel_num == channel_num
+        if channel is None:
+            return False
+
+        major = channel.find('MajorCh')
+        minor = channel.find('MinorCh')
+
+        if major is None:
+            return False
+
+        major = int(major.text)
+
+        if minor is None or not minor.text:
+            minor = 65534
+        else:
+            minor = int(minor.text)
+
+        return major == self._major and minor == self._minor
 
     @property
     def is_active(self):
-        return self._parent.channel == self
+        _ = self._parent.channels
+
+        return self._is_active
 
     def activate(self):
         antenna_mode = 1
@@ -2424,7 +2576,7 @@ class Channel(object):
             )
         except etree.ParseError:
             return
-        except ValueError:
+        except (ValueError, AttributeError):
             try:
                 program_information = etree.fromstring(response.content)
             except etree.ParseError:
@@ -2440,31 +2592,33 @@ class Channel(object):
             major = channel.find('MajorCh')
             minor = channel.find('MinorCh')
 
-            if None in (major, minor):
+            if major is None:
                 continue
 
             major = major.text
-            minor = minor.text
 
-            if major.isdigiit():
-                major = int(major)
+            if minor is None or not minor.text:
+                minor = 65534
+            else:
+                minor = int(minor.text)
 
-            if minor.isdigit():
-                minor = int(minor)
-
-            if major != self.MajorCh or minor != self.MinorCh:
+            if major != self._major or minor != self._minor:
                 continue
 
             prog_num = channel.find('ProgNum')
 
-            if prog_num is None:
+            if prog_num is None or not prog_num.text:
                 continue
 
             prog_num = int(prog_num.text)
-            program_info
 
-            yield ChannelContent(self, self._parent, prog_num, program_info)
-
+            yield ChannelContent(
+                self,
+                self._parent,
+                prog_num,
+                program_info,
+                self._node
+            )
 
 @six.add_metaclass(InstanceSingleton)
 class MBRDevice(object):
