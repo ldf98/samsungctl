@@ -114,7 +114,7 @@ log_file = open(SSDP_FILENAME, 'w')
 
 
 def print(*args):
-    output = ' '.join(str(arg) for arg in args)
+    output = ' '.join(repr(arg) for arg in args)
     sys.stdout.write(output + '\n')
 
 
