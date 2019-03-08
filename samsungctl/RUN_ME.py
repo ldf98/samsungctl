@@ -620,13 +620,6 @@ def run_test(config):
     if _source is not None:
         print('source.name: ' + _source.name)
         print('source.label: ' + _source.label)
-        set_property('source', 'PC')
-        time.sleep(0.5)
-        _source_2 = get_property('source', [])
-        print('source.name: ' + _source_2.name)
-        print('source.label: ' + _source_2.label)
-        time.sleep(0.5)
-        set_property('source', _source)
 
     if _sources is not None:
         for source in _sources:
@@ -641,6 +634,10 @@ def run_test(config):
             print('source.device_name: ' + str(source.device_name))
             print('source.is_active: ' + str(source.is_active))
             print('-' * 40)
+            source.activate()
+            time.sleep(2)
+
+        _source.activate()
 
     print('\nCHANNEL TESTS\n')
 

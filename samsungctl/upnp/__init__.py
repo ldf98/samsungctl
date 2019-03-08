@@ -69,7 +69,6 @@ class UPNPTV(UPNPObject):
             self._cec = None
             self._cec_config = None
 
-
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
@@ -97,19 +96,22 @@ class UPNPTV(UPNPObject):
     def __setattr__(self, key, value):
         if (
             key in self.__class__.__dict__ and
-            hasattr(self.__class__.__dict__[key], 'fset')
+            hasattr(self.__class__.__dict__[key], 'fset') and
+            self.__class__.__dict__[key].fset is not None
         ):
             self.__class__.__dict__[key].fset(self, value)
 
         elif (
             key in UPNPTV.__dict__ and
-            hasattr(UPNPTV.__dict__[key], 'fset')
+            hasattr(UPNPTV.__dict__[key], 'fset') and
+            UPNPTV.__dict__[key].fset is not None
         ):
             UPNPTV.__dict__[key].fset(self, value)
 
         elif (
             key in UPNPObject.__dict__ and
-            hasattr(UPNPObject.__dict__[key], 'fset')
+            hasattr(UPNPObject.__dict__[key], 'fset') and
+            UPNPObject.__dict__[key].fset is not None
         ):
             UPNPObject.__dict__[key].fset(self, value)
 
@@ -341,10 +343,10 @@ class UPNPTV(UPNPObject):
 
             response = requests.get(channel_list_url)
             try:
-                data = response.content.decode('utf-8')
-
                 data = list(
-                    itm[:-11] for itm in data.split('\xff\xff') if len(itm) != 11)
+                    itm[:-11] for itm in response.content.split('\xff\xff')
+                    if len(itm) != 11
+                )
 
                 channels = []
 
@@ -1128,7 +1130,8 @@ class UPNPTV(UPNPObject):
     @property
     def schedule_list_url(self):
         try:
-            url = self.MainTVAgent2.GetScheduleListURL()[1]
+            return self.MainTVAgent2.GetScheduleListURL()
+
             response = requests.get(url)
 
             if PY2:
@@ -2154,7 +2157,7 @@ class UPNPTV(UPNPObject):
                     return years[model[5].upper()]
                 if model[4].upper() in years:
                     return years[model[4].upper()]
-                
+
                 return 0
         else:
             return None
@@ -2224,7 +2227,7 @@ class UPNPTV(UPNPObject):
             return []
 
         support_ant_mode = dtv_information.find('SupportAntMode')
-        if support_ant_mode is None:
+        if support_ant_mode is None or not support_ant_mode.text:
             return []
 
         return list(int(itm) for itm in support_ant_mode.text.split(','))
