@@ -14,9 +14,11 @@ if platform.system() == 'Windows':
 
 elif 'Darwin' in platform.system():
     version = platform.mac_ver()
+    version = list(str(itm) for itm in version)
 
 else:
-    version =platform.linux_distribution()
+    version = platform.linux_distribution()
+    version = list(str(itm) for itm in version)
 
 
 TEMPLATE = '''\
