@@ -696,7 +696,7 @@ def run_test(config):
         for app in apps:
             print('app.name:', app.name)
             print('app.id:', app.id)
-            print('app.is_runnning:', app.is_runnning)
+            print('app.is_running:', app.is_running)
             print('app.version:', app.version)
             print('app.is_visible:', app.is_visible)
             print('app.app_type:', app.app_type)
