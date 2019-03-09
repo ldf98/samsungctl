@@ -10,7 +10,7 @@ from . import exceptions
 logger = logging.getLogger('samsungctl')
 
 LOGGING_FORMAT = '''\
-'[%(levelname)s][%(thread)d] %(name)s.%(module)s.%(funcName)s
+[%(levelname)s][%(thread)d] %(name)s.%(module)s.%(funcName)s
 %(message)s
 '''
 
