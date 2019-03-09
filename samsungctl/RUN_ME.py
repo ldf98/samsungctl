@@ -327,8 +327,8 @@ def run_test(config):
                     print(property_name + ': UNSUPPORTED')
                     return [None] * len(ret_val_names)
 
-                for i, name in enumerate(ret_val_names):
-                    print(name, '=', repr(ret_vals[i]))
+                for i, ret_val in enumerate(ret_vals):
+                    print(ret_val_names[i], '=', repr(ret_val))
 
                 return ret_vals
 

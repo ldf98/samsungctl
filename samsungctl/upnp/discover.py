@@ -207,6 +207,7 @@ class Discover(object):
         self._powered_off = []
         self._threads = []
         self._logging = False
+        self._found = {}
 
     @property
     def logging(self):
@@ -246,18 +247,20 @@ class Discover(object):
     def register_callback(self, callback, uuid=None):
         self._callbacks += [(callback, uuid)]
 
-        for config in self._powered_on:
-            if config.uuid == uuid:
-                return config, True
+        if uuid is None:
+            for config in self._found.values():
+                callback(config)
+        else:
+            for config in self._powered_on:
+                if config.uuid == uuid:
+                    callback(config, True)
 
-        for config in self._powered_off:
-            if config.uuid == uuid:
-                return config, False
-
-        return None, None
+            for config in self._powered_off:
+                if config.uuiid == uuid:
+                    callback(config, False)
 
     def get_discovered(self):
-        return self._powered_on[:] + self._powered_off[:]
+        return list(self._found.values())[:]
 
     def unregister_callback(self, callback, uuid=None):
         if (callback, uuid) in self._callbacks:
@@ -265,72 +268,82 @@ class Discover(object):
 
     def callback(self, found):
         if self._logging:
-            logging.debug(str(found))
+            logger.debug(str(found))
         powered_on = []
+
         for host, packet in found.items():
+
             services = list(service for service, _ in packet)
             upnp_locations = list(location for _, location in packet)
 
             for service, location in packet:
-                if service != 'urn:schemas-upnp-org:device:MediaRenderer:1':
-                    continue
+                if service == 'urn:schemas-upnp-org:device:MediaRenderer:1':
+                    break
 
-                if self.logging:
-                    logger.debug(
-                        host +
-                        ' <-- (' +
-                        location +
-                        ') ""'
-                    )
+            else:
+                continue
 
-                response = requests.get(location)
+            if self.logging:
+                logger.debug(
+                    host +
+                    ' <-- (' +
+                    location +
+                    ') ""'
+                )
+            try:
+                response = requests.get(location, timeout=2)
+            except (requests.ConnectionError, requests.ConnectTimeout):
+                continue
 
-                if self.logging:
-                    logger.debug(
-                        host +
-                        ' --> (' +
-                        location +
-                        ') ' +
-                        response.content.decode('utf-8')
-                    )
+            if self.logging:
+                logger.debug(
+                    host +
+                    ' --> (' +
+                    location +
+                    ') ' +
+                    response.content.decode('utf-8')
+                )
 
+            try:
+                root = etree.fromstring(response.content.decode('utf-8'))
+            except etree.ParseError:
+                continue
+            except ValueError:
                 try:
-                    root = etree.fromstring(response.content.decode('utf-8'))
+                    root = etree.fromstring(response.content)
                 except etree.ParseError:
                     continue
-                except ValueError:
-                    try:
-                        root = etree.fromstring(response.content)
-                    except etree.ParseError:
-                        continue
 
-                root = strip_xmlns(root)
-                node = root.find('device')
+            root = strip_xmlns(root)
+            node = root.find('device')
 
-                if node is None:
-                    continue
+            if node is None:
+                continue
 
-                description = node.find('modelDescription')
-                if (
-                    description is None or
-                    'Samsung' not in description.text or
-                    'TV' not in description.text
-                ):
-                    continue
+            description = node.find('modelDescription')
+            if (
+                description is None or
+                'Samsung' not in description.text or
+                'TV' not in description.text
+            ):
+                continue
 
-                model = node.find('modelName')
-                if model is None:
-                    continue
+            model = node.find('modelName')
+            if model is None:
+                continue
 
-                model = model.text
+            model = model.text
 
-                uuid = node.find('UDN')
+            uuid = node.find('UDN')
 
-                if uuid is None:
-                    continue
+            if uuid is None or not uuid.text:
+                continue
 
-                uuid = uuid.text.split(':')[-1]
+            uuid = uuid.text.split(':')[-1]
 
+            if uuid in self._found:
+                config1 = self._found[uuid]
+            else:
                 product_cap = node.find('ProductCap')
                 if product_cap is None:
                     years = dict(
@@ -357,27 +370,62 @@ class Discover(object):
                             break
                     else:
                         year = None
-                break
-            else:
-                return
 
-            if year is None:
-                if (
-                    'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
-                    'urn:samsung.com:device:IPControlServer:1' in services and
-                    'urn:dial-multiscreen-org:device:dialreceiver:1' in services
-                ):
-                    method = 'websocket'
+                if year is None:
+                    if (
+                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
+                        'urn:samsung.com:device:IPControlServer:1' in services and
+                        'urn:dial-multiscreen-org:device:dialreceiver:1' in services
+                    ):
+                        method = 'websocket'
+                        app_id = None
+                        port = 8001
+                        mac = get_mac(host)
+
+                    elif (
+                        'urn:samsung.com:device:MainTVServer2:1' in services and
+                        'urn:samsung.com:device:RemoteControlReceiver:1' in services and
+                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
+                        'urn:dial-multiscreen-org:device:dialreceiver:1' in services
+                    ):
+                        method = 'encrypted'
+                        port = 8080
+                        app_id = '12345'
+                        # user_id = '654321'
+                        mac = get_mac(host)
+                        # device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
+
+                    elif (
+                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
+                        'urn:samsung.com:device:MainTVServer2:1' in services and
+                        'urn:samsung.com:device:RemoteControlReceiver:1' in services
+                    ):
+                        method = 'legacy'
+                        app_id = None
+                        # user_id = None
+                        port = 55000
+                        mac = wake_on_lan.get_mac_address(host)
+
+                    elif (
+                        'urn:samsung.com:device:RemoteControlReceiver:1' in services and
+                        'urn:dial-multiscreen-org:device:dialreceiver:1' in services and
+                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services
+                    ):
+                        method = 'websocket'
+                        app_id = None
+                        port = 8001
+                        mac = get_mac(host)
+                    else:
+                        return
+
+                elif year <= 2013:
+                    method = 'legacy'
                     app_id = None
-                    port = 8001
-                    mac = get_mac(host)
+                    # user_id = None
+                    port = 55000
+                    mac = wake_on_lan.get_mac_address(host)
 
-                elif (
-                    'urn:samsung.com:device:MainTVServer2:1' in services and
-                    'urn:samsung.com:device:RemoteControlReceiver:1' in services and
-                    'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
-                    'urn:dial-multiscreen-org:device:dialreceiver:1' in services
-                ):
+                elif year <= 2015:
                     method = 'encrypted'
                     port = 8080
                     app_id = '12345'
@@ -385,61 +433,30 @@ class Discover(object):
                     mac = get_mac(host)
                     # device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
 
-                elif (
-                    'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
-                    'urn:samsung.com:device:MainTVServer2:1' in services and
-                    'urn:samsung.com:device:RemoteControlReceiver:1' in services
-                ):
-                    method = 'legacy'
-                    app_id = None
-                    # user_id = None
-                    port = 55000
-                    mac = wake_on_lan.get_mac_address(host)
-
-                elif (
-                    'urn:samsung.com:device:RemoteControlReceiver:1' in services and
-                    'urn:dial-multiscreen-org:device:dialreceiver:1' in services and
-                    'urn:schemas-upnp-org:device:MediaRenderer:1' in services
-                ):
+                else:
                     method = 'websocket'
                     app_id = None
                     port = 8001
                     mac = get_mac(host)
-                else:
-                    return
 
-            elif year <= 2013:
-                method = 'legacy'
-                app_id = None
-                # user_id = None
-                port = 55000
-                mac = wake_on_lan.get_mac_address(host)
+                if mac is None:
+                    logger.warning(
+                        'Unable to acquire TV\'s mac address'
+                    )
 
-            elif year <= 2015:
-                method = 'encrypted'
-                port = 8080
-                app_id = '12345'
-                # user_id = '654321'
-                mac = get_mac(host)
-                # device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
+                config1 = Config(
+                    host=host,
+                    method=method,
+                    upnp_locations=upnp_locations,
+                    model=model,
+                    uuid=uuid,
+                    mac=mac,
+                    app_id=app_id,
+                    # user_id=user_id,
+                    port=port,
+                )
 
-            else:
-                method = 'websocket'
-                app_id = None
-                port = 8001
-                mac = get_mac(host)
-
-            config1 = Config(
-                host=host,
-                method=method,
-                upnp_locations=upnp_locations,
-                model=model,
-                uuid=uuid,
-                mac=mac,
-                app_id=app_id,
-                # user_id=user_id,
-                port=port,
-            )
+            self._found[uuid] = config1
 
             for config2 in self._powered_off:
                 if config2 == config1:
@@ -458,11 +475,6 @@ class Discover(object):
             else:
                 for callback, uuid in self._callbacks:
                     if uuid is None:
-                        if mac is None:
-                            logger.warning(
-                                'Unable to acquire TV\'s mac address'
-                            )
-
                         callback(config1)
                     elif uuid == config1.uuid:
                         callback(config1, True)
@@ -485,9 +497,7 @@ class Discover(object):
 
     @property
     def is_running(self):
-        if self._threads:
-            return True
-        return False
+        return len(self._threads) > 0
 
 
 auto_discover = Discover()

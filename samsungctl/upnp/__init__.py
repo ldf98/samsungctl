@@ -531,9 +531,6 @@ class UPNPTV(UPNPObject):
                 sort
             )
         except AttributeError:
-            import traceback
-
-            traceback.print_exc()
             pass
 
         return None, None, None, None, None
