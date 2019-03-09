@@ -479,9 +479,9 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             count = 0
             event = threading.Event()
 
-            self._send_key('KEY_POWER')
+            # self._send_key('KEY_POWER')
+            self.send('KEY_POWEROFF')
             event.wait(2.0)
-            # self.send('KEY_POWEROFF')
 
             while self.power and count < 20:
                 event.wait(1.0)

@@ -342,19 +342,38 @@ class UPNPTV(UPNPObject):
                 return None
 
             response = requests.get(channel_list_url)
+
             try:
-                data = list(
-                    itm[:-11] for itm in response.content[2:].split('\xff\xff')
-                    if len(itm) != 11
-                )
+
+                if PY2:
+                    data = list(
+                        itm[:-11] for itm in response.content[3:].split('\xff\xff')
+                            if len(itm) != 11
+                    )
+                else:
+
+                    data = list(
+                        itm[:-11] for itm in response.content[3:].split(b'\xff\xff')
+                            if len(itm) != 11
+                    )
 
                 channels = []
 
                 for line in data:
-                    major = ''.join(itm for itm in line[:3] if itm != '\x00')
-                    line = line[3:]
-                    minor = ''.join(itm for itm in line[:5] if itm != '\x00')
-                    line = line[5:]
+                    if PY2:
+                        major = ''.join(itm for itm in line[:3] if itm != '\x00')
+                        line = line[3:]
+                        minor = ''.join(itm for itm in line[:5] if itm != '\x00')
+                        line = line[5:]
+
+                    else:
+                        major = ''.join(
+                            map(chr, list(itm for itm in line[:3] if itm != 0)))
+                        print(repr(major))
+                        line = line[3:]
+                        minor = ''.join(
+                            map(chr, list(itm for itm in line[:5] if itm != 0)))
+                        line = line[5:]
 
                     if not minor:
                         minor = 65534
@@ -364,9 +383,18 @@ class UPNPTV(UPNPObject):
 
                     line = line[3:]
 
-                    description = ''.join(
-                        itm for itm in line[:89] if itm != '\x00')
-                    channel_type = 'Radio' if line[1] == '\xa4' else 'TV'
+                    if PY2:
+                        description = ''.join(
+                            itm for itm in line[:89] if itm != '\x00'
+                        )
+                        channel_type = 'Radio' if line[1] == '\xa4' else 'TV'
+
+                    else:
+                        description = ''.join(
+                            map(chr, list(itm for itm in line[:89] if itm != 0))
+                        )
+                        channel_type = 'Radio' if line[1] == b'\xa4' else 'TV'
+
                     if 'HD' in description:
                         channel_type = 'HDTV'
 

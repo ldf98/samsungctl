@@ -347,7 +347,7 @@ class Config(object):
         for old_line in data[:]:
             if old_line.strip().lower() in ('null', 'none'):
                 data.remove(old_line)
-        
+
         for new_line in new:
             key = new_line.split('=')[0]
             for i, old_line in enumerate(data):
