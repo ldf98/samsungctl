@@ -344,9 +344,15 @@ class Config(object):
 
         new = str(self).split('\n')
 
+        found_cec = False
         for old_line in data[:]:
-            if old_line.strip().lower() in ('null', 'none'):
-                data.remove(old_line)
+            if old_line.startswith('cec'):
+                found_cec = True
+            elif found_cec:
+                if old_line.startswith(' '):
+                    data.remove(old_line)
+                else:
+                    break
 
         for new_line in new:
             key = new_line.split('=')[0]
