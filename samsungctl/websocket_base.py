@@ -116,7 +116,6 @@ class WebSocketBase(UPNPTV):
                         self._loop_event.wait(0.1)
             except:
                 self.disconnect()
-                del self._registered_callbacks[:]
 
         try:
             self.sock.close()

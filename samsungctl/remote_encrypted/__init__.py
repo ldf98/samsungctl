@@ -143,6 +143,8 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if self.sock is not None:
                 return True
 
+            del self._registered_callbacks[:]
+
             if self.config.token is None:
                 if self.check_pin_page():
                     logger.debug(

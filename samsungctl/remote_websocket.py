@@ -31,8 +31,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     def __init__(self, config):
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
-        super(RemoteWebsocket, self).__init__(config)
         self._cec = None
+        websocket_base.WebSocketBase.__init__(self, config)
 
     @property
     @LogItWithReturn
@@ -114,6 +114,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 )
                 auth_event.set()
 
+            del self._registered_callbacks[:]
+
             self.register_receive_callback(
                 auth_callback,
                 'event',
@@ -161,31 +163,52 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 'ms.channel.connect'
             )
 
-            if not auth_event.isSet() or unauth_event.isSet():
-                self.close()
+            if auth_event.isSet() and not unauth_event.is_set():
+                self.config.token = token
+                self.config.paired = True
 
-                if not self.config.paired:
-                    if self.config.port == 8001 and self.has_ssl:
-                        logger.debug(
-                            self.config.host +
-                            ' -- trying SSL connection.'
-                        )
-                        self.config.port = 8002
-                        return self.open()
+                if self.config.path:
+                    self.config.save()
 
-                    raise RuntimeError('Auth Failure')
+                self.send_event.wait(0.5)
+                self.connect()
 
-                return False
+                return True
 
-            self.config.token = token
-            self.config.paired = True
+            self.close()
 
-            if self.config.path:
-                self.config.save()
+            if not self.config.paired:
+                if self.config.port == 8001:
+                    logger.debug(
+                        self.config.host +
+                        ' -- trying SSL connection.'
+                    )
+                    self.config.port = 8002
+                    return self.open()
 
-            self.send_event.wait(0.5)
-            self.connect()
-            return True
+                raise RuntimeError('Auth Failure')
+
+            if self.config.token is not None:
+                saved_token = self.config.token
+                self.config.token = None
+
+                res = self.open()
+
+                if not res:
+                    self.config.token = saved_token
+                    raise RuntimeError(
+                        'Auth Error: invalid token - '
+                        'create a new pairing to the TV.'
+                    )
+                else:
+                    logger.info(
+                        self.config.host +
+                        ' -- new token: ' +
+                        str(self.config.token) +
+                        ' old token: ' +
+                        str(saved_token)
+                    )
+            raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
 
     @LogIt
     def send(self, method, **params):
