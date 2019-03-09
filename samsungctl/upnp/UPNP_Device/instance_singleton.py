@@ -13,8 +13,7 @@ class InstanceSingleton(type):
         else:
             try:
                 InstanceSingleton._objects[id](id, *args, **kwargs)
-            except AttributeError:
+            except TypeError:
                 pass
-
 
         return InstanceSingleton._objects[id]

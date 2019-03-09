@@ -344,7 +344,7 @@ class UPNPTV(UPNPObject):
             response = requests.get(channel_list_url)
             try:
                 data = list(
-                    itm[:-11] for itm in response.content.split('\xff\xff')
+                    itm[:-11] for itm in response.content[2:].split('\xff\xff')
                     if len(itm) != 11
                 )
 
@@ -1767,7 +1767,7 @@ class UPNPTV(UPNPObject):
             return None
 
         try:
-            mbr_device_list = etree.fromstring(mbr_device_list.decode('utf-8'))
+            mbr_device_list = etree.fromstring(mbr_device_list.encode('utf-8'))
         except etree.ParseError:
             return None
         except (ValueError, AttributeError):
