@@ -97,7 +97,8 @@ class UPNPDiscoverSocket(threading.Thread):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind((local_address, 0))
-            sock.settimeout(5.0)
+            sock.settimeout(8.0)
+            sock.setblocking(1)
         except socket.error:
             try:
                 sock.close()
@@ -118,7 +119,8 @@ class UPNPDiscoverSocket(threading.Thread):
                 packet = IPV4_SSDP.format(service)
                 if self.logging:
                     logger.debug(
-                        'SSDP: %s\n%s',
+                        'SSDP: %s - %s\n%s',
+                        self._local_address,
                         IPV4_MCAST_GRP,
                         packet
                     )
@@ -140,37 +142,47 @@ class UPNPDiscoverSocket(threading.Thread):
             try:
                 while not self._event.isSet():
                     data, addr = self.sock.recvfrom(1024)
-                    packet = convert_ssdp_response(data, addr[0])
-
-                    if (
-                        packet['TYPE'] != 'response' or
-                        'LOCATION' not in packet
-                    ):
-                        continue
-
-                    if (
-                        packet['LOCATION'].count('/') == 2 and
-                        packet['LOCATION'].startswith('http')
-                    ):
-                        continue
-
-                    if self.logging:
-                        logger.debug(
-                            addr[0] +
-                            ' --> ' +
-                            self._local_address +
-                            ' (SSDP)'
-                        )
-                        logger.debug(json.dumps(packet, indent=4))
 
                     if addr[0] not in found:
-                        found[addr[0]] = set()
+                        found[addr[0]] = []
 
-                    found[addr[0]].add((packet['ST'], packet['LOCATION']))
+                    found[addr[0]] += [data]
 
             except socket.timeout:
+                found_packets = {}
+
+                for addr, packets in found.items():
+                    for data in packets:
+                        packet = convert_ssdp_response(data, addr)
+
+                        if (
+                            packet['TYPE'] != 'response' or
+                            'LOCATION' not in packet
+                        ):
+                            continue
+
+                        if (
+                            packet['LOCATION'].count('/') == 2 and
+                            packet['LOCATION'].startswith('http')
+                        ):
+                            continue
+
+                        if self.logging:
+                            logger.debug(
+                                addr +
+                                ' --> ' +
+                                self._local_address +
+                                ' (SSDP) ' +
+                                logger.debug(json.dumps(packet, indent=4))
+                            )
+
+                        if addr not in found_packets:
+                            found_packets[addr] = set()
+
+                        found_packets[addr].add((packet['ST'], packet['LOCATION']))
+
                 self._parent.callback(
-                    dict((addr, packet) for addr, packet in found.items())
+                    dict((addr, packet) for addr, packet in found_packets.items())
                 )
                 if self.logging:
                     logger.debug(
