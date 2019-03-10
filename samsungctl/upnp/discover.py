@@ -158,7 +158,7 @@ class UPNPDiscoverSocket(threading.Thread):
 
                         if self.logging:
                             logger.debug(
-                                addr +
+                                addr[0] +
                                 ' --> ' +
                                 self._local_address +
                                 ' (SSDP) ' +
