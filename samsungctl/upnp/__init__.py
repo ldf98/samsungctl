@@ -346,16 +346,28 @@ class UPNPTV(UPNPObject):
             try:
 
                 if PY2:
-                    data = list(
-                        itm[:-11] for itm in response.content[3:].split('\xff\xff')
-                            if len(itm) != 11
-                    )
-                else:
+                    data = response.content.split('\xff\xff\xff\xff')
+                    data_len = len(data)
+                    data = data[0]
 
                     data = list(
-                        itm[:-11] for itm in response.content[3:].split(b'\xff\xff')
-                            if len(itm) != 11
+                        itm[:-11] for itm in data[3:].split('\xff\xff')
+                        if len(itm) != 11
                     )
+
+                    if data_len > 1:
+                        data = data[:-1]
+                else:
+                    data = response.content.split(b'\xff\xff\xff\xff')
+                    data_len = len(data)
+                    data = data[0]
+                    data = list(
+                        itm[:-11] for itm in data[3:].split(b'\xff\xff')
+                        if len(itm) != 11
+                    )
+
+                    if data_len > 1:
+                        data = data[:-1]
 
                 channels = []
 
