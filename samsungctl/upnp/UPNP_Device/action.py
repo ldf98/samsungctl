@@ -3,10 +3,7 @@
 import requests
 from xml.dom.minidom import Document
 from lxml import etree
-try:
-    from .xmlns import ENVELOPE_XMLNS, strip_xmlns
-except ImportError:
-    from xmlns import ENVELOPE_XMLNS, strip_xmlns
+from .xmlns import ENVELOPE_XMLNS, strip_xmlns
 
 import logging
 
@@ -77,6 +74,18 @@ class Action(object):
                 )
 
     def __call__(self, *args, **kwargs):
+
+        total_params = len(list(kwargs.keys())) + len(args)
+
+        if len(self.params) < total_params:
+            raise RuntimeError(
+                'To many parameters specified for UPNP funcion {0}.\n'
+                'Allowed parameters are {1}'.format(
+                    self.__name__,
+                    ', '.join(param.__name__ for param in self.params)
+                )
+            )
+
         for i, arg in enumerate(args):
             try:
                 kwargs[self.params[i].__name__] = arg

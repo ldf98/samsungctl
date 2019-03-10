@@ -2424,7 +2424,6 @@ class ChannelContent(object):
         #     <MajorCh>10</MajorCh>
         #     <MinorCh>65534</MinorCh>
         # </Channel>
-
         channel = etree.tostring(self._channel_node)
         channel = saxutils.escape(channel)
 
@@ -2654,15 +2653,22 @@ class Channel(object):
         #     <MinorCh>65534</MinorCh>
         # </Channel>
 
-        channel = etree.tostring(channel)
+        channel = channel.toxml()
         channel = saxutils.escape(channel)
 
-        self._parent.MainTVAgent2.SetMainTVChannel(
-            antenna_mode,
-            channel_list_type,
-            satellite_id,
-            channel
-        )
+        try:
+            self._parent.MainTVAgent2.SetMainTVChannel(
+                antenna_mode,
+                channel_list_type,
+                satellite_id,
+                channel
+            )
+        except RuntimeError:
+            self._parent.MainTVAgent2.SetMainTVChannel(
+                channel_list_type,
+                satellite_id,
+                channel
+            )
 
     def __iter__(self):
         url = self._parent.program_information_url
