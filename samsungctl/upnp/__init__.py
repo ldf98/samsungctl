@@ -412,14 +412,7 @@ class UPNPTV(UPNPObject):
                     self.config.host + ' --> ' + repr(channels)
                 )
             except:
-                import traceback
-
-                traceback.print_exc()
-
-                print()
-
-                print(repr(response.content))
-                return None
+                return []
 
             return channels
 
@@ -2596,7 +2589,7 @@ class Channel(object):
     def activate(self):
         antenna_mode = 1
         channel_list_type, satellite_id = (
-            self._parent.MainTVAgent2.GetChannelListURL()[4:1]
+            self._parent.channel_list_url[3:-1]
         )
 
         channel = etree.tostring(self._node)

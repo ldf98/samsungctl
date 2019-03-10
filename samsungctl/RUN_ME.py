@@ -27,6 +27,7 @@ Python: {python_version}
 Python Compiler: {compiler}
 Processor: {processor}
 Architecture: {architecture}
+RUN_ME.py version: 1.0 
 '''
 
 PY_VERSION_STR = '.'.join(str(itm) for itm in sys.version_info[:2])
@@ -670,6 +671,7 @@ def run_test(config):
             print('channel.channel_type: ' + str(_channel.channel_type))
             # print('channel.is_recording: ' + str(_channel.is_recording))
             print('channel.is_active: ' + str(_channel.is_active))
+            print('channel content:')
             for content in channel:
                 print('    start_time', content.start_time)
                 print('    end_time', content.end_time)

@@ -42,6 +42,7 @@ class WebSocketBase(UPNPTV):
 
         self.open()
 
+    @LogIt
     def _connect(self, config, power):
         with self._auth_lock:
             if config is None:
@@ -102,6 +103,15 @@ class WebSocketBase(UPNPTV):
         while not self._loop_event.isSet():
             try:
                 data = self.sock.recv()
+
+            except:
+                import traceback
+
+                traceback.print_exc()
+                self.disconnect()
+                break
+
+            else:
                 if data:
                     logger.debug(
                         self.config.host +
@@ -111,11 +121,9 @@ class WebSocketBase(UPNPTV):
                     self.on_message(data)
                 else:
                     if self.config.method == 'legacy':
-                        raise RuntimeError
+                        break
                     else:
                         self._loop_event.wait(0.1)
-            except:
-                self.disconnect()
 
         try:
             self.sock.close()

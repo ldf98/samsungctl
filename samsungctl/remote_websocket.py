@@ -91,12 +91,14 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             auth_event = threading.Event()
             unauth_event = threading.Event()
 
+            @LogIt
             def unauthorized_callback(_):
                 unauth_event.set()
                 auth_event.set()
 
             token = None
 
+            @LogItWithReturn
             def auth_callback(data):
                 global token
 
