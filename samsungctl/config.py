@@ -357,8 +357,7 @@ class Config(object):
         for new_line in new:
             key = new_line.split('=')[0]
             for i, old_line in enumerate(data):
-                if old_line.lower().strip().startswith(key):
-
+                if old_line.lower().startswith(key):
                     data[i] = new_line
                     break
             else:
@@ -426,7 +425,8 @@ cec:
   {cec}
 '''
 
-CEC_TEMPLATE = '''name = {name}
+CEC_TEMPLATE = '''\
+name = {name}
   port = {port}
   types = {types}
   power_off = {power_off}

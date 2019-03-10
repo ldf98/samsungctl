@@ -686,6 +686,14 @@ def run_test(config):
         # print('channel.is_recording: ' + str(_channel.is_recording))
         print('channel.is_active: ' + str(_channel.is_active))
 
+        list(_channels)[-1].activate()
+
+        print(list(_channels)[-1].label + ' is active: ' + str(list(_channels)[-1].is_active))
+
+        print(_channel.label + ' is_active: ' + str(_channel.is_active))
+        _channel.activate()
+        print(_channel.label + ' is_active: ' + str(_channel.is_active))
+
     print('\nICON TESTS\n')
 
     icon = get_property('icon', [])

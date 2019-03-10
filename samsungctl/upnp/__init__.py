@@ -2611,57 +2611,60 @@ class Channel(object):
 
     def __iter__(self):
         url = self._parent.program_information_url
-        response = requests.get(url)
 
-        try:
-            program_information = etree.fromstring(
-                response.content.decode('utf-8')
-            )
-        except etree.ParseError:
-            return
-        except (ValueError, AttributeError):
+        if url is not None:
+            response = requests.get(url)
+
             try:
-                program_information = etree.fromstring(response.content)
+                program_information = etree.fromstring(
+                    response.content.decode('utf-8')
+                )
             except etree.ParseError:
                 return
+            except (ValueError, AttributeError):
+                try:
+                    program_information = etree.fromstring(response.content)
+                except etree.ParseError:
+                    return
 
-        program_information = strip_xmlns(program_information)
+            program_information = strip_xmlns(program_information)
 
-        for program_info in program_information:
-            channel = program_info.find('Channel')
-            if channel is None:
-                continue
+            for program_info in program_information:
+                channel = program_info.find('Channel')
+                if channel is None:
+                    continue
 
-            major = channel.find('MajorCh')
-            minor = channel.find('MinorCh')
+                major = channel.find('MajorCh')
+                minor = channel.find('MinorCh')
 
-            if major is None:
-                continue
+                if major is None:
+                    continue
 
-            major = major.text
+                major = major.text
 
-            if minor is None or not minor.text:
-                minor = 65534
-            else:
-                minor = int(minor.text)
+                if minor is None or not minor.text:
+                    minor = 65534
+                else:
+                    minor = int(minor.text)
 
-            if major != self._major or minor != self._minor:
-                continue
+                if major != self._major or minor != self._minor:
+                    continue
 
-            prog_num = channel.find('ProgNum')
+                prog_num = channel.find('ProgNum')
 
-            if prog_num is None or not prog_num.text:
-                continue
+                if prog_num is None or not prog_num.text:
+                    continue
 
-            prog_num = int(prog_num.text)
+                prog_num = int(prog_num.text)
 
-            yield ChannelContent(
-                self,
-                self._parent,
-                prog_num,
-                program_info,
-                self._node
-            )
+                yield ChannelContent(
+                    self,
+                    self._parent,
+                    prog_num,
+                    program_info,
+                    self._node
+                )
+
 
 @six.add_metaclass(InstanceSingleton)
 class MBRDevice(object):
