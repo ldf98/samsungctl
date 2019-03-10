@@ -2332,13 +2332,13 @@ class ChannelContent(object):
             if hasattr(self.__class__.__dict__[item], 'fget'):
                 return self.__class__.__dict__[item].fget(self)
 
-        for child in self._node:
-            if child.tag == item:
-                value = child.text
-                if value.isdigit():
-                    value = int(value)
+        node = self._node.find(item)
 
-                return value
+        if node is not None and node.text is not None:
+            if node.text.isdigit():
+                return int(node.text)
+
+            return node.text
 
         raise AttributeError(item)
 
@@ -2366,7 +2366,7 @@ class ChannelContent(object):
     @property
     def detail_info(self):
         try:
-            return self.DetailInfo
+            self.DetailInfo.replace("&apos", "'")
         except AttributeError:
             return None
 
@@ -2437,9 +2437,6 @@ class Channel(object):
     ):
         self._major, self._minor = channel_num
         self.channel_type = channel_type
-
-        if label is None:
-            label = '{0}.{1}'.format(self._major, self._minor)
 
         self._label = label
         self._node = node
@@ -2546,6 +2543,18 @@ class Channel(object):
 
     @property
     def label(self):
+        if self._label is None:
+            for content in self:
+                try:
+                    label = content.DispChName
+                except AttributeError:
+                    continue
+
+                self._label = label
+                break
+            else:
+                return '{0}.{1}'.format(self._major, self._minor)
+
         return self._label
 
     @label.setter
