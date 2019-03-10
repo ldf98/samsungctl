@@ -2405,13 +2405,34 @@ class ChannelContent(object):
 
     @property
     def detail_information(self):
-        channel = etree.tostring(self._node)
+        channel = etree.tostring(self._channel_node)
         channel = saxutils.escape(channel)
 
         return self._remote.get_detail_program_information(
             1,
             channel,
             self.start_time
+        )
+
+    def activate(self):
+        antenna_mode = 1
+        channel_list_type, satellite_id = (
+            self._parent.channel_list_url[3:-1]
+        )
+
+        # <Channel>
+        #     <MajorCh>10</MajorCh>
+        #     <MinorCh>65534</MinorCh>
+        # </Channel>
+
+        channel = etree.tostring(self._channel_node)
+        channel = saxutils.escape(channel)
+
+        self._parent.MainTVAgent2.SetMainTVChannel(
+            antenna_mode,
+            channel_list_type,
+            satellite_id,
+            channel
         )
 
 
@@ -2608,12 +2629,32 @@ class Channel(object):
         return self._is_active
 
     def activate(self):
+        from xml.dom.minidom import Document
+
         antenna_mode = 1
         channel_list_type, satellite_id = (
             self._parent.channel_list_url[3:-1]
         )
 
-        channel = etree.tostring(self._node)
+        doc = Document()
+        channel = doc.createElementNS('', 'Channel')
+
+        major = doc.createElement('MajorCh')
+        tmp_text_node = doc.createTextNode(str(self._major))
+        major.appendChild(tmp_text_node)
+        channel.appendChild(major)
+
+        minor = doc.createElement('MinorCh')
+        tmp_text_node = doc.createTextNode(str(self._minor))
+        minor.appendChild(tmp_text_node)
+        channel.appendChild(minor)
+
+        # <Channel>
+        #     <MajorCh>10</MajorCh>
+        #     <MinorCh>65534</MinorCh>
+        # </Channel>
+
+        channel = etree.tostring(channel)
         channel = saxutils.escape(channel)
 
         self._parent.MainTVAgent2.SetMainTVChannel(
@@ -2676,7 +2717,7 @@ class Channel(object):
                     self._parent,
                     prog_num,
                     program_info,
-                    self._node
+                    channel
                 )
 
 

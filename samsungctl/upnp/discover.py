@@ -81,6 +81,51 @@ def get_mac(host):
         return wake_on_lan.get_mac_address(host)
 
 
+def websocket():
+    return 'websocket', 8001, None, get_mac(host)
+
+
+def encrypted():
+    return 'encrypted', 8080, '12345', get_mac(host)
+
+
+def legacy():
+    return (
+        'legacy',
+        55000,
+        None,
+        wake_on_lan.get_mac_address(host)
+    )
+
+
+CONNECTION_TYPES = {
+    (
+        'urn:schemas-upnp-org:device:MediaRenderer:1',
+        'urn:samsung.com:device:IPControlServer:1',
+        'urn:dial-multiscreen-org:device:dialreceiver:1'
+    ): websocket,
+
+    (
+        'urn:samsung.com:device:RemoteControlReceiver:1',
+        'urn:dial-multiscreen-org:device:dialreceiver:1',
+        'urn:schemas-upnp-org:device:MediaRenderer:1'
+    ): websocket,
+
+    (
+        'urn:samsung.com:device:MainTVServer2:1',
+        'urn:samsung.com:device:RemoteControlReceiver:1',
+        'urn:schemas-upnp-org:device:MediaRenderer:1',
+        'urn:dial-multiscreen-org:device:dialreceiver:1'
+    ): encrypted,
+
+    (
+        'urn:schemas-upnp-org:device:MediaRenderer:1',
+        'urn:samsung.com:device:MainTVServer2:1',
+        'urn:samsung.com:device:RemoteControlReceiver:1'
+    ): legacy
+}
+
+
 class UPNPDiscoverSocket(threading.Thread):
 
     def __init__(self, parent, local_address, _logging):
@@ -140,9 +185,10 @@ class UPNPDiscoverSocket(threading.Thread):
             found_packets = {}
             try:
                 while not self._event.isSet():
-                    data, addr = self.sock.recvfrom(1024)
+                    data, (connected_ip, _) = self.sock.recvfrom(1024)
+
                     if data:
-                        packet = convert_ssdp_response(data, addr[0])
+                        packet = convert_ssdp_response(data, connected_ip)
 
                         if (
                             packet['TYPE'] != 'response' or
@@ -158,23 +204,26 @@ class UPNPDiscoverSocket(threading.Thread):
 
                         if self.logging:
                             logger.debug(
-                                addr[0] +
+                                connected_ip +
                                 ' --> ' +
                                 self._local_address +
                                 ' (SSDP) ' +
                                 json.dumps(packet, indent=4)
                             )
 
-                        if addr[0] not in found_packets:
-                            found_packets[addr[0]] = set()
+                        if connected_ip not in found_packets:
+                            found_packets[connected_ip] = set()
 
-                        found_packets[addr[0]].add((packet['ST'], packet['LOCATION']))
+                        found_packets[connected_ip].add(
+                            (packet['ST'], packet['LOCATION'])
+                        )
 
             except socket.timeout:
 
                 self._parent.callback(
-                    dict((addr, packet) for addr, packet in found_packets.items())
+                    dict(item for item in found_packets.items())
                 )
+
                 if self.logging:
                     logger.debug(
                         self._local_address +
@@ -275,8 +324,6 @@ class Discover(object):
         powered_on = []
 
         for host, packet in found.items():
-
-            services = list(service for service, _ in packet)
             upnp_locations = list(location for _, location in packet)
 
             for service, location in packet:
@@ -375,51 +422,17 @@ class Discover(object):
                         year = None
 
                 if year is None:
-                    if (
-                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
-                        'urn:samsung.com:device:IPControlServer:1' in services and
-                        'urn:dial-multiscreen-org:device:dialreceiver:1' in services
-                    ):
-                        method = 'websocket'
-                        app_id = None
-                        port = 8001
-                        mac = get_mac(host)
+                    services = list(service for service, _ in packet)
 
-                    elif (
-                        'urn:samsung.com:device:MainTVServer2:1' in services and
-                        'urn:samsung.com:device:RemoteControlReceiver:1' in services and
-                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
-                        'urn:dial-multiscreen-org:device:dialreceiver:1' in services
-                    ):
-                        method = 'encrypted'
-                        port = 8080
-                        app_id = '12345'
-                        # user_id = '654321'
-                        mac = get_mac(host)
-                        # device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
-
-                    elif (
-                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services and
-                        'urn:samsung.com:device:MainTVServer2:1' in services and
-                        'urn:samsung.com:device:RemoteControlReceiver:1' in services
-                    ):
-                        method = 'legacy'
-                        app_id = None
-                        # user_id = None
-                        port = 55000
-                        mac = wake_on_lan.get_mac_address(host)
-
-                    elif (
-                        'urn:samsung.com:device:RemoteControlReceiver:1' in services and
-                        'urn:dial-multiscreen-org:device:dialreceiver:1' in services and
-                        'urn:schemas-upnp-org:device:MediaRenderer:1' in services
-                    ):
-                        method = 'websocket'
-                        app_id = None
-                        port = 8001
-                        mac = get_mac(host)
+                    for found_services, method in CONNECTION_TYPES.items():
+                        for found_service in found_services:
+                            if found_service not in services:
+                                break
+                        else:
+                            method, port, app_id, mac = method()
+                            break
                     else:
-                        return
+                        continue
 
                 elif year <= 2013:
                     method = 'legacy'
