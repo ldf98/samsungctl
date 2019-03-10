@@ -619,82 +619,82 @@ def run_test(config):
         print()
 
         print('KEY_VOLDOWN: ' + str(response))
+    if remote.year <= 2015:
+        print('\nSOURCE TESTS\n')
 
-    print('\nSOURCE TESTS\n')
+        _source = get_property('source', [])
+        _sources = get_property('sources', [])
 
-    _source = get_property('source', [])
-    _sources = get_property('sources', [])
+        if _source is not None:
+            print('source.name: ' + _source.name)
+            print('source.label: ' + _source.label)
 
-    if _source is not None:
-        print('source.name: ' + _source.name)
-        print('source.label: ' + _source.label)
+        if _sources is not None:
+            for source in _sources:
+                print('-' * 40)
+                print('source.id: ' + str(source.id))
+                print('source.name: ' + source.name)
+                print('source.is_viewable: ' + str(source.is_viewable))
+                print('source.is_editable: ' + str(source.is_editable))
+                print('source.is_connected: ' + str(source.is_connected))
+                print('source.label: ' + source.label)
+                # source.label = 'TEST LABEL'
+                print('source.device_name: ' + str(source.device_name))
+                print('source.is_active: ' + str(source.is_active))
+                print('-' * 40)
+                source.activate()
+                time.sleep(2)
 
-    if _sources is not None:
-        for source in _sources:
-            print('-' * 40)
-            print('source.id: ' + str(source.id))
-            print('source.name: ' + source.name)
-            print('source.is_viewable: ' + str(source.is_viewable))
-            print('source.is_editable: ' + str(source.is_editable))
-            print('source.is_connected: ' + str(source.is_connected))
-            print('source.label: ' + source.label)
-            # source.label = 'TEST LABEL'
-            print('source.device_name: ' + str(source.device_name))
-            print('source.is_active: ' + str(source.is_active))
-            print('-' * 40)
-            source.activate()
-            time.sleep(2)
+            _source.activate()
 
-        _source.activate()
+        print('\nCHANNEL TESTS\n')
 
-    print('\nCHANNEL TESTS\n')
+        _channels = get_property('channels', [])
+        _channel = get_property('channel', [])
+        (
+            _channel_list_version,
+            _support_channel_list,
+            _channel_list_url,
+            _channel_list_type,
+            _satellite_id,
+            _sort
+        ) = get_property(
+            'channel_list_url',
+            ['channel_list_version', 'support_channel_list', 'channel_list_url',
+                'channel_list_type', 'satellite_id', 'sort']
+        )
 
-    _channels = get_property('channels', [])
-    _channel = get_property('channel', [])
-    (
-        _channel_list_version,
-        _support_channel_list,
-        _channel_list_url,
-        _channel_list_type,
-        _satellite_id,
-        _sort
-    ) = get_property(
-        'channel_list_url',
-        ['channel_list_version', 'support_channel_list', 'channel_list_url',
-            'channel_list_type', 'satellite_id', 'sort']
-    )
+        if _channels is not None:
+            for channel in _channels:
+                print('channel.number: ' + str(_channel.number))
+                print('channel.name: ' + str(_channel.name))
+                print('channel.channel_type: ' + str(_channel.channel_type))
+                # print('channel.is_recording: ' + str(_channel.is_recording))
+                print('channel.is_active: ' + str(_channel.is_active))
+                print('channel content:')
+                for content in channel:
+                    print('    start_time', content.start_time)
+                    print('    end_time', content.end_time)
+                    print('    title', content.title)
+                    print('    genre', content.genre)
+                    print('    series_id', content.series_id)
+                    print('    detail_info', content.detail_info)
+                    print('    detail_information', content.detail_information)
 
-    if _channels is not None:
-        for channel in _channels:
+        if _channel is not None:
+            print('\n')
             print('channel.number: ' + str(_channel.number))
             print('channel.name: ' + str(_channel.name))
-            print('channel.channel_type: ' + str(_channel.channel_type))
             # print('channel.is_recording: ' + str(_channel.is_recording))
             print('channel.is_active: ' + str(_channel.is_active))
-            print('channel content:')
-            for content in channel:
-                print('    start_time', content.start_time)
-                print('    end_time', content.end_time)
-                print('    title', content.title)
-                print('    genre', content.genre)
-                print('    series_id', content.series_id)
-                print('    detail_info', content.detail_info)
-                print('    detail_information', content.detail_information)
 
-    if _channel is not None:
-        print('\n')
-        print('channel.number: ' + str(_channel.number))
-        print('channel.name: ' + str(_channel.name))
-        # print('channel.is_recording: ' + str(_channel.is_recording))
-        print('channel.is_active: ' + str(_channel.is_active))
+            list(_channels)[-1].activate()
 
-        list(_channels)[-1].activate()
+            print(list(_channels)[-1].label + ' is active: ' + str(list(_channels)[-1].is_active))
 
-        print(list(_channels)[-1].label + ' is active: ' + str(list(_channels)[-1].is_active))
-
-        print(_channel.label + ' is_active: ' + str(_channel.is_active))
-        _channel.activate()
-        print(_channel.label + ' is_active: ' + str(_channel.is_active))
+            print(_channel.label + ' is_active: ' + str(_channel.is_active))
+            _channel.activate()
+            print(_channel.label + ' is_active: ' + str(_channel.is_active))
 
     print('\nICON TESTS\n')
 
@@ -709,7 +709,7 @@ def run_test(config):
     get_property('browser_url', [])
     run_method('stop_browser', [])
 
-    if remote.config.method == 'websocket':
+    if remote.year >= 2016:
         apps = remote.applications
         for app in apps:
             print('app.name:', app.name)
