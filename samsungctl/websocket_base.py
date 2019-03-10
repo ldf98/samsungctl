@@ -19,7 +19,8 @@ class WebSocketBase(UPNPTV):
         """
         Constructor.
 
-        :param config: TV configuration settings. see `samsungctl.Config` for further details
+        :param config: TV configuration settings. see `samsungctl.Config` for
+        further details
         :type config: `dict` or `samsungctl.Config` instance
         """
         self.config = config
@@ -66,7 +67,8 @@ class WebSocketBase(UPNPTV):
 
         **Get:** Gets the MAC address.
 
-            *Returns:* None or the MAC address of the TV formatted ``"00:00:00:00:00"``
+            *Returns:* None or the MAC address of the TV formatted
+            ``"00:00:00:00:00"``
 
             *Return type:* `None` or `str`
         """
@@ -103,12 +105,7 @@ class WebSocketBase(UPNPTV):
         while not self._loop_event.isSet():
             try:
                 data = self.sock.recv()
-
             except:
-                import traceback
-
-                traceback.print_exc()
-                self.disconnect()
                 break
 
             else:
@@ -124,15 +121,19 @@ class WebSocketBase(UPNPTV):
                         break
                     else:
                         self._loop_event.wait(0.1)
-
         try:
             self.sock.close()
         except:
             pass
 
         self.sock = None
-        self._loop_event.clear()
         self._thread = None
+
+        if self._loop_event.isSet():
+            self._loop_event.clear()
+            self.disconnect()
+        else:
+            self.open()
 
     @property
     def artmode(self):

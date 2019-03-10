@@ -98,7 +98,6 @@ class UPNPDiscoverSocket(threading.Thread):
         try:
             sock.bind((local_address, 0))
             sock.settimeout(8.0)
-            sock.setblocking(1)
         except socket.error:
             try:
                 sock.close()
@@ -138,22 +137,12 @@ class UPNPDiscoverSocket(threading.Thread):
                     self.sock = None
                     return
 
-            found = {}
+            found_packets = {}
             try:
                 while not self._event.isSet():
                     data, addr = self.sock.recvfrom(1024)
-
-                    if addr[0] not in found:
-                        found[addr[0]] = []
-
-                    found[addr[0]] += [data]
-
-            except socket.timeout:
-                found_packets = {}
-
-                for addr, packets in found.items():
-                    for data in packets:
-                        packet = convert_ssdp_response(data, addr)
+                    if data:
+                        packet = convert_ssdp_response(data, addr[0])
 
                         if (
                             packet['TYPE'] != 'response' or
@@ -173,13 +162,15 @@ class UPNPDiscoverSocket(threading.Thread):
                                 ' --> ' +
                                 self._local_address +
                                 ' (SSDP) ' +
-                                logger.debug(json.dumps(packet, indent=4))
+                                json.dumps(packet, indent=4)
                             )
 
-                        if addr not in found_packets:
-                            found_packets[addr] = set()
+                        if addr[0] not in found_packets:
+                            found_packets[addr[0]] = set()
 
-                        found_packets[addr].add((packet['ST'], packet['LOCATION']))
+                        found_packets[addr[0]].add((packet['ST'], packet['LOCATION']))
+
+            except socket.timeout:
 
                 self._parent.callback(
                     dict((addr, packet) for addr, packet in found_packets.items())
