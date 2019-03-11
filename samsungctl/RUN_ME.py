@@ -798,7 +798,7 @@ def run_test(config):
                 answer = answer.lower()
 
                 for group in app:
-                    if group.tiitle.lower() == answer:
+                    if group.title.lower() == answer:
                         for content in group:
                             print(content.title)
 
