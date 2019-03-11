@@ -215,7 +215,22 @@ class Application(object):
             self.app_id
         )
 
+        logger.debug(
+            self._remote.config.host +
+            ' <-- (' +
+            url +
+            ') ""'
+        )
+
         response = requests.get(url)
+        logger.debug(
+            self._remote.config.host +
+            ' --> (' +
+            url +
+            ') ' +
+            response.content.decode('utf-8')
+        )
+
         try:
             response = response.json()
         except ValueError:
@@ -234,7 +249,21 @@ class Application(object):
             self.app_id
         )
 
+        logger.debug(
+            self._remote.config.host +
+            ' <-- (' +
+            url +
+            ') ""'
+        )
+
         response = requests.get(url)
+        logger.debug(
+            self._remote.config.host +
+            ' --> (' +
+            url +
+            ') ' +
+            response.content.decode('utf-8')
+        )
         try:
             response = response.json()
         except ValueError:

@@ -764,6 +764,8 @@ def run_test(config):
         print()
         for app in apps:
             if app.name.lower() == answer:
+                sam_logger.setLevel(logging.DEBUG)
+                upnp_logger.setLevel(logging.DEBUG)
                 print('Now starting application.')
                 time.sleep(2)
                 app.run()
@@ -784,6 +786,9 @@ def run_test(config):
 
                 print(answer.lower() == 'y')
                 print()
+
+                sam_logger.setLevel(logging.NOTSET)
+                upnp_logger.setLevel(logging.NOTSET)
 
                 for group in app:
                     print(group.title)
@@ -813,6 +818,9 @@ def run_test(config):
 
                         for content in group:
                             if content.title.lower() == answer:
+                                sam_logger.setLevel(logging.DEBUG)
+                                upnp_logger.setLevel(logging.DEBUG)
+
                                 content.run()
                                 time.sleep(2)
 
