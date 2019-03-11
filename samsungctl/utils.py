@@ -188,17 +188,31 @@ def _func_arg_string(func, args, kwargs):
     for item in stack:
         # this is where we want to stop so we do not include any of the
         # internal path information.
-        if item.function == '_func_arg_string':
-            break
-        if item.function == 'wrapper':
-            continue
-        # this is where the check gets done to see if a function
-        # is nested inside of a method. and if it is this is
-        # where we obtain the class name
-        if 'self' in item.frame.f_locals:
-            func_path.insert(0, item.frame.f_locals['self'].__class__.__name__)
 
-        func_path.insert(0, item.function)
+        if PY3:
+            if item.function == '_func_arg_string':
+                break
+            if item.function == 'wrapper':
+                continue
+            # this is where the check gets done to see if a function
+            # is nested inside of a method. and if it is this is
+            # where we obtain the class name
+            if 'self' in item.frame.f_locals:
+                func_path.insert(0, item.frame.f_locals['self'].__class__.__name__)
+
+            func_path.insert(0, item.function)
+        else:
+            if item[3] == '_func_arg_string':
+                break
+            if item[3] == 'wrapper':
+                continue
+            # this is where the check gets done to see if a function
+            # is nested inside of a method. and if it is this is
+            # where we obtain the class name
+            if 'self' in item[0].f_locals:
+                func_path.insert(0, item[0].f_locals['self'].__class__.__name__)
+
+            func_path.insert(0, item[3])
 
     func_path += [func.__name__]
 

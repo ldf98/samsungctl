@@ -518,7 +518,7 @@ class UPNPTV(UPNPObject):
                 )
 
                 if satellite_id is None:
-                    satellite_id = ''
+                    satellite_id = 0
 
                 doc = Document()
                 channel = doc.createElementNS('', 'Channel')
