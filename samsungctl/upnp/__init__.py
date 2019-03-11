@@ -489,14 +489,81 @@ class UPNPTV(UPNPObject):
         or a Channel instance gotten from instance.channels.
         """
         try:
-            for chnl in self.channels:
-                if chnl == channel:
-                    chnl.activate()
-                    break
+            if isinstance(channel, Channel):
+                channel.activate()
+                return
+
+            if PY2:
+                if isinstance(channel, unicode):
+                    channel = channel.encode('utf-8')
             else:
-                logger.error(
-                    'Channel not found ({0})'.format(channel)
+                if isinstance(channel, bytes):
+                    channel = ''.join(map(chr, list(channel)))
+
+            if isinstance(channel, str):
+                channel = channel.split('.')
+                if len(channel) == 1:
+                    channel = channel[0]
+
+            if isinstance(channel, int):
+                channel = (channel, 65534)
+
+            if isinstance(channel, (tuple, list)):
+                _major, _minor = channel
+                from xml.dom.minidom import Document
+
+                antenna_mode = 1
+                channel_list_type, satellite_id = (
+                    self.channel_list_url[3:-1]
                 )
+
+                if satellite_id is None:
+                    satellite_id = ''
+
+                doc = Document()
+                channel = doc.createElementNS('', 'Channel')
+
+                major = doc.createElement('MajorCh')
+                tmp_text_node = doc.createTextNode(str(_major))
+                major.appendChild(tmp_text_node)
+                channel.appendChild(major)
+
+                minor = doc.createElement('MinorCh')
+                tmp_text_node = doc.createTextNode(str(_minor))
+                minor.appendChild(tmp_text_node)
+                channel.appendChild(minor)
+
+                # <Channel>
+                #     <MajorCh>10</MajorCh>
+                #     <MinorCh>65534</MinorCh>
+                # </Channel>
+
+                channel = channel.toxml()
+                channel = saxutils.escape(channel)
+
+                try:
+                    self.MainTVAgent2.SetMainTVChannel(
+                        antenna_mode,
+                        channel_list_type,
+                        satellite_id,
+                        channel
+                    )
+                except RuntimeError:
+                    self.MainTVAgent2.SetMainTVChannel(
+                        channel_list_type,
+                        satellite_id,
+                        channel
+                    )
+
+            else:
+                for chnl in self.channels:
+                    if chnl == channel:
+                        chnl.activate()
+                        break
+                else:
+                    logger.error(
+                        'Channel not found ({0})'.format(channel)
+                    )
         except AttributeError:
             pass
 

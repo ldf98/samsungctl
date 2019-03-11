@@ -107,7 +107,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     logger.debug(
                         self.config.host +
                         ' -- (token) ' +
-                        self.config.token
+                        token
                     )
 
                 logger.debug(
