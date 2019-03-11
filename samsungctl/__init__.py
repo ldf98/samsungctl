@@ -2,11 +2,12 @@
 
 """Remote control Samsung televisions via TCP/IP connection"""
 
+print('Importing the correct one')
 import logging
 from logging import NullHandler
 
 LOGGING_FORMAT = '''\
-'[%(levelname)s][%(thread)d] %(name)s.%(module)s.%(funcName)s
+[%(levelname)s][%(thread)d] %(name)s.%(module)s.%(funcName)s
 %(message)s
 '''
 
@@ -26,3 +27,8 @@ from .config import Config # NOQA
 from .remote import Remote  # NOQA
 
 
+def discover(timeout=8):
+    from .upnp.discover import discover as _discover
+    res = list(_discover(timeout=timeout))
+
+    return res

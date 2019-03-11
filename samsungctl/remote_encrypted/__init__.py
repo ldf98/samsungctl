@@ -135,7 +135,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         self.current_session_id = None
         self.aes = None
 
-        super(RemoteEncrypted, self).__init__(config)
+        websocket_base.WebSocketBase.__init__(self, config)
 
     @LogItWithReturn
     def open(self):
@@ -247,11 +247,12 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             except:
                 return False
 
+            self.connect()
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
 
             time.sleep(0.35)
-            self.connect()
+
             return True
 
     @LogIt
@@ -563,5 +564,5 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             except:
                 traceback.print_exc()
-                self.close()
+                self._close_connection()
                 return False

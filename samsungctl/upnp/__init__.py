@@ -373,18 +373,23 @@ class UPNPTV(UPNPObject):
 
                 for line in data:
                     if PY2:
-                        major = ''.join(itm for itm in line[:3] if itm != '\x00')
+                        major = ''.join(
+                            itm for itm in line[:3] if itm != '\x00'
+                        )
                         line = line[3:]
-                        minor = ''.join(itm for itm in line[:5] if itm != '\x00')
+                        minor = ''.join(
+                            itm for itm in line[:5] if itm != '\x00'
+                        )
                         line = line[5:]
 
                     else:
                         major = ''.join(
-                            map(chr, list(itm for itm in line[:3] if itm != 0)))
-                        print(repr(major))
+                            map(chr, list(itm for itm in line[:3] if itm != 0))
+                        )
                         line = line[3:]
                         minor = ''.join(
-                            map(chr, list(itm for itm in line[:5] if itm != 0)))
+                            map(chr, list(itm for itm in line[:5] if itm != 0))
+                        )
                         line = line[5:]
 
                     if not minor:
@@ -403,7 +408,10 @@ class UPNPTV(UPNPObject):
 
                     else:
                         description = ''.join(
-                            map(chr, list(itm for itm in line[:89] if itm != 0))
+                            map(
+                                chr,
+                                list(itm for itm in line[:89] if itm != 0)
+                            )
                         )
                         channel_type = 'Radio' if line[1] == b'\xa4' else 'TV'
 
@@ -913,7 +921,6 @@ class UPNPTV(UPNPObject):
                 save_bytes = ''
 
                 for char in list(in_data):
-                    print(repr(char))
                     if char == '\x00':
                         if save_bytes:
                             network_info += [save_bytes]
@@ -928,7 +935,6 @@ class UPNPTV(UPNPObject):
                 save_bytes = ''
 
                 for char in list(in_data):
-                    print(repr(char))
                     if char == 0:
                         if save_bytes:
                             network_info += [save_bytes]
@@ -2419,6 +2425,8 @@ class ChannelContent(object):
         channel_list_type, satellite_id = (
             self._parent.channel_list_url[3:-1]
         )
+        if satellite_id is None:
+            satellite_id = ''
 
         # <Channel>
         #     <MajorCh>10</MajorCh>
@@ -2634,6 +2642,9 @@ class Channel(object):
         channel_list_type, satellite_id = (
             self._parent.channel_list_url[3:-1]
         )
+
+        if satellite_id is None:
+            satellite_id = ''
 
         doc = Document()
         channel = doc.createElementNS('', 'Channel')

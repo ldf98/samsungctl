@@ -177,7 +177,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 return True
 
-            self.close()
+            self._close_connection()
 
             if not self.config.paired:
                 if self.config.port == 8001:

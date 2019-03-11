@@ -291,13 +291,12 @@ def run_test(config):
 
     try:
         remote = samsungctl.Remote(config)
-        remote.open()
-        config.save()
+        print('Remote created')
+        while remote.power is False:
+            time.sleep(0.5)
     except:
         traceback.print_exc()
         sys.exit(1)
-
-    print('Remote created')
 
     def run_method(method, ret_val_names, *args):
         print(method)
@@ -666,11 +665,11 @@ def run_test(config):
 
         if _channels is not None:
             for channel in _channels:
-                print('channel.number: ' + str(_channel.number))
-                print('channel.name: ' + str(_channel.name))
-                print('channel.channel_type: ' + str(_channel.channel_type))
+                print('channel.number: ' + str(channel.number))
+                print('channel.name: ' + str(channel.name))
+                print('channel.channel_type: ' + str(channel.channel_type))
                 # print('channel.is_recording: ' + str(_channel.is_recording))
-                print('channel.is_active: ' + str(_channel.is_active))
+                print('channel.is_active: ' + str(channel.is_active))
                 print('channel content:')
                 for content in channel:
                     print('    start_time', content.start_time)
@@ -747,20 +746,106 @@ def run_test(config):
                     print('       content.subtitle:', content.subtitle)
                     print('       content.subtitle2:', content.subtitle2)
                     print('       content.subtitle3:', content.subtitle3)
+        sam_logger.setLevel(logging.NOTSET)
+        upnp_logger.setLevel(logging.NOTSET)
+
+        time.sleep(2)
+        print('\n\n')
+
+        for app in apps:
+            print(app.name)
+
+        try:
+            answer = raw_input('Please enter one of the above application names:')
+        except NameError:
+            answer = input('Please enter one of the above application names:')
+
+        answer = answer.lower()
+        print()
+        for app in apps:
+            if app.name.lower() == answer:
+                print('Now starting application.')
+                time.sleep(2)
+                app.run()
+                time.sleep(2)
+                print(app.name + ' is running: ' + str(app.is_running))
+                print(app.name + ' is visible: ' + str(app.is_visible))
+                try:
+                    answer = raw_input('Is the app running: (y/n)')
+                except NameError:
+                    answer = input('Is the app running: (y/n)')
+
+                print(answer.lower() == 'y')
+                print()
+                try:
+                    answer = raw_input('Is the app visible: (y/n)')
+                except NameError:
+                    answer = input('Is the app visible: (y/n)')
+
+                print(answer.lower() == 'y')
+                print()
+
+                for group in app:
+                    print(group.title)
+
+                try:
+                    answer = raw_input(
+                        'Please enter one of the above content groups:')
+                except NameError:
+                    answer = input(
+                        'Please enter one of the above content groups:')
+
+                answer = answer.lower()
+
+                for group in app:
+                    if group.tiitle.lower() == answer:
+                        for content in group:
+                            print(content.title)
+
+                        try:
+                            answer = raw_input(
+                                'Please enter one of the above content items:')
+                        except NameError:
+                            answer = input(
+                                'Please enter one of the above content items:')
+
+                        answer = answer.lower()
+
+                        for content in group:
+                            if content.title.lower() == answer:
+                                content.run()
+                                time.sleep(2)
+
+
+                        try:
+                            answer = raw_input('Is the content playing?: (y/n)')
+                        except NameError:
+                            answer = input('Is the content playing?: (y/n)')
+
+                        print(answer.lower() == 'y')
+
+                        print('\n\n')
+
+        sam_logger.setLevel(logging.DEBUG)
+        upnp_logger.setLevel(logging.DEBUG)
+
     if remote.year > 2013:
         print('\nPOWER TESTS\n')
-        _power = get_property('power', [])
+
         set_property('power', False)
-        time.sleep(5)
-        get_property('power', [])
+        while remote.power is True:
+            time.sleep(0.5)
+
         set_property('power', True)
-        time.sleep(5)
-        get_property('power', [])
+        while remote.power is False:
+            time.sleep(0.5)
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     with WRITE_LOCK:
         log_file.close()
         log_file = open(SSDP_FILENAME, 'a')
+
+    remote.close()
 
     auto_discover.logging = True
 

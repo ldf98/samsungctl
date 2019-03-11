@@ -38,11 +38,6 @@ class WebSocketBase(UPNPTV):
             config.uuid
         )
 
-        if not auto_discover.is_running:
-            auto_discover.start()
-
-        self.open()
-
     @LogIt
     def _connect(self, config, power):
         with self._auth_lock:
@@ -54,7 +49,7 @@ class WebSocketBase(UPNPTV):
                 self.open()
 
             elif not power and self._thread:
-                self.close()
+                self._close_connection()
 
     def _send_key(self, *args, **kwargs):
         raise NotImplementedError
@@ -85,20 +80,28 @@ class WebSocketBase(UPNPTV):
     def on_message(self, _):
         raise NotImplementedError
 
-    @LogIt
-    def close(self):
-        """Close the connection."""
+    def _close_connection(self):
+        self._loop_event.set()
+
         if self.sock is not None:
-            self._loop_event.set()
             try:
                 self.sock.close()
             except:
                 pass
 
-            if self._thread is not None:
-                self._thread.join(3.0)
+        if self._thread is not None:
+            self._thread.join(3.0)
+
+    @LogIt
+    def close(self):
+        """Close the connection."""
+        with self._auth_lock:
+            self._close_connection()
+            auto_discover.unregister_callback(self._connect, self.config.uuid)
 
     def loop(self):
+        self._loop_event.clear()
+
         while self.sock is None and not self._loop_event.isSet():
             self._loop_event.wait(0.1)
 
@@ -128,11 +131,8 @@ class WebSocketBase(UPNPTV):
 
         self.sock = None
         self._thread = None
-
-        if self._loop_event.isSet():
-            self._loop_event.clear()
-            self.disconnect()
-        else:
+        self.disconnect()
+        if not self._loop_event.isSet():
             self.open()
 
     @property
@@ -164,39 +164,41 @@ class WebSocketBase(UPNPTV):
     @power.setter
     @LogIt
     def power(self, value):
-        self._set_power(value)
+        with self._auth_lock:
+            self._set_power(value)
 
     def _set_power(self, value):
         raise NotImplementedError
 
     @LogItWithReturn
     def control(self, key, *args, **kwargs):
-        if key == 'KEY_POWERON':
-            if not self.power:
-                self.power = True
+        with self._auth_lock:
+            if key == 'KEY_POWERON':
+                if not self.power:
+                    self.power = True
+                    return True
+
+                return False
+
+            elif key == 'KEY_POWEROFF':
+                if self.power:
+                    self.power = False
+                    return True
+
+                return False
+
+            elif key == 'KEY_POWER':
+                self.power = not self.power
                 return True
 
-            return False
+            elif self.sock is None:
+                logger.info(
+                    self.config.model +
+                    ' -- is the TV on?!?'
+                )
+                return False
 
-        elif key == 'KEY_POWEROFF':
-            if self.power:
-                self.power = False
-                return True
-
-            return False
-
-        elif key == 'KEY_POWER':
-            self.power = not self.power
-            return True
-
-        elif self.sock is None:
-            logger.info(
-                self.config.model +
-                ' -- is the TV on?!?'
-            )
-            return False
-
-        return self._send_key(key, *args, **kwargs)
+            return self._send_key(key, *args, **kwargs)
 
     def open(self):
         raise NotImplementedError

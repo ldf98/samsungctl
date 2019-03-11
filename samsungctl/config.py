@@ -174,27 +174,62 @@ class Config(object):
 
         self.name = name
         self.description = description
-        self.host = host
+        self._host = host
         self.port = port
         self.method = method
         self.timeout = timeout
         self.token = token
         self.path = None
         # self.device_id = device_id
-        self.upnp_locations = upnp_locations
+        self._upnp_locations = upnp_locations
         self.app_id = app_id
         # self.user_id = user_id
         self.uuid = uuid
         self.id = id
         self.paired = paired
         self.model = model
-        self.mac = mac
+        self._mac = mac
         self._display_name = display_name
 
         if cec is not None:
             cec = CEC(**cec)
 
         self.cec = cec
+
+    @property
+    def host(self):
+        return self._host
+
+    @host.setter
+    def host(self, host):
+        if self.upnp_locations is not None:
+            for i, location in enumerate(self._upnp_locations):
+                location = location.replace(self._host, host)
+                self._upnp_locations[i] = location
+
+        self._host = host
+
+    @property
+    def upnp_locations(self):
+        return self._upnp_locations
+
+    @upnp_locations.setter
+    def upnp_locations(self, upnp_locations):
+        if self._upnp_locations is None:
+            self._upnp_locations = upnp_locations
+        else:
+            for location in upnp_locations:
+                if location not in self._upnp_locations:
+                    self._upnp_locations += [location]
+
+    @property
+    def mac(self):
+        return self._mac
+
+    @mac.setter
+    def mac(self, mac):
+        if self._mac is None:
+            self._mac = mac
 
     @property
     def display_name(self):
@@ -232,11 +267,12 @@ class Config(object):
         return str(tv_pin)
 
     def copy(self, src):
+        if src.uuid != self.uuid:
+            return
+
         self.host = src.host
         self.upnp_locations = src.upnp_locations
         self.mac = src.mac
-        self.app_id = src.app_id
-        self.model = src.model
 
     @staticmethod
     def load(path):

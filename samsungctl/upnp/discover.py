@@ -81,15 +81,15 @@ def get_mac(host):
         return wake_on_lan.get_mac_address(host)
 
 
-def websocket():
+def websocket(host):
     return 'websocket', 8001, None, get_mac(host)
 
 
-def encrypted():
+def encrypted(host):
     return 'encrypted', 8080, '12345', get_mac(host)
 
 
-def legacy():
+def legacy(host):
     return (
         'legacy',
         55000,
@@ -129,11 +129,20 @@ CONNECTION_TYPES = {
 class UPNPDiscoverSocket(threading.Thread):
 
     def __init__(self, parent, local_address, _logging):
+        self._timeout = 5.0
         self._local_address = local_address
         self._parent = parent
         self.logging = _logging
         self._event = threading.Event()
-        sock = self.sock = socket.socket(
+        self._found = {}
+        self._powering_off = {}
+        self._powered_off = {}
+        self._powered_on = {}
+        self.sock = self._create_socket()
+        threading.Thread.__init__(self)
+
+    def _create_socket(self):
+        sock = socket.socket(
             family=socket.AF_INET,
             type=socket.SOCK_DGRAM,
             proto=socket.IPPROTO_UDP
@@ -141,24 +150,63 @@ class UPNPDiscoverSocket(threading.Thread):
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            sock.bind((local_address, 0))
-            sock.settimeout(8.0)
+            sock.bind((self._local_address, 0))
+            return sock
         except socket.error:
             try:
                 sock.close()
             except socket.error:
                 pass
 
-            self.sock = None
-        threading.Thread.__init__(self)
+            return None
 
     def start(self):
         if self.sock is not None:
             threading.Thread.start(self)
 
+    def is_on(self, uuid):
+        if uuid in self._found:
+            if uuid in self._powered_on:
+                return self._powered_on[uuid]
+
+            if uuid in self._powering_off:
+                return self._powering_off[uuid]
+
+    @property
+    def powered_on(self):
+        return (
+            list(self._powered_on.values())[:] +
+            list(self._powering_off.values())[:]
+        )
+
+    @property
+    def powered_off(self):
+        return list(self._powered_off.values())[:]
+
+    @property
+    def discovered(self):
+        return list(self._found.values())[:]
+
+    @property
+    def timeout(self):
+        return self._timeout
+
+    @timeout.setter
+    def timeout(self, timeout):
+        if self.sock is not None:
+            if self.logging:
+                logger.debug(
+                    'SSDP: %s -- new timeout %s',
+                    self._local_address,
+                    timeout
+                )
+            self.sock.settimeout(timeout)
+
     def run(self):
 
         while not self._event.isSet():
+            self.sock.settimeout(self._timeout)
+
             for service in SERVICES:
                 packet = IPV4_SSDP.format(service)
                 if self.logging:
@@ -219,10 +267,211 @@ class UPNPDiscoverSocket(threading.Thread):
                         )
 
             except socket.timeout:
+                try:
+                    self.sock.close()
+                except socket.error:
+                    pass
 
-                self._parent.callback(
-                    dict(item for item in found_packets.items())
-                )
+                self.sock = self._create_socket()
+
+                if found_packets:
+                    if self.logging:
+                        logger.debug(found_packets)
+                        powered_on = []
+
+                        for host, packet in found_packets.items():
+                            if self._event.isSet():
+                                return
+
+                            upnp_locations = list(
+                                location for _, location in packet
+                            )
+
+                            for service, location in packet:
+                                if service == SERVICES[0]:
+                                    break
+                            else:
+                                continue
+
+                            if self.logging:
+                                logger.debug(
+                                    host +
+                                    ' <-- (' +
+                                    location +
+                                    ') ""'
+                                )
+                            try:
+                                response = requests.get(location, timeout=2)
+                            except (
+                                requests.ConnectionError,
+                                requests.ConnectTimeout
+                            ):
+                                continue
+
+                            if self.logging:
+                                logger.debug(
+                                    host +
+                                    ' --> (' +
+                                    location +
+                                    ') ' +
+                                    response.content.decode('utf-8')
+                                )
+
+                            try:
+                                root = etree.fromstring(
+                                    response.content.decode('utf-8'))
+                            except etree.ParseError:
+                                continue
+                            except ValueError:
+                                try:
+                                    root = etree.fromstring(response.content)
+                                except etree.ParseError:
+                                    continue
+
+                            root = strip_xmlns(root)
+                            node = root.find('device')
+
+                            if node is None:
+                                continue
+
+                            description = node.find('modelDescription')
+                            if (
+                                description is None or
+                                'Samsung' not in description.text or
+                                'TV' not in description.text
+                            ):
+                                continue
+
+                            model = node.find('modelName')
+                            if model is None:
+                                continue
+
+                            model = model.text
+
+                            uuid = node.find('UDN')
+
+                            if uuid is None or not uuid.text:
+                                continue
+
+                            uuid = uuid.text.split(':')[-1]
+
+                            if uuid in self._found:
+                                config = self._found[uuid]
+                                config.host = host
+                                config.upnp_locations = upnp_locations
+                            else:
+                                product_cap = node.find('ProductCap')
+                                if product_cap is None:
+                                    years = dict(
+                                        A=2008,
+                                        B=2009,
+                                        C=2010,
+                                        D=2011,
+                                        E=2012,
+                                        F=2013,
+                                        H=2014,
+                                        J=2015
+                                    )
+                                    year = years[model[4].upper()]
+                                else:
+                                    product_cap = product_cap.text.split(',')
+
+                                    for item in product_cap:
+                                        if (
+                                            item.upper().startswith('Y') and
+                                            len(item) == 5 and
+                                            item[1:].isdigit()
+                                        ):
+                                            year = int(item[1:])
+                                            break
+                                    else:
+                                        year = None
+
+                                if year is None:
+                                    services = list(
+                                        service for service, _ in packet)
+
+                                    conn_items = CONNECTION_TYPES.items()
+                                    for found_services, method in conn_items:
+                                        for found_service in found_services:
+                                            if found_service not in services:
+                                                break
+                                        else:
+                                            method, port, app_id, mac = (
+                                                method(host)
+                                            )
+                                            break
+                                    else:
+                                        continue
+
+                                elif year <= 2013:
+                                    method, port, app_id, mac = legacy(host)
+                                elif year <= 2015:
+                                    method, port, app_id, mac = encrypted(host)
+                                else:
+                                    method, port, app_id, mac = websocket(host)
+
+                                if mac is None:
+                                    logger.warning(
+                                        'Unable to acquire TV\'s mac address'
+                                    )
+                                config = Config(
+                                    host=host,
+                                    method=method,
+                                    upnp_locations=upnp_locations,
+                                    model=model,
+                                    uuid=uuid,
+                                    mac=mac,
+                                    app_id=app_id,
+                                    # user_id=user_id,
+                                    port=port,
+                                )
+
+                                self._parent.callback(config, None)
+                                self._found[uuid] = config
+
+                            if uuid in self._powering_off:
+                                self._powered_on[uuid] = (
+                                    self._powering_off.pop(uuid)
+                                )
+                                if not self._powering_off:
+                                    self.sock.settimeout(5.0)
+
+                            elif uuid in self._powered_off:
+                                del self._powered_off[uuid]
+                                self._powered_on[uuid] = config
+                                self._parent.callback(config, state=True)
+                            else:
+                                self._powered_on[uuid] = config
+                                self._parent.callback(config, state=True)
+
+                            powered_on += [uuid]
+
+                        for uuid in list(self._powered_on.keys())[:]:
+                            if (
+                                uuid not in powered_on and
+                                uuid not in self._powering_off
+                            ):
+                                self._powering_off[uuid] = (
+                                    self._powered_on.pop(uuid)
+                                )
+                                self.sock.settimeout(10.0)
+                            elif (
+                                uuid not in powered_on and
+                                uuid in self._powering_off
+                            ):
+                                self._powered_off[uuid] = (
+                                    self._powering_off.pop(uuid)
+                                )
+
+                                self._parent.callback(
+                                    self._powered_off[uuid],
+                                    state=False
+                                )
+                                if not self._powering_off:
+                                    self.sock.settimeout(5.0)
+
+                self._event.wait(2.0)
 
                 if self.logging:
                     logger.debug(
@@ -255,11 +504,8 @@ class Discover(object):
 
     def __init__(self):
         self._callbacks = []
-        self._powered_on = []
-        self._powered_off = []
         self._threads = []
         self._logging = False
-        self._found = {}
 
     @property
     def logging(self):
@@ -280,8 +526,9 @@ class Discover(object):
         atexit.register(self.stop)
 
     def is_on(self, uuid):
-        for config in self._powered_on:
-            if config.uuid == uuid:
+        for thread in self._threads:
+            config = thread.is_on(uuid)
+            if config is not None:
                 return config
 
     def stop(self):
@@ -299,217 +546,51 @@ class Discover(object):
     def register_callback(self, callback, uuid=None):
         self._callbacks += [(callback, uuid)]
 
-        if uuid is None:
-            for config in self._found.values():
-                callback(config)
-        else:
-            for config in self._powered_on:
-                if config.uuid == uuid:
-                    callback(config, True)
+        if not self.is_running:
+            if logger.getEffectiveLevel() == logging.DEBUG:
+                self.logging = True
 
-            for config in self._powered_off:
-                if config.uuiid == uuid:
-                    callback(config, False)
+            self.start()
 
-    def get_discovered(self):
-        return list(self._found.values())[:]
+        for thread in self._threads:
+            if uuid is None:
+                for config in thread.discovered:
+                    callback(config)
+            else:
+                for config in thread.powered_on:
+                    if config.uuid == uuid:
+                        callback(config, True)
+
+                for config in thread.powered_off:
+                    if config.uuid == uuid:
+                        callback(config, False)
 
     def unregister_callback(self, callback, uuid=None):
         if (callback, uuid) in self._callbacks:
             self._callbacks.remove((callback, uuid))
 
-    def callback(self, found):
-        if self._logging:
-            logger.debug(str(found))
-        powered_on = []
+        if not self._callbacks:
+            self.stop()
 
-        for host, packet in found.items():
-            upnp_locations = list(location for _, location in packet)
+    @property
+    def discovered(self):
+        res = []
 
-            for service, location in packet:
-                if service == 'urn:schemas-upnp-org:device:MediaRenderer:1':
-                    break
+        for thread in self._threads:
+            res += thread.discovered
 
-            else:
-                continue
+        return res
 
-            if self.logging:
-                logger.debug(
-                    host +
-                    ' <-- (' +
-                    location +
-                    ') ""'
-                )
-            try:
-                response = requests.get(location, timeout=2)
-            except (requests.ConnectionError, requests.ConnectTimeout):
-                continue
-
-            if self.logging:
-                logger.debug(
-                    host +
-                    ' --> (' +
-                    location +
-                    ') ' +
-                    response.content.decode('utf-8')
-                )
-
-            try:
-                root = etree.fromstring(response.content.decode('utf-8'))
-            except etree.ParseError:
-                continue
-            except ValueError:
-                try:
-                    root = etree.fromstring(response.content)
-                except etree.ParseError:
-                    continue
-
-            root = strip_xmlns(root)
-            node = root.find('device')
-
-            if node is None:
-                continue
-
-            description = node.find('modelDescription')
-            if (
-                description is None or
-                'Samsung' not in description.text or
-                'TV' not in description.text
+    def callback(self, config, state=None):
+        for callback, uuid in self._callbacks:
+            if uuid is None and state is None:
+                callback(config)
+            elif (
+                uuid is not None and
+                uuid == config.uuid and
+                state is not None
             ):
-                continue
-
-            model = node.find('modelName')
-            if model is None:
-                continue
-
-            model = model.text
-
-            uuid = node.find('UDN')
-
-            if uuid is None or not uuid.text:
-                continue
-
-            uuid = uuid.text.split(':')[-1]
-
-            if uuid in self._found:
-                config1 = self._found[uuid]
-            else:
-                product_cap = node.find('ProductCap')
-                if product_cap is None:
-                    years = dict(
-                        A=2008,
-                        B=2009,
-                        C=2010,
-                        D=2011,
-                        E=2012,
-                        F=2013,
-                        H=2014,
-                        J=2015
-                    )
-                    year = years[model[4].upper()]
-                else:
-                    product_cap = product_cap.text.split(',')
-
-                    for item in product_cap:
-                        if (
-                            item.upper().startswith('Y') and
-                            len(item) == 5 and
-                            item[1:].isdigit()
-                        ):
-                            year = int(item[1:])
-                            break
-                    else:
-                        year = None
-
-                if year is None:
-                    services = list(service for service, _ in packet)
-
-                    for found_services, method in CONNECTION_TYPES.items():
-                        for found_service in found_services:
-                            if found_service not in services:
-                                break
-                        else:
-                            method, port, app_id, mac = method()
-                            break
-                    else:
-                        continue
-
-                elif year <= 2013:
-                    method = 'legacy'
-                    app_id = None
-                    # user_id = None
-                    port = 55000
-                    mac = wake_on_lan.get_mac_address(host)
-
-                elif year <= 2015:
-                    method = 'encrypted'
-                    port = 8080
-                    app_id = '12345'
-                    # user_id = '654321'
-                    mac = get_mac(host)
-                    # device_id = "7e509404-9d7c-46b4-8f6a-e2a9668ad184"
-
-                else:
-                    method = 'websocket'
-                    app_id = None
-                    port = 8001
-                    mac = get_mac(host)
-
-                if mac is None:
-                    logger.warning(
-                        'Unable to acquire TV\'s mac address'
-                    )
-
-                config1 = Config(
-                    host=host,
-                    method=method,
-                    upnp_locations=upnp_locations,
-                    model=model,
-                    uuid=uuid,
-                    mac=mac,
-                    app_id=app_id,
-                    # user_id=user_id,
-                    port=port,
-                )
-
-            self._found[uuid] = config1
-
-            for config2 in self._powered_off:
-                if config2 == config1:
-                    self._powered_off.remove(config2)
-                    self._powered_on += [config1]
-                    for callback, uuid in self._callbacks:
-                        if uuid is None:
-                            continue
-
-                        if uuid == config1.uuid:
-                            callback(config1, True)
-
-            for config2 in self._powered_on:
-                if config1 == config2:
-                    break
-            else:
-                for callback, uuid in self._callbacks:
-                    if uuid is None:
-                        callback(config1)
-                    elif uuid == config1.uuid:
-                        callback(config1, True)
-
-            powered_on += [config1]
-
-        for config2 in self._powered_on[:]:
-            for config1 in powered_on:
-                if config1 == config2:
-                    break
-            else:
-                self._powered_on.remove(config2)
-                self._powered_off += [config2]
-                for callback, uuid in self._callbacks:
-                    if uuid is None:
-                        continue
-
-                    if uuid == config2.uuid:
-                        callback(config2, False)
+                callback(config, state)
 
     @property
     def is_running(self):
@@ -528,17 +609,10 @@ def discover(host=None, timeout=6):
     def discover_callback(config):
         configs.append(config)
 
-    if not auto_discover.is_running:
-        configs = []
-        auto_discover.register_callback(discover_callback)
-        auto_discover.start()
-        event.wait(timeout)
-        auto_discover.stop()
-    else:
-        configs = auto_discover.get_discovered()
-        auto_discover.register_callback(discover_callback)
-        event.wait(timeout)
-        auto_discover.unregister_callback(discover_callback)
+    configs = []
+    auto_discover.register_callback(discover_callback)
+    event.wait(timeout)
+    auto_discover.unregister_callback(discover_callback)
 
     if host:
         for config in configs:

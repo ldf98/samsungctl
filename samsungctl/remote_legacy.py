@@ -60,11 +60,6 @@ class RemoteLegacy(upnp.UPNPTV):
             config.uuid
         )
 
-        if not auto_discover.is_running:
-            auto_discover.start()
-
-        self.open()
-
     def _connect(self, config, power):
         if config is None:
             return
@@ -74,7 +69,7 @@ class RemoteLegacy(upnp.UPNPTV):
             self.open()
 
         elif not power:
-            self.close()
+            self._close_connection()
 
     @property
     @LogItWithReturn
@@ -109,55 +104,56 @@ class RemoteLegacy(upnp.UPNPTV):
     @power.setter
     @LogIt
     def power(self, value):
-        event = threading.Event()
-        if value and not self.power:
-            if self._cec is not None:
-                from .cec_control import PyCECTV
+        with self._auth_lock:
+            event = threading.Event()
+            if value and not self.power:
+                if self._cec is not None:
+                    from .cec_control import PyCECTV
 
-                for device in self._cec:
-                    if isinstance(device, PyCECTV):
-                        device.power = True
-                        count = 0
+                    for device in self._cec:
+                        if isinstance(device, PyCECTV):
+                            device.power = True
+                            count = 0
 
-                        while not self.power and count < 20:
-                            event.wait(1.0)
-                            count += 1
+                            while not self.power and count < 20:
+                                event.wait(1.0)
+                                count += 1
 
-                        if count == 20:
-                            logger.info(
-                                self.config.host +
-                                ' -- power on using CEC failed.'
-                            )
+                            if count == 20:
+                                logger.info(
+                                    self.config.host +
+                                    ' -- power on using CEC failed.'
+                                )
 
-                        else:
-                            return
+                            else:
+                                return
 
-            if self.mac_address:
-                count = 0
-                wake_on_lan.send_wol(self.mac_address)
-                event.wait(1.0)
-
-                while not self.power and count < 20:
+                if self.mac_address:
+                    count = 0
                     wake_on_lan.send_wol(self.mac_address)
                     event.wait(1.0)
-                    count += 1
 
-                if count == 20:
-                    logger.info(
+                    while not self.power and count < 20:
+                        wake_on_lan.send_wol(self.mac_address)
+                        event.wait(1.0)
+                        count += 1
+
+                    if count == 20:
+                        logger.info(
+                            self.config.host +
+                            ' -- power on may not be supported for this TV'
+                        )
+                else:
+                    logging.error(
                         self.config.host +
-                        ' -- power on may not be supported for this TV'
+                        ' -- unable to get TV\'s mac address'
                     )
-            else:
-                logging.error(
-                    self.config.host +
-                    ' -- unable to get TV\'s mac address'
-                )
 
-        elif not value and self.power:
-            self.control('KEY_POWEROFF')
+            elif not value and self.power:
+                self.control('KEY_POWEROFF')
 
-            while self.power:
-                event.wait(1.0)
+                while self.power:
+                    event.wait(1.0)
 
     def loop(self):
         while not self._loop_event.isSet():
@@ -298,10 +294,11 @@ class RemoteLegacy(upnp.UPNPTV):
                         self.config.paired = True
                         if self.config.path:
                             self.config.save()
+
+                        self.connect()
                         self.sock = sock
                         self._thread = threading.Thread(target=self.loop)
                         self._thread.start()
-                        self.connect()
                         return True
 
                     elif response == RESULTS[1]:
@@ -329,9 +326,7 @@ class RemoteLegacy(upnp.UPNPTV):
                     self.sock = None
                     return False
 
-    @LogIt
-    def close(self):
-        """Close the connection."""
+    def _close_connection(self):
         if self._thread is not None:
             self._loop_event.set()
             try:
@@ -342,31 +337,39 @@ class RemoteLegacy(upnp.UPNPTV):
             self._thread.join(2.0)
 
     @LogIt
+    def close(self):
+        """Close the connection."""
+        with self._auth_lock:
+            self._close_connection()
+            auto_discover.unregister_callback(self._connect, self.config.uuid)
+
+    @LogIt
     def control(self, key):
         """Send a control command."""
-        if self.sock is None:
-            return False
+        with self._auth_lock:
+            if self.sock is None:
+                return False
 
-        with self._receive_lock:
-            payload = PACKET_HEADER + self._serialize_string(key)
-            packet = PACKET_HEADER + self._serialize_string(payload, True)
+            with self._receive_lock:
+                payload = PACKET_HEADER + self._serialize_string(key)
+                packet = PACKET_HEADER + self._serialize_string(payload, True)
 
-            logger.info(
-                self.config.host +
-                ' <--' +
-                repr(packet)
+                logger.info(
+                    self.config.host +
+                    ' <--' +
+                    repr(packet)
 
-            )
+                )
 
-            def callback():
-                self._receive_event.set()
+                def callback():
+                    self._receive_event.set()
 
-            self._registered_callbacks += [callback]
-            self._receive_event.clear()
+                self._registered_callbacks += [callback]
+                self._receive_event.clear()
 
-            self.sock.send(packet)
-            self._receive_event.wait(self._key_interval)
-            self._registered_callbacks.remove(callback)
+                self.sock.send(packet)
+                self._receive_event.wait(self._key_interval)
+                self._registered_callbacks.remove(callback)
 
     _key_interval = 0.3
 
