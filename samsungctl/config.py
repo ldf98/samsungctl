@@ -229,8 +229,6 @@ class Config(object):
 
         self.cec = cec
 
-        print self
-
     @property
     def host(self):
         return self._host
