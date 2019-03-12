@@ -10,8 +10,11 @@ from .UPNP_Device.instance_singleton import InstanceSingleton
 from .UPNP_Device.xmlns import strip_xmlns
 
 try:
-    from . import cec_control
+    from .. import cec_control
 except ImportError:
+    import traceback
+
+    traceback.print_exc()
     cec_control = None
 
 import logging
@@ -49,19 +52,33 @@ class UPNPTV(UPNPObject):
                 avr_audio=config.cec.avr_audio
             )
 
-            cec_config = cec_control.discover(cec_config)
-            if cec_config is None:
+            self._cec = cec_control.discover(cec_config)
+            if self._cec is None:
                 logger.error('No cec adapters located')
-                self._cec = None
             else:
-                config.cec.adapter_port = cec_config.strDevicePort
-                config.cec.adapter_types = cec_config.adapter_types
 
-                self._cec = cec_control.PyCECAdapter(cec_config)
+                config.cec.name = cec_config.strDeviceName
+                config.cec.port = cec_config.strComName
+                config.cec.types = cec_config.adapter_types
+                config.cec.power_off = cec_config.bPowerOffOnStandby
+                config.cec.power_standby = cec_config.bShutdownOnStandby
+                config.cec.wake_avr = cec_config.bAutoWakeAVR
+                config.cec.keypress_combo = cec_config.comboKey
+                config.cec.keypress_combo_timeout = cec_config.iComboKeyTimeoutMs
+                config.cec.keypress_repeat = cec_config.iButtonRepeatRateMs
+                config.cec.keypress_release_delay = cec_config.iButtonReleaseDelayMs
+                config.cec.keypress_double_tap = cec_config.iDoubleTapTimeoutMs
+                config.cec.hdmi_port = cec_config.iHDMIPort
 
-                self._cec.keypress_events = True
-                self._cec.status_events = True
                 self._cec.source_events = True
+                self._cec.command_events = True
+                self._cec.menu_events = True
+                self._cec.keypress_events = True
+                self._cec.deck_events = True
+                self._cec.state_events = True
+
+                if config.path:
+                    config.save()
 
             self._cec_config = cec_config
 
@@ -945,9 +962,17 @@ class UPNPTV(UPNPObject):
     def mute(self):
 
         if self._cec is not None:
-            if self.is_connected:
-                return self._cec.mute
-            return None
+            import cec
+
+            if self._cec.tv.power in (
+                cec.CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON,
+                cec.CEC_POWER_STATUS_ON
+            ):
+                try:
+                    return self._cec.mute
+
+                except AttributeError:
+                    pass
 
         try:
             status = self.MainTVAgent2.GetMuteStatus()[1]
@@ -965,15 +990,23 @@ class UPNPTV(UPNPObject):
     @mute.setter
     def mute(self, desired_mute):
         if self._cec is not None:
-            if self.is_connected:
-                self._cec.mute = desired_mute
-        else:
-            try:
-                self.MainTVAgent2.SetMute(desired_mute)
-            except AttributeError:
-                self.set_channel_mute('Master', desired_mute)
-            except TypeError:
-                self.MainTVAgent2.SetMute('Enable' if desired_mute else 'Disable')
+            import cec
+
+            if self._cec.tv.power in (
+                cec.CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON,
+                cec.CEC_POWER_STATUS_ON
+            ):
+                try:
+                    self._cec.mute = desired_mute
+                    return
+                except AttributeError:
+                    pass
+        try:
+            self.MainTVAgent2.SetMute(desired_mute)
+        except AttributeError:
+            self.set_channel_mute('Master', desired_mute)
+        except TypeError:
+            self.MainTVAgent2.SetMute('Enable' if desired_mute else 'Disable')
 
     @property
     def network_information(self):
@@ -1377,38 +1410,31 @@ class UPNPTV(UPNPObject):
                 if source.id == int(source_id):
                     return source
         except AttributeError:
-            pass
+            sources = self.sources
+
+            if sources is None:
+                return None
+
+            for source in sources:
+                if source.is_active:
+                    return source
 
     @source.setter
     def source(self, source):
-        try:
-            if isinstance(source, int):
-                source_id = source
-                for source in self.sources:
-                    if source.id == source_id:
-                        break
-                else:
-                    raise ValueError(
-                        'Source id not found ({0})'.format(source_id))
+        sources = self.sources
 
-            elif not isinstance(source, Source):
-                source_name = source
-                for source in self.sources:
-                    if source_name in (
-                        source.name,
-                        source.label,
-                        source.device_name
-                    ):
-                        break
+        if sources is None:
+            return
 
-                else:
-                    raise ValueError(
-                        'Source name not found ({0})'.format(source_name)
-                    )
-
-            source.activate()
-        except AttributeError:
-            pass
+        for src in sources:
+            if source in (src, src.id, src.name, src.label):
+                src.activate()
+                break
+        else:
+            logger.error(
+                self.config.host +
+                ' -- Unable to locate source {0}'.format(source)
+            )
 
     @property
     def sources(self):
@@ -1452,16 +1478,20 @@ class UPNPTV(UPNPObject):
             return sources
         except AttributeError:
             if self._cec is not None:
-                if not self.is_connected:
-                    return
+                if not self._cec.tv.power:
+                    return None
 
-                for device in self._cec:
+                return list(
+                    Source(
+                        source.logical_address,
+                        source.name,
+                        self,
+                        True,
+                        source
 
-
-                    device.osd_name
-                    device.active_source
-
-            pass
+                    )
+                    for source in self._cec
+                )
 
     def start_ext_source_view(self, source, id):
         try:
@@ -1665,10 +1695,16 @@ class UPNPTV(UPNPObject):
     @property
     def volume(self):
         if self._cec is not None:
-            if self.is_connected:
-                return self._cec.volume
+            import cec
 
-            return None
+            if self._cec.tv.power in (
+                cec.CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON,
+                cec.CEC_POWER_STATUS_ON
+            ):
+                try:
+                    return self._cec.volume
+                except AttributeError:
+                    pass
 
         try:
             current_volume = self.MainTVAgent2.GetVolume()[1]
@@ -1680,13 +1716,22 @@ class UPNPTV(UPNPObject):
     @volume.setter
     def volume(self, desired_volume):
         if self._cec is not None:
-            if self.is_connected:
-                self._cec.volume = desired_volume
-        else:
-            try:
-                self.MainTVAgent2.SetVolume(desired_volume)
-            except AttributeError:
-                self.set_channel_volume('Master', desired_volume)
+            import cec
+
+            if self._cec.tv.power in (
+                cec.CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON,
+                cec.CEC_POWER_STATUS_ON
+            ):
+                try:
+                    self._cec.volume = desired_volume
+                    return
+
+                except AttributeError:
+                    pass
+        try:
+            self.MainTVAgent2.SetVolume(desired_volume)
+        except AttributeError:
+            self.set_channel_volume('Master', desired_volume)
 
     @property
     def watching_information(self):
@@ -2870,7 +2915,7 @@ class Source(object):
         name,
         parent,
         editable,
-        cec_device=None
+        cec_source=None
     ):
         self._id = id
         self.__name__ = name
@@ -2881,7 +2926,7 @@ class Source(object):
         self._device_name = None
         self._label = name
         self._active = False
-        self._cec_device = cec_device
+        self._cec_source = cec_source
 
     def _update(self, node, active):
         self._viewable = node.find('SupportView').text == 'Yes'
@@ -2913,45 +2958,42 @@ class Source(object):
 
     @property
     def id(self):
-        if self._cec_device is not None:
-            return self._cec_device.logical_address
-
         return self._id
 
     @property
     def name(self):
-        if self._cec_device is not None:
-            return self._cec_device.name
+        if self._cec_source is not None:
+            return self._cec_source.name
 
         return self.__name__
 
     @property
     def is_viewable(self):
-        if self._cec_device is not None:
-            return self._cec_device.power
+        if self._cec_source is not None:
+            return self._cec_source.power
 
         _ = self._parent.sources
         return self._viewable
 
     @property
     def is_editable(self):
-        if self._cec_device is not None:
+        if self._cec_source is not None:
             return True
 
         return self._editable
 
     @property
     def is_connected(self):
-        if self._cec_device is not None:
-            return self._cec_device.connected
+        if self._cec_source is not None:
+            return self._cec_source.connected
 
         _ = self._parent.sources
         return self._connected
 
     @property
     def label(self):
-        if self._cec_device is not None:
-            return self._cec_device.osd_name
+        if self._cec_source is not None:
+            return self._cec_source.osd_name
 
         _ = self._parent.sources
 
@@ -2970,8 +3012,8 @@ class Source(object):
     @label.setter
     def label(self, value):
         if self.is_editable:
-            if self._cec_device is not None:
-                self._cec_device.osd_name = value
+            if self._cec_source is not None:
+                self._cec_source.osd_name = value
             else:
                 self._parent.MainTVAgent2.EditSourceName(self.name, value)
 
@@ -2989,8 +3031,8 @@ class Source(object):
 
     @property
     def is_active(self):
-        if self._cec_device is not None:
-            return self._cec_device.active_source
+        if self._cec_source is not None:
+            return self._cec_source.active_source
 
         _ = self._parent.sources
         return self._active
@@ -3010,8 +3052,8 @@ class Source(object):
     def activate(self):
         if self.is_connected:
 
-            if self._cec_device is not None:
-                self._cec_device.active_source = True
+            if self._cec_source is not None:
+                self._cec_source.active_source = True
             else:
                 try:
                     self._parent.MainTVAgent2.SetMainTVSource(

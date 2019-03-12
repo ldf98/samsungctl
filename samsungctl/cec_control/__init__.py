@@ -56,7 +56,11 @@ import cec
 import time
 import logging
 import six
-from . import dispatcher
+
+try:
+    from . import dispatcher
+except ValueError:
+    import dispatcher
 
 
 logger = logging.getLogger(__name__)
@@ -1250,6 +1254,20 @@ class PyCECDevice(object):
                 self._adapter[command.initiator].osd_name
             )
 
+    def __getattr__(self, item):
+
+        if item in self.__dict__:
+            return self.__dict__[item]
+
+        if (
+            item in self.__class__.__dict__ and
+            hasattr(self.__class__.__dict__[item], 'fget') and
+            self.__class__.__dict__[item].fget is not None
+        ):
+            return self.__class__.__dict__[item].fget(self)
+
+        raise AttributeError(item)
+
 
 class PyCECTV(PyCECDevice):
     is_tv = True
@@ -1927,7 +1945,12 @@ class PyCECAdapter(object):
         value = self._adapter.AudioStatus()
 
         if value == cec.CEC_AUDIO_VOLUME_STATUS_UNKNOWN:
-            raise AttributeError
+            self.volume_down()
+            self.volume_up()
+
+            value = self._adapter.AudioStatus()
+            if value == cec.CEC_AUDIO_VOLUME_STATUS_UNKNOWN:
+                raise AttributeError
 
         return value & cec.CEC_AUDIO_VOLUME_STATUS_MASK
 
@@ -2006,7 +2029,7 @@ class PyCECAdapter(object):
 
     @property
     def port(self):
-        return self.__cec_configuration.strDevicePort
+        return self.__cec_configuration.strComName
 
     @property
     def server_version(self):
@@ -2103,7 +2126,7 @@ class PyCECAdapter(object):
 
         self.__cec_configuration = cec_configuration
         self._adapter = cec.ICECAdapter.Create(cec_configuration)
-        self._adapter.Open(cec_configuration.strDevicePort)
+        self._adapter.Open(cec_configuration.strComName)
         self.__menu_intercept = False
         self.__log_level = 0
         self._power_thread = None
@@ -2129,7 +2152,7 @@ class PyCECAdapter(object):
         logger.info(
             template.format(
                 adapter_name=cec_configuration.strDeviceName,
-                adapter_port=cec_configuration.strDevicePort,
+                adapter_port=cec_configuration.strComName,
                 adapter_types=(
                     ', '.join(
                         self._adapter.DeviceTypeToString(adapter_type)
@@ -2166,6 +2189,13 @@ class PyCECAdapter(object):
         for device in self.__devices:
             if device.name.lower().replace(' ', '_') == item:
                 return device
+
+        if (
+            item in PyCECAdapter.__dict__ and
+            hasattr(PyCECAdapter.__dict__[item], 'fget') and
+            PyCECAdapter.__dict__[item].fget is not None
+        ):
+            return PyCECAdapter.__dict__[item].fget(self)
 
         raise AttributeError(item)
 
@@ -2237,16 +2267,6 @@ class PyCECAdapter(object):
     def __source_callback(self, logical_address, activated):
         if not self._source:
             return 0
-
-        DEVICE_POWER_EVENT = 0x00
-        DEVICE_OSD_EVENT = 0x01
-        DEVICE_CONNECTED_EVENT = 0x02
-        DEVICE_DISCONNECT_EVENT = 0x03
-        TV_SOURCE_EVENT = 0x04
-        TV_REMOTE_EVENT = 0x05
-        AUDIO_VOLUME_EVENT = 0x06
-        AUDIO_MUTE_EVENT = 0x07
-        AUDIO_STATE_EVENT = 0x08
 
         status = self._adapter.MenuStateToString(not activated).title()
 
@@ -2348,16 +2368,16 @@ class PyCECAdapter(object):
 
 
 def discover(config):
+    str_com_name = getattr(config, 'strComName', None)
+    if str_com_name is not None:
+        return PyCECAdapter(config)
 
-    for port in get_adapter_ports:
-        if (
-            not config.strComName or
-            (config.strComName and config.strComName == port)
-        ):
+    for port in get_adapter_ports():
+        if not str_com_name or str_com_name == port:
             logger.info("found a CEC adapter:")
             logger.info("port:     " + port)
             config.strComName = port
-            return config
+            return PyCECAdapter(config)
 
     logger.info('No CEC adapters found')
 
@@ -2383,30 +2403,34 @@ class PyCECConfiguration(cec.libcec_configuration):
         cec.libcec_configuration.__init__(self)
 
         if adapter_port is not None:
-            self.strDevicePort = str(adapter_port)
+            self.strComName = str(adapter_port)
 
         # the version of the client that is connecting
         self.clientVersion = cec.LIBCEC_VERSION_CURRENT
 
         # 13 characters the device name to use on the CEC bus
-        if adapter_name is not None:
-            self.strDeviceName = str(adapter_name)
+        if adapter_name is None:
+            adapter_name = 'SamsungTVCEC'
+
+        if len(adapter_name) > 12:
+            adapter_name = adapter_name[:12]
+
+        self.strDeviceName = str(adapter_name)
 
         # the device type(s) to use on the CEC bus for libCEC
         # cec_device_type_list
-        if adapter_types is not None:
-            if not isinstance(adapter_types, (list, tuple)):
-                adapter_types = [adapter_types]
+        if adapter_types is None:
+            adapter_types = [cec.CEC_DEVICE_TYPE_PLAYBACK_DEVICE]
 
-            self.adapter_types = list(
-                DEVICE_TYPES[adapter_type] for adapter_type in adapter_types
-            )
+        if not isinstance(adapter_types, (list, tuple)):
+            adapter_types = [adapter_types]
 
-            for adapter_type in self.adapter_types:
-                self.deviceTypes.Add(adapter_type)
+        self.adapter_types = list(
+            DEVICE_TYPES[adapter_type] for adapter_type in adapter_types
+        )
 
-        else:
-            self.adapter_types = []
+        for adapter_type in self.adapter_types:
+            self.deviceTypes.Add(adapter_type)
 
         # (read only) set to 1 by libCEC when the physical address
         # was auto detected
@@ -2424,8 +2448,10 @@ class PyCECConfiguration(cec.libcec_configuration):
         # iPhysicalAddress = 0 or when the adapter doesn't support
         # auto detection
 
-        if hdmi_port is not None:
-            self.iHDMIPort = hdmi_port
+        if hdmi_port is None:
+            hdmi_port = 1
+
+        self.iHDMIPort = hdmi_port
 
         # override the vendor ID of the TV. leave this untouched to autodetect
         # self.tvVendor =
@@ -2451,12 +2477,16 @@ class PyCECConfiguration(cec.libcec_configuration):
 
         # 0/1 put this PC in standby mode when the TV is switched off.
         # only used when bShutdownOnStandby = 0
-        if power_standby is not None:
-            self.bPowerOffOnStandby = power_standby
+        if power_standby is None:
+            power_standby = False
+
+        self.bPowerOffOnStandby = power_standby
 
         # 0/1 shuts down the PC when standby command is received
-        if power_off is not None:
-            self.bShutdownOnStandby = power_off
+        if power_off is None:
+            power_off = False
+
+        self.bShutdownOnStandby = power_off
 
         # the object to pass along with a call of the callback methods.
         # NULL to ignore
@@ -2495,30 +2525,43 @@ class PyCECConfiguration(cec.libcec_configuration):
         # key code that initiates combo keys.
         # defaults to CEC_USER_CONTROL_CODE_F1_BLUE.
         # CEC_USER_CONTROL_CODE_UNKNOWN to disable. cec_user_control_code
-        if keypress_combo is not None:
-            self.comboKey = keypress_combo
+
+        if keypress_combo is None:
+            keypress_combo = cec.CEC_USER_CONTROL_CODE_F1_BLUE
+
+        self.comboKey = keypress_combo
 
         # timeout until the combo key is sent as normal keypress
-        if keypress_combo_timeout is not None:
-            self.iComboKeyTimeoutMs = keypress_combo_timeout
+        if keypress_combo_timeout is None:
+            keypress_combo_timeout = 200
+
+        self.iComboKeyTimeoutMs = keypress_combo_timeout
 
         # rate at which buttons auto repeat. 0 means rely on CEC device
-        if keypress_repeat is not None:
-            self.iButtonRepeatRateMs = keypress_repeat
+        if keypress_repeat is None:
+            keypress_repeat = 90
+
+        self.iButtonRepeatRateMs = keypress_repeat
 
         # duration after last update until a button is considered released
-        if keypress_release_delay is not None:
-            self.iButtonReleaseDelayMs = keypress_release_delay
+        if keypress_release_delay is None:
+            keypress_release_delay = 40
+
+        self.iButtonReleaseDelayMs = keypress_release_delay
 
         # prevent double taps within this timeout. defaults to 200ms.
         # added in 4.0.0
-        if keypress_double_tap is not None:
-            self.iDoubleTapTimeoutMs = keypress_double_tap
+        if keypress_double_tap is None:
+            keypress_double_tap = 100
+
+        self.iDoubleTapTimeoutMs = keypress_double_tap
 
         # set to 1 to automatically waking an AVR when the source is activated.
         # added in 4.0.0
-        if wake_avr is not None:
-            self.bAutoWakeAVR = wake_avr
+        if wake_avr is None:
+            wake_avr = False
+
+        self.bAutoWakeAVR = wake_avr
 
         if avr_audio:
             self.baseDevice = cec.CECDEVICE_AUDIOSYSTEM
@@ -2527,76 +2570,93 @@ class PyCECConfiguration(cec.libcec_configuration):
 
         self.avr_audio = avr_audio
 
-#
-# if __name__ == '__main__':
-#     # initialise libCEC
-#     config = PyCECConfiguration(
-#         adapter_name='Test',
-#         adapter_port='COM15',
-#         adapter_type=cec.CEC_DEVICE_TYPE_PLAYBACK_DEVICE,
-#         power_off=False,
-#         power_standby=False,
-#         wake_avr=False,
-#         keypress_combo=cec.CEC_USER_CONTROL_CODE_F1_BLUE,
-#         keypress_combo_timeout=200,
-#         keypress_repeat=90,
-#         keypress_release_delay=40,
-#         keypress_double_tap=100,
-#     )
-#     lib = PyCECAdapter(config)
-#
-#     # lib.log_level = 31
-#     lib.source_events = True
-#     lib.command_events = True
-#     lib.menu_events = True
-#     lib.keypress_events = True
-#     lib.deck_events = True
-#     lib.state_events = True
-#
-#     lib.tv.power = False
-#     import time
-#     time.sleep(5)
-#     lib.tv.power = True
-#     time.sleep(20)
-#
-#     for _ in range(10):
-#         lib.volume_up()
-#         time.sleep(1)
-#
-#     print 'info:', lib.info
-#     print 'product_id:', lib.product_id
-#     print 'vendor:', lib.vendor
-#     print 'server_version:', lib.server_version
-#     print 'port:', lib.port
-#     print 'name:', lib.name
-#     print 'power:', lib.power
-#     try:
-#         print 'volume:', lib.volume
-#     except AttributeError:
-#         print 'volume not enabled'
-#
-#     try:
-#         print 'mute:', lib.mute
-#     except AttributeError:
-#         print 'mute not enabled'
-#     print 'audio:', lib.audio
-#
-#     for dev in lib:
-#         if dev.active_device:
-#             print
-#             print
-#             print
-#             print 'name:', dev.name
-#             print 'power:', dev.power
-#             # print 'type:', dev.type
-#             print 'menu_language:', dev.menu_language
-#             print 'osd_name:', dev.osd_name
-#             print 'cec_version:', dev.cec_version
-#             print 'active_source:', dev.active_source
-#             print 'active_device:', dev.active_device
-#             print 'physical_address:', dev.physical_address
-#             print 'vendor:', dev.vendor
-#             print 'logical_address:', dev.logical_address
-#
-#     lib.lib_cec_device.active_source = True
-#     # lib.lib_cec_device.display_osd_message('Message', 30)
+
+if __name__ == '__main__':
+    # initialise libCEC
+    config = PyCECConfiguration(
+        adapter_name='Test',
+        adapter_port='COM15',
+        adapter_types=cec.CEC_DEVICE_TYPE_PLAYBACK_DEVICE,
+        power_off=False,
+        power_standby=False,
+        wake_avr=False,
+        keypress_combo=cec.CEC_USER_CONTROL_CODE_F1_BLUE,
+        keypress_combo_timeout=200,
+        keypress_repeat=90,
+        keypress_release_delay=40,
+        keypress_double_tap=100,
+        avr_audio=True
+    )
+    lib = PyCECAdapter(config)
+
+
+    print lib.tv.power
+
+    if lib.tv.power == 1:
+
+        lib.tv.power = True
+        import time
+
+        time.sleep(10.0)
+
+    lib.audio = True
+
+    # lib.log_level = 31
+    lib.source_events = True
+    lib.command_events = True
+    lib.menu_events = True
+    lib.keypress_events = True
+    lib.deck_events = True
+    lib.state_events = True
+    # lib.tv.power = False
+    #
+    # time.sleep(5)
+    # lib.tv.power = True
+    # time.sleep(20)
+
+    try:
+        print 'volume:', lib.volume
+    except AttributeError:
+        print 'volume not enabled'
+
+    try:
+        print 'mute:', lib.mute
+    except AttributeError:
+        print 'mute not enabled'
+    print 'audio:', lib.audio
+
+    for _ in range(10):
+        lib.volume_up()
+        time.sleep(1)
+
+    print 'info:', lib.info
+    print 'product_id:', lib.product_id
+    print 'vendor:', lib.vendor
+    print 'server_version:', lib.server_version
+    print 'port:', lib.port
+    print 'name:', lib.name
+    print 'power:', lib.power
+
+    lib.tv.active_source = True
+
+    lib.tv.volume_up()
+
+    for dev in lib:
+        if dev.active_device:
+            print
+            print
+            print
+            print 'name:', dev.name
+            print 'power:', dev.power
+            # print 'type:', dev.type
+            print 'menu_language:', dev.menu_language
+            print 'osd_name:', dev.osd_name
+            print 'cec_version:', dev.cec_version
+            print 'active_source:', dev.active_source
+            print 'active_device:', dev.active_device
+            print 'physical_address:', dev.physical_address
+            print 'vendor:', dev.vendor
+            print 'logical_address:', dev.logical_address
+
+
+    # lib.lib_cec_device.display_osd_message('Message', 30)

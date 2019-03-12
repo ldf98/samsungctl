@@ -105,44 +105,12 @@ class RemoteLegacy(upnp.UPNPTV):
     @LogIt
     def power(self, value):
         with self._auth_lock:
-            event = threading.Event()
             if value and not self.power:
                 if self._cec is not None:
-                    from .cec_control import PyCECTV
+                    self._cec.tv.power = True
 
-                    for device in self._cec:
-                        if isinstance(device, PyCECTV):
-                            device.power = True
-                            count = 0
-
-                            while not self.power and count < 20:
-                                event.wait(1.0)
-                                count += 1
-
-                            if count == 20:
-                                logger.info(
-                                    self.config.host +
-                                    ' -- power on using CEC failed.'
-                                )
-
-                            else:
-                                return
-
-                if self.mac_address:
-                    count = 0
+                elif self.mac_address:
                     wake_on_lan.send_wol(self.mac_address)
-                    event.wait(1.0)
-
-                    while not self.power and count < 20:
-                        wake_on_lan.send_wol(self.mac_address)
-                        event.wait(1.0)
-                        count += 1
-
-                    if count == 20:
-                        logger.info(
-                            self.config.host +
-                            ' -- power on may not be supported for this TV'
-                        )
                 else:
                     logging.error(
                         self.config.host +
@@ -150,12 +118,15 @@ class RemoteLegacy(upnp.UPNPTV):
                     )
 
             elif not value and self.power:
-                self.control('KEY_POWEROFF')
-
-                while self.power:
-                    event.wait(1.0)
+                if self._cec is not None:
+                    self._cec.tv.power = False
+                else:
+                    self.control('KEY_POWEROFF')
 
     def loop(self):
+        while self.sock is None and not self._loop_event.isSet():
+            self._loop_event.wait(0.1)
+
         while not self._loop_event.isSet():
             try:
                 header = self.sock.recv(3)
@@ -295,10 +266,10 @@ class RemoteLegacy(upnp.UPNPTV):
                         if self.config.path:
                             self.config.save()
 
-                        self.connect()
-                        self.sock = sock
                         self._thread = threading.Thread(target=self.loop)
                         self._thread.start()
+                        self.connect()
+                        self.sock = sock
                         return True
 
                     elif response == RESULTS[1]:

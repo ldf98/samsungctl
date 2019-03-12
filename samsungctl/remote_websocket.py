@@ -251,25 +251,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             }
         }
         """
-        event = threading.Event()
 
         if value and not self.power:
-            if self.mac_address:
-                count = 0
+            if self._cec is not None:
+                self._cec.tv.power = True
+            elif self.mac_address:
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(1.0)
-
-                while not self.power and count < 20:
-                    wake_on_lan.send_wol(self.mac_address)
-                    event.wait(1.0)
-                    count += 1
-
-                if count == 20:
-                    logger.error(
-                        self.config.model +
-                        ' -- unable to power on the TV, '
-                        'check network connectivity'
-                    )
             else:
                 logging.error(
                     self.config.host +
@@ -277,33 +264,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 )
 
         elif not value and self.power:
-            count = 0
-            power_off = dict(
-                Cmd='Click',
-                DataOfCmd='KEY_POWEROFF',
-                Option="false",
-                TypeOfRemote="SendRemoteKey"
-            )
-            power = dict(
-                Cmd='Click',
-                DataOfCmd='KEY_POWER',
-                Option="false",
-                TypeOfRemote="SendRemoteKey"
-            )
-
-            self.send("ms.remote.control", **power)
-            # self.send("ms.remote.control", **power_off)
-            event.wait(2.0)
-
-            while self.power and count < 20:
-                event.wait(1.0)
-                count += 1
-
-            if count == 20:
-                logger.info(
-                    self.config.host +
-                    ' unable to power off the TV'
-                )
+            if self._cec is not None:
+                self._cec.tv.power = False
+            else:
+                self._send_key('KEY_POWER')
 
     def _send_key(self, key, cmd='Click'):
         """
@@ -322,7 +286,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         }
 
         """
-
         params = dict(
             Cmd=cmd,
             DataOfCmd=key,

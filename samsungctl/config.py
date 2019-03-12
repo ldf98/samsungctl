@@ -68,13 +68,59 @@ class CEC(object):
         for key, value in self:
             if isinstance(value, list):
                 if value:
-                    value = ', '.join(value)
+                    value = ', '.join(str(item) for item in value) + ', '
                 else:
                     value = None
 
             data[key] = value
 
         return CEC_TEMPLATE.format(**data)
+
+
+def _parse_config_line(line):
+    try:
+        key, value = line.split('=', 1)
+    except ValueError:
+        if line.count('=') == 1:
+            key = line.replace('=', '')
+            value = ''
+        else:
+            return None, None
+
+    key = key.lower()
+    value = value.strip()
+
+    if value.lower() in ('none', 'null'):
+        value = None
+    elif not value:
+        value = None
+
+    elif ',' in value:
+        tmp_value = list(
+            val.strip() for val in value.split(',')
+                if val.strip()
+        )
+        value = []
+
+        for item in tmp_value:
+            if item.isdigit():
+                item = int(item)
+
+            value += [item]
+
+    elif value.lower() == 'false':
+        value = False
+
+    elif value.lower() == 'true':
+        value = True
+
+    else:
+        try:
+            value = int(value)
+        except ValueError:
+            pass
+
+    return key.strip(), value
 
 
 def read_data(data):
@@ -84,55 +130,42 @@ def read_data(data):
         data = json.loads(data)
         config.update(data)
     except ValueError:
-        for line in data.split('\n'):
+        data = data.split('cec:')
+
+        if len(data) == 1:
+            data = data[0].split('\n')
+        else:
+            data, _cec = data
+            data = data.split('\n')
+            _cec = _cec.strip()
+
+            if _cec.strip() and _cec.lower() not in ('null', 'none'):
+                cec = {}
+                _cec = _cec.split('\n')
+                for line in _cec[:]:
+                    if not line.strip():
+                        continue
+                    if line.startswith('//'):
+                        continue
+                    key, value = _parse_config_line(line)
+                    if key is not None:
+                        cec[key] = value
+
+        for line in data:
             if not line.strip():
                 continue
 
-            if line.strip().startswith('cec:'):
-                cec = {}
-                continue
-            elif (
-                cec is not None and
-                line.startswith(' ') and
-                line.strip().lower() in ('null', 'none')
-            ):
-                cec = None
+            if line.startswith('//'):
                 continue
 
-            try:
-                key, value = line.split('=', 1)
-            except ValueError:
-                if line.count('=') == 1:
-                    key = line.replace('=', '')
-                    value = ''
-                else:
-                    continue
+            key, value = _parse_config_line(line)
+            if key is not None:
+                config[key] = value
 
-            key = key.lower()
-            value = value.strip()
+    if not cec:
+        cec = None
 
-            if value.lower() in ('none', 'null'):
-                value = None
-            elif not value:
-                value = None
-
-            elif ',' in value:
-                value = list(
-                    val.strip() for val in value.split(',')
-                    if val.strip()
-                )
-            else:
-                try:
-                    value = int(value)
-                except ValueError:
-                    pass
-
-            if key.startswith(' ') and cec is not None:
-                cec[key.strip()] = value
-            else:
-                config[key.strip()] = value
-
-        config['cec'] = cec
+    config['cec'] = cec
 
     return config
 
@@ -195,6 +228,8 @@ class Config(object):
             cec = CEC(**cec)
 
         self.cec = cec
+
+        print self
 
     @property
     def host(self):
@@ -372,36 +407,9 @@ class Config(object):
 
             path = os.path.join(path, self.uuid + '.config')
 
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                data = f.read().split('\n')
-        else:
-            data = []
-
-        new = str(self).split('\n')
-
-        found_cec = False
-        for old_line in data[:]:
-            if old_line.startswith('cec'):
-                found_cec = True
-            elif found_cec:
-                if old_line.startswith(' '):
-                    data.remove(old_line)
-                else:
-                    break
-
-        for new_line in new:
-            key = new_line.split('=')[0]
-            for i, old_line in enumerate(data):
-                if old_line.lower().startswith(key):
-                    data[i] = new_line
-                    break
-            else:
-                data += [new_line]
-
         try:
             with open(path, 'w') as f:
-                f.write('\n'.join(data))
+                f.write(str(self))
 
         except (IOError, OSError):
             import traceback
@@ -429,20 +437,27 @@ class Config(object):
     def __str__(self):
         data = {}
 
-        for key, value in self:
+        for key, value in list(iter(self))[:-1]:
             if isinstance(value, list):
                 if value:
-                    value = ', '.join(value)
+                    value = ', '.join(str(item) for item in value) + ', '
                 else:
                     value = None
 
             data[key] = value
 
-        return TEMPLATE.format(**data)
+        output = TEMPLATE.format(**data)
+
+        if self.cec is None:
+            output += '\ncec:' + CEC_NONE_TEMPLATE
+        else:
+            output += '\ncec:' + str(self.cec)
+
+        return output
 
 
-TEMPLATE = '''\
-name = {name}
+
+TEMPLATE = '''name = {name}
 description = {description}
 host = {host}
 port = {port}
@@ -457,12 +472,27 @@ model = {model}
 app_id = {app_id}
 uuid = {uuid}
 display_name = {display_name}
-cec:
-  {cec}
+// ****** CEC MUST REMAIN AT THE END OF THE FILE ******'''
+
+CEC_NONE_TEMPLATE = '''
+//  name = SamsungTVCEC
+//  port = RPI
+//  types = 4,
+//  power_off = 0
+//  power_standby = 0
+//  wake_avr = 0
+//  keypress_combo = 113
+//  keypress_combo_timeout = 50
+//  keypress_repeat = 200
+//  keypress_release_delay = 0
+//  keypress_double_tap = 100
+//  hdmi_port = 1
+//  avr_audio = False
 '''
 
-CEC_TEMPLATE = '''\
-name = {name}
+
+CEC_TEMPLATE = '''
+  name = {name}
   port = {port}
   types = {types}
   power_off = {power_off}

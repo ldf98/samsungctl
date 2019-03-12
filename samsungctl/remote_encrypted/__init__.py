@@ -452,26 +452,12 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogIt
     def _set_power(self, value):
-        event = threading.Event()
 
         if value and not self.power:
-            if self.mac_address:
-                count = 0
+            if self._cec is not None:
+                self._cec.tv.power = True
+            elif self.mac_address:
                 wake_on_lan.send_wol(self.mac_address)
-                event.wait(1.0)
-
-                while not self.power and count < 20:
-                    wake_on_lan.send_wol(self.mac_address)
-                    event.wait(1.0)
-
-                    count += 1
-
-                if count == 20:
-                    logger.error(
-                        self.config.model +
-                        ' -- unable to power on the TV, '
-                        'check network connectivity'
-                    )
             else:
                 logging.error(
                     self.config.host +
@@ -479,22 +465,10 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 )
 
         elif not value and self.power:
-            count = 0
-            event = threading.Event()
-
-            # self._send_key('KEY_POWER')
-            self._send_key('KEY_POWEROFF')
-            event.wait(2.0)
-
-            while self.power and count < 20:
-                event.wait(1.0)
-                count += 1
-
-            if count == 20:
-                logger.info(
-                    self.config.host +
-                    ' -- unable to power off the TV'
-                )
+            if self._cec is not None:
+                self._cec.tv.power = False
+            else:
+                self._send_key('KEY_POWEROFF')
 
     def on_message(self, data):
         try:

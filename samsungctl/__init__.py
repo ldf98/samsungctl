@@ -2,7 +2,6 @@
 
 """Remote control Samsung televisions via TCP/IP connection"""
 
-print('Importing the correct one')
 import logging
 from logging import NullHandler
 
