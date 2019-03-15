@@ -68,19 +68,6 @@ except NameError:
 print()
 print()
 
-
-with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
-    f.write(
-        TEMPLATE.format(
-            system=platform.system(),
-            version=' '.join(version),
-            python_version=platform.python_version(),
-            compiler=platform.python_compiler(),
-            processor=platform.machine(),
-            architecture=platform.architecture()[0]
-        )
-    )
-
 SSDP_FILENAME = os.path.join(DATA_PATH, 'ssdp_output' + PY_VERSION_STR + '.log')
 
 if not os.path.exists(DATA_PATH):
@@ -106,6 +93,20 @@ if not os.path.exists(DATA_PATH):
 
     print()
     print()
+
+
+
+with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
+    f.write(
+        TEMPLATE.format(
+            system=platform.system(),
+            version=' '.join(version),
+            python_version=platform.python_version(),
+            compiler=platform.python_compiler(),
+            processor=platform.machine(),
+            architecture=platform.architecture()[0]
+        )
+    )
 
 
 WRITE_LOCK = threading.RLock()
