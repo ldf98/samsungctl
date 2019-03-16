@@ -844,14 +844,38 @@ def run_test(config):
 
     if remote.year > 2013:
         print('\nPOWER TESTS\n')
-
+        print(
+            'This process may take a while to complete.\n'
+            'If there is an issue the program will automatically\n'
+            'exit after 30 seconds.'
+        )
+        counter = 0
         set_property('power', False)
         while remote.power is True:
-            time.sleep(0.5)
+            time.sleep(2.0)
+            counter += 1
+            print(counter * 2, 'seconds have passed')
+            if counter == 15:
+                break
 
-        set_property('power', True)
-        while remote.power is False:
-            time.sleep(0.5)
+        if remote.power is False:
+            print('POWER OFF TEST: [PASS]')
+            set_property('power', True)
+            counter = 0
+
+            while remote.power is False:
+                time.sleep(2.0)
+                counter += 1
+                print(counter * 2, 'seconds have passed')
+                if counter == 15:
+                    break
+
+            if remote.power is False:
+                print('POWER ON TEST: [FAIL]')
+
+        else:
+            print('POWER OFF TEST: [FAIL]')
+            print('POWER ON TEST: [SKIPPED]')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     with WRITE_LOCK:
