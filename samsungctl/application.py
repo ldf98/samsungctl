@@ -279,6 +279,20 @@ class Application(object):
             if title == group.title:
                 return group
 
+    def close(self):
+        url = 'http://{0}:8001/api/v2/applications/{1}'.format(
+            self._remote.config.host,
+            self.app_id
+        )
+        requests.delete(url)
+
+    def install_page(self):
+        url = 'http://{0}:8001/api/v2/applications/{1}'.format(
+            self._remote.config.host,
+            self.app_id
+        )
+        requests.put(url)
+
     @LogIt
     def run(self, meta_tag=None, action_play_url=None):
         """
