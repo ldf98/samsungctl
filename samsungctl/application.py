@@ -280,7 +280,7 @@ class Application(object):
                 return group
 
     @LogIt
-    def run(self, meta_tag=None):
+    def run(self, meta_tag=None, action_play_url=None):
         """
         {
             "method":"ms.channel.emit",
@@ -294,19 +294,59 @@ class Application(object):
             }
         }
         """
-        params = dict(
-            event='ed.apps.launch',
-            to='host',
-            data=dict(
-                appId=self.app_id,
-                action_type=self.action_type
+        if action_play_url is None:
+            params = dict(
+                event='ed.apps.launch',
+                to='host',
+                data=dict(
+                    appId=self.app_id,
+                    action_type=self.action_type
+                )
             )
-        )
 
-        if meta_tag is not None:
-            params['data']['metaTag'] = meta_tag
+            if meta_tag is not None:
+                params['data']['metaTag'] = meta_tag
 
-        self._remote.send('ms.channel.emit', **params)
+            self._remote.send('ms.channel.emit', **params)
+        else:
+
+            if action_play_url.startswiith('http://'):
+                url = action_play_url.replace(
+                    'localhost',
+                    self._remote.config.host
+                )
+
+                response = requests.get(url)
+                response.raise_for_status()
+                return response.content
+
+            url = 'http://{0}:8001/api/v2/applications/{1}'.format(
+                self._remote.config.host,
+                self.app_id
+            )
+
+            try:
+                action_play_url = json.loads(action_play_url)
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json=action_play_url
+                )
+                response.raise_for_status()
+                return response.content
+            except ValueError:
+                pass
+
+            if '&' in action_play_url:
+                url += '?' + action_play_url
+                response = requests.put(url)
+                response.raise_for_status()
+                return response.content
+
+            response = requests.post(url, data=action_play_url)
+            response.raise_for_status()
+            return response.content
 
     @property
     @LogItWithReturn
@@ -537,19 +577,10 @@ class AppData(object):
 
     @LogIt
     def run(self):
-        if self.is_playable:
+        if not self.action_play_url:
+            return None
 
-            if self.action_play_url is None:
-                meta_tag = self.app_id
-            elif self.action_play_url:
-                if isinstance(self.action_play_url, dict):
-                    meta_tag = json.dumps(self.action_play_url)
-                else:
-                    meta_tag = self.action_play_url
-            else:
-                meta_tag = None
-
-            self.application.run(meta_tag)
+        return self.application.run(action_play_url=self.action_play_url)
 
     @property
     def icon(self):

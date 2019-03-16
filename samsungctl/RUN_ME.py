@@ -95,7 +95,6 @@ if not os.path.exists(DATA_PATH):
     print()
 
 
-
 with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
     f.write(
         TEMPLATE.format(
@@ -822,9 +821,14 @@ def run_test(config):
                                 sam_logger.setLevel(logging.DEBUG)
                                 upnp_logger.setLevel(logging.DEBUG)
 
-                                content.run()
-                                time.sleep(2)
+                                try:
+                                    print(content.run())
+                                except:
+                                    import traceback
 
+                                    traceback.print_exc()
+
+                                time.sleep(2)
 
                         try:
                             answer = raw_input('Is the content playing?: (y/n)')
