@@ -295,6 +295,8 @@ def run_test(config):
         while remote.power is False:
             time.sleep(0.5)
     except:
+        import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -575,49 +577,43 @@ def run_test(config):
 
     _volume = get_property('volume', [])
     if _volume is not None:
+        print('\nRETURNED VOLUME IS TYPE: ', type(_volume), '\n')
         set_property('volume', _volume + 1)
-        time.sleep(0.5)
-        get_property('volume', [])
-        time.sleep(0.5)
+        time.sleep(1.0)
+        if get_property('volume', []) == _volume + 1:
+            print('UPNP VOLUME UP: [pass]')
+
+        else:
+            print('REMOTE VOLUME UP: [fail]')
+
+        _volume = get_property('volume', [])
         set_property('volume', _volume - 1)
-        print('VOLUME ADJUST WITH REMOTE COMMANDS')
-        print('PLEASE WATCH THE TV')
-        time.sleep(3)
+        time.sleep(1.0)
+
+        if get_property('volume', []) == _volume - 1:
+            print('UPNP VOLUME DOWN: [pass]')
+
+        else:
+            print('REMOTE VOLUME DOWN: [fail]')
+
+        print('\nVOLUME ADJUST WITH REMOTE COMMANDS\n')
+        _volume = get_property('volume', [])
         remote.control('KEY_VOLUP')
-        time.sleep(0.5)
-        try:
-            response = raw_input('Did the volume go up? (y/n):')
-
-        except:
-            response = input('Did the volume go up? (y/n):')
-
-        if response.lower().startswith('y'):
-            response = True
+        time.sleep(1.0)
+        if get_property('volume', []) == _volume + 1:
+            print('REMOTE VOLUME UP: [pass]')
         else:
-            response = False
+            print('REMOTE VOLUME UP: [fail]')
+            _volume -= 1
 
-        print()
-        print()
-
-        print('KEY_VOLUP: ' + str(response))
-
+        _volume = get_property('volume', [])
         remote.control('KEY_VOLDOWN')
-        time.sleep(0.5)
-        try:
-            response = raw_input('Did the volume go down? (y/n):')
-
-        except:
-            response = input('Did the volume go down? (y/n):')
-
-        if response.lower().startswith('y'):
-            response = True
+        time.sleep(1.0)
+        if get_property('volume', []) == _volume - 1:
+            print('REMOTE VOLUME DOWN: [pass]')
         else:
-            response = False
+            print('REMOTE VOLUME DOWN: [fail]')
 
-        print()
-        print()
-
-        print('KEY_VOLDOWN: ' + str(response))
     if remote.year <= 2015:
         print('\nSOURCE TESTS\n')
 
@@ -709,6 +705,7 @@ def run_test(config):
     run_method('stop_browser', [])
 
     if remote.year >= 2016:
+        print('\nAPPLICATION TESTS\n')
         apps = remote.applications
         for app in apps:
             print('app.name:', app.name)
@@ -842,7 +839,7 @@ def run_test(config):
         sam_logger.setLevel(logging.DEBUG)
         upnp_logger.setLevel(logging.DEBUG)
 
-    if remote.year > 2013:
+    if remote.year > 2013 or remote._cec is not None:
         print('\nPOWER TESTS\n')
         print(
             'This process may take a while to complete.\n'
