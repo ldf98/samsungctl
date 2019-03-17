@@ -310,7 +310,9 @@ class RemoteLegacy(upnp.UPNPTV):
                 self.sock.close()
             except socket.error:
                 pass
-            self._thread.join(2.0)
+
+            if self._thread is not None:
+                self._thread.join(2.0)
 
     @LogIt
     def close(self):

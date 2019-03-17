@@ -882,7 +882,7 @@ def run_test(config):
 
 start = time.time()
 while time.time() - start < 20:
-    event.wait(20.0)
+    event.wait(2.0)
     event.clear()
     while tests_to_run:
         run_test(tests_to_run.pop(0))
