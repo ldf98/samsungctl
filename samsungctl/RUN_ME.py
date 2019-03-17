@@ -638,6 +638,7 @@ def run_test(config):
                 source.activate()
                 time.sleep(2)
 
+        if _source is not None:
             _source.activate()
 
         print('\nCHANNEL TESTS\n')
