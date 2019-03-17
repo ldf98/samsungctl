@@ -135,6 +135,7 @@ class UPNPDiscoverSocket(threading.Thread):
         self.logging = _logging
         self._event = threading.Event()
         self._found = {}
+        self._program_powered_off = {}
         self._powering_off = {}
         self._powered_off = {}
         self._powered_on = {}
@@ -181,7 +182,18 @@ class UPNPDiscoverSocket(threading.Thread):
 
     @property
     def powered_off(self):
-        return list(self._powered_off.values())[:]
+        return (
+            list(self._powered_off.values())[:] +
+            list(self._program_powered_off.values())[:]
+        )
+
+    def set_powered_off(self, config):
+        uuid = config.uuid
+        if uuid in self._powered_on:
+            self._program_powered_off[uuid] = config
+        elif uuid in self._powering_off:
+            del self._powering_off[uuid]
+            self._powered_off[uuid] = config
 
     @property
     def discovered(self):
@@ -450,7 +462,8 @@ class UPNPDiscoverSocket(threading.Thread):
                         for uuid in list(self._powered_on.keys())[:]:
                             if (
                                 uuid not in powered_on and
-                                uuid not in self._powering_off
+                                uuid not in self._powering_off and
+                                uuid not in self._program_powered_off
                             ):
                                 self._powering_off[uuid] = (
                                     self._powered_on.pop(uuid)
@@ -470,6 +483,10 @@ class UPNPDiscoverSocket(threading.Thread):
                                 )
                                 if not self._powering_off:
                                     self.sock.settimeout(5.0)
+                            elif uuid in self._program_powered_off:
+                                self._powered_off[uuid] = (
+                                    self._program_powered_off.pop(uuid)
+                                )
 
                 self._event.wait(2.0)
 
@@ -530,6 +547,10 @@ class Discover(object):
             config = thread.is_on(uuid)
             if config is not None:
                 return config
+
+    def set_powered_off(self, config):
+        for thread in self._threads:
+            thread.set_powered_off(config)
 
     def stop(self):
         del self._callbacks[:]

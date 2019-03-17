@@ -25,6 +25,7 @@ class WebSocketBase(UPNPTV):
         """
         self.config = config
         self.sock = None
+        self._power_event = threading.Event()
         self._loop_event = threading.Event()
         self._auth_lock = threading.RLock()
         self._send_lock = threading.Lock()
@@ -98,6 +99,7 @@ class WebSocketBase(UPNPTV):
         with self._auth_lock:
             self._close_connection()
             auto_discover.unregister_callback(self._connect, self.config.uuid)
+            self._power_event.clear()
 
     def loop(self):
         self._loop_event.clear()
@@ -166,6 +168,10 @@ class WebSocketBase(UPNPTV):
     def power(self, value):
         with self._auth_lock:
             self._set_power(value)
+            if not value and self.power:
+                auto_discover.set_powered_off(self.config)
+                self._close_connection()
+                self._power_event.wait(3.0)
 
     def _set_power(self, value):
         raise NotImplementedError

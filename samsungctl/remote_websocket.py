@@ -251,7 +251,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             }
         }
         """
-
         if value and not self.power:
             if self._cec is not None:
                 self._cec.tv.power = True
@@ -268,6 +267,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self._cec.tv.power = False
             else:
                 self._send_key('KEY_POWER')
+
+
 
     def _send_key(self, key, cmd='Click'):
         """

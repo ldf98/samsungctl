@@ -51,6 +51,7 @@ class RemoteLegacy(upnp.UPNPTV):
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
         self._receive_event = threading.Event()
+        self._power_event = threading.Event()
         self._registered_callbacks = []
         self._thread = None
         upnp.UPNPTV.__init__(self, config)
@@ -122,6 +123,10 @@ class RemoteLegacy(upnp.UPNPTV):
                     self._cec.tv.power = False
                 else:
                     self.control('KEY_POWEROFF')
+
+                auto_discover.set_powered_off(self.config)
+                self._close_connection()
+                self._power_event.wait(3.0)
 
     def loop(self):
         while self.sock is None and not self._loop_event.isSet():
