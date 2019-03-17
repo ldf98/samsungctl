@@ -697,7 +697,7 @@ def run_test(config):
 
     print('\nBROWSER TESTS\n')
 
-    run_method('run_browser', [], 'www.microsoft.com')
+    run_method('run_browser', [], 'github.com/kdschlosser/samsungctl')
     get_property('browser_mode', [])
     get_property('browser_url', [])
     run_method('stop_browser', [])

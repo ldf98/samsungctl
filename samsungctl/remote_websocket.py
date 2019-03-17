@@ -975,6 +975,19 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         else:
             return response[0]
 
+    def run_browser(self, url):
+        params = dict(
+            data=dict(
+                appId='org.tizen.browser',
+                action_type='NATIVE_LAUNCH',
+                metaTag=url
+            ),
+            event='ed.apps.launch',
+            to='host'
+        )
+
+        self.send('ms.channel.emit', **params)
+
     @brightness_sensor.setter
     def brightness_sensor(self, value):
         """
