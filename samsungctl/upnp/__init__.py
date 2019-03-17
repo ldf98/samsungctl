@@ -360,6 +360,7 @@ class UPNPTV(UPNPObject):
 
             response = requests.get(channel_list_url)
 
+            # noinspection PyPep8,PyBroadException
             try:
 
                 if PY2:
@@ -1029,6 +1030,7 @@ class UPNPTV(UPNPObject):
 
                     save_bytes += chr(char)
             else:
+                # noinspection PyUnresolvedReferences
                 in_data = base64.decodebytes(in_data.encode('utf-8'))
 
                 network_info = []
@@ -1267,14 +1269,6 @@ class UPNPTV(UPNPObject):
     def schedule_list_url(self):
         try:
             return self.MainTVAgent2.GetScheduleListURL()
-
-            response = requests.get(url)
-
-            if PY2:
-                return response.content
-            else:
-                return response.content.decode('utf-8')
-
         except AttributeError:
             pass
 

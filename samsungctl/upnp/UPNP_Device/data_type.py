@@ -8,6 +8,7 @@ PY3 = sys.version_info[0] >= 3
 
 
 if PY3:
+    # noinspection PyShadowingBuiltins
     unicode = bytes
 
 
@@ -161,8 +162,16 @@ class StringBase(object):
 class IntegerBase(object):
     py_data_type = (int,)
     _label = ''
-    _min = -sys.maxsize if -9223372036854775808 < -sys.maxsize else -9223372036854775808
-    _max = sys.maxsize if 9223372036854775807 > sys.maxsize else 9223372036854775807
+    _min = (
+        -sys.maxsize
+        if -9223372036854775808 < -sys.maxsize
+        else -9223372036854775808
+    )
+    _max = (
+        sys.maxsize
+        if 9223372036854775807 > sys.maxsize
+        else 9223372036854775807
+    )
 
     def __init__(self, name, data_type_name, node, direction):
         self.__name__ = name
@@ -533,8 +542,16 @@ class FloatBase(object):
 
 class Fixed144(FloatBase):
     _label = '8 byte float'
-    _min = sys.float_info.min if -4.94065645841247E-324 < sys.float_info.min else -4.94065645841247E-324
-    _max = sys.float_info.max if 1.79769313486232E308 > sys.float_info.max else 1.79769313486232E308
+    _min = (
+        sys.float_info.min
+        if -4.94065645841247E-324 < sys.float_info.min
+        else -4.94065645841247E-324
+    )
+    _max = (
+        sys.float_info.max
+        if 1.79769313486232E308 > sys.float_info.max
+        else 1.79769313486232E308
+    )
 
     def __call__(self, value):
         value = FloatBase.__call__(self, value)
@@ -569,8 +586,16 @@ class Float(FloatBase):
 
 class R8(FloatBase):
     _label = '8 byte float'
-    _min = sys.float_info.min if -4.94065645841247E-324 < sys.float_info.min else -4.94065645841247E-324
-    _max = sys.float_info.max if 1.79769313486232E308 > sys.float_info.max else 1.79769313486232E308
+    _min = (
+        sys.float_info.min
+        if -4.94065645841247E-324 < sys.float_info.min
+        else -4.94065645841247E-324
+    )
+    _max = (
+        sys.float_info.max
+        if 1.79769313486232E308 > sys.float_info.max
+        else 1.79769313486232E308
+    )
 
     def __call__(self, value):
         value = FloatBase.__call__(self, value)
@@ -605,8 +630,16 @@ class Number(R8):
 
 class R4(FloatBase):
     _label = '4 byte float'
-    _min = sys.float_info.min if 1.17549435E-38 < sys.float_info.min else 1.17549435E-38
-    _max = sys.float_info.max if 3.40282347E+38 > sys.float_info.max else 3.40282347E+38
+    _min = (
+        sys.float_info.min
+        if 1.17549435E-38 < sys.float_info.min
+        else 1.17549435E-38
+    )
+    _max = (
+        sys.float_info.max
+        if 3.40282347E+38 > sys.float_info.max
+        else 3.40282347E+38
+    )
 
     def __call__(self, value):
         value = FloatBase.__call__(self, value)
@@ -652,7 +685,11 @@ class I1(IntegerBase):
 class UI8(IntegerBase):
     _label = 'unsigned 64bit int'
     _min = 0
-    _max = sys.maxsize if 18446744073709551615 > sys.maxsize else 18446744073709551615
+    _max = (
+        sys.maxsize
+        if 18446744073709551615 > sys.maxsize
+        else 18446744073709551615
+    )
 
 
 class UI4(IntegerBase):
@@ -696,6 +733,7 @@ class BinBase64(StringBase):
 
         if self.direction == 'in':
             if PY3:
+                # noinspection PyUnresolvedReferences
                 value = base64.encodebytes(value)
             else:
                 value = base64.encodestring(value)
@@ -705,6 +743,7 @@ class BinBase64(StringBase):
                 value = self.default_value
             else:
                 if PY3:
+                    # noinspection PyUnresolvedReferences
                     value = base64.decodebytes(value)
                 else:
                     value = base64.decodestring(value)

@@ -41,7 +41,13 @@ Content-Length: 0\r
 '''
 
 
-def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:rootdevice',)):
+def discover(
+    timeout=5,
+    log_level=None,
+    search_ips=(),
+    dump='',
+    services=('upnp:rootdevice',)
+):
     adapter_ips = list(adapter_addresses.get_adapter_ips())
 
     if dump and not os.path.exists(dump):
@@ -136,6 +142,7 @@ def discover(timeout=5, log_level=None, search_ips=(), dump='', services=('upnp:
         return sock
 
     def do(local_address, target_ips):
+        # noinspection PyPep8,PyBroadException
         try:
             sock = send_to(local_address)
         except:

@@ -33,7 +33,7 @@ if platform.system() == "Darwin" or "BSD" in platform.system():
     # than either Linux or Windows.
     # I still keep it in `shared` since we can use
     # both structures equally.
-
+    # noinspection PyTypeChecker
     class sockaddr(ctypes.Structure):
         _fields_ = [
             ('sa_len', UINT8),
@@ -42,6 +42,7 @@ if platform.system() == "Darwin" or "BSD" in platform.system():
         ]
 
 
+    # noinspection PyTypeChecker
     class sockaddr_in(ctypes.Structure):
         _fields_ = [
             ('sa_len', UINT8),
@@ -51,12 +52,15 @@ if platform.system() == "Darwin" or "BSD" in platform.system():
             ('sin_zero', CHAR * 8)
         ]
 else:
+    # noinspection PyTypeChecker
     class sockaddr(ctypes.Structure):
         _fields_ = [
             ('sa_familiy', USHORT),
             ('sa_data', CHAR * 14)
         ]
 
+
+    # noinspection PyTypeChecker
     class sockaddr_in(ctypes.Structure):
         _fields_ = [
             ('sin_familiy', SHORT),
@@ -233,7 +237,7 @@ else:
             if ip:
                 if (
                     addr[0].ifa_netmask and not
-                addr[0].ifa_netmask[0].sa_familiy
+                    addr[0].ifa_netmask[0].sa_familiy
                 ):
                     addr[0].ifa_netmask[0].sa_familiy = (
                         addr[0].ifa_addr[0].sa_familiy

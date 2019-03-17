@@ -1,8 +1,4 @@
 from __future__ import print_function
-import hashlib
-import struct
-import logging
-import binascii
 from . import keys
 
 import hashlib
@@ -10,8 +6,6 @@ import struct
 import logging
 import binascii
 from Crypto.Cipher import AES as _AES
-from .aes import AES, AES_CIPHER, MODE_CBC
-#
 from .rijndael import Rijndael
 from .keys import PUBLIC_KEY, BN_PRIVATE_KEY, BN_PRIME, TRANS_KEY
 from ..utils import LogItWithReturn
@@ -28,10 +22,11 @@ GX_SIZE = 0x80
 IV = b"\x00" * BLOCK_SIZE
 
 
-
 try:
+    # noinspection PyShadowingBuiltins
     unicode = unicode
 except NameError:
+    # noinspection PyShadowingBuiltins
     unicode = bytes
 
 

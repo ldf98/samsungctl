@@ -98,7 +98,7 @@ def _parse_config_line(line):
     elif ',' in value:
         tmp_value = list(
             val.strip() for val in value.split(',')
-                if val.strip()
+            if val.strip()
         )
         value = []
 
@@ -295,6 +295,7 @@ class Config(object):
     def __call__(self, **_):
         return self
 
+    # noinspection PyMethodMayBeStatic
     def get_pin(self):
         tv_pin = input("Please enter pin from tv: ")
         return str(tv_pin)
@@ -452,7 +453,6 @@ class Config(object):
             output += '\ncec:' + str(self.cec)
 
         return output
-
 
 
 TEMPLATE = '''name = {name}

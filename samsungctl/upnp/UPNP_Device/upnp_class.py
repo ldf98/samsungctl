@@ -6,6 +6,7 @@ from lxml import etree
 try:
     from urlparse import urlparse
 except ImportError:
+    # noinspection PyUnresolvedReferences
     from urllib.parse import urlparse
 
 try:

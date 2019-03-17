@@ -39,18 +39,21 @@ def main():
         action="count",
         help="increase output verbosity"
     )
+    # noinspection PyTypeChecker
     parser.add_argument(
         "--dump",
         type=str,
         default='',
         help="dump output path"
     )
+    # noinspection PyTypeChecker
     parser.add_argument(
         "--timeout",
         type=int,
         default=5,
         help="discover timeout in seconds"
     )
+    # noinspection PyTypeChecker
     parser.add_argument(
         "--execute",
         type=str,
@@ -129,6 +132,7 @@ def main():
                     prog='--execute ' + '.'.join(execute)
                 )
 
+                # noinspection PyUnresolvedReferences
                 for param in method.params:
                     default = param.default_value
                     allowed_values = getattr(param, 'allowed_values', None)
@@ -198,6 +202,7 @@ def main():
                 kwargs = {k: v for k, v in vars(args).items()}
                 result = method(**kwargs)
 
+                # noinspection PyUnresolvedReferences
                 for ret_val in method.ret_vals:
                     print(ret_val.__name__ + ':', repr(result.pop(0)))
 

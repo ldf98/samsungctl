@@ -166,6 +166,7 @@ def _func_arg_string(func, args, kwargs):
     class_name = ""
 
     if PY3:
+        # noinspection PyUnresolvedReferences
         arg_names = inspect.getfullargspec(func)[0]
     else:
         arg_names = inspect.getargspec(func)[0]

@@ -80,7 +80,8 @@ class RemoteLegacy(upnp.UPNPTV):
 
         **Get:** Gets the MAC address.
 
-            *Returns:* None or the MAC address of the TV formatted ``"00:00:00:00:00"``
+            *Returns:* None or the MAC address of the TV formatted
+            ``"00:00:00:00:00"``
 
             *Return type:* `None` or `str`
         """
@@ -280,7 +281,10 @@ class RemoteLegacy(upnp.UPNPTV):
                     elif response == RESULTS[1]:
                         raise exceptions.AccessDenied()
                     elif response[0:1] == RESULTS[2]:
-                        if loop_timer is None or (time.time() - loop_timer) >= 5:
+                        if (
+                            loop_timer is None or
+                            (time.time() - loop_timer) >= 5
+                        ):
                             loop_timer = time.time()
                             logger.debug(
                                 self.config.host +
@@ -367,6 +371,7 @@ class RemoteLegacy(upnp.UPNPTV):
             return chr(len(string)) + "\x00" + string
 
     def __enter__(self):
+        # noinspection PyUnresolvedReferences
         """
         Open the connection to the TV. use in a `with` statement
 

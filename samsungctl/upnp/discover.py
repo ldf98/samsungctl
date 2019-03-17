@@ -37,7 +37,7 @@ SERVICES = (
 )
 
 
-def convert_ssdp_response(packet, addr):
+def convert_ssdp_response(packet, _):
     packet_type, packet = packet.decode('utf-8').split('\n', 1)
     if '200 OK' in packet_type:
         packet_type = 'response'
@@ -560,6 +560,7 @@ class Discover(object):
             thread.stop()
 
         try:
+            # noinspection PyUnresolvedReferences
             atexit.unregister(self.stop)
         except (NameError, AttributeError):
             pass

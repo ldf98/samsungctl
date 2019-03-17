@@ -406,6 +406,7 @@ class Application(object):
                 data = data['imageBase64']
                 if data is not None:
                     if PY3:
+                        # noinspection PyUnresolvedReferences
                         data = base64.decodebytes(data)
                     else:
                         data = base64.decodestring(data)
@@ -624,6 +625,7 @@ class AppData(object):
                 data = data['imageBase64']
                 if data is not None:
                     if PY3:
+                        # noinspection PyUnresolvedReferences
                         data = base64.decodebytes(data)
                     else:
                         data = base64.decodestring(data)

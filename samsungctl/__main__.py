@@ -122,6 +122,7 @@ def get_key(key):
         logging.warning("Warning: Key {0} not found.".format(key))
 
 
+# noinspection PyTypeChecker
 def main():
     epilog = "E.g. %(prog)s --host 192.168.0.10 --name myremote KEY_VOLDOWN"
     parser = argparse.ArgumentParser(

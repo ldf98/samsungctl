@@ -85,6 +85,7 @@ class WebSocketBase(UPNPTV):
         self._loop_event.set()
 
         if self.sock is not None:
+            # noinspection PyPep8,PyBroadException
             try:
                 self.sock.close()
             except:
@@ -108,6 +109,7 @@ class WebSocketBase(UPNPTV):
             self._loop_event.wait(0.1)
 
         while not self._loop_event.isSet():
+            # noinspection PyPep8,PyBroadException
             try:
                 data = self.sock.recv()
             except:
@@ -126,6 +128,8 @@ class WebSocketBase(UPNPTV):
                         break
                     else:
                         self._loop_event.wait(0.1)
+
+        # noinspection PyPep8,PyBroadException
         try:
             self.sock.close()
         except:
@@ -210,6 +214,7 @@ class WebSocketBase(UPNPTV):
         raise NotImplementedError
 
     def __enter__(self):
+        # noinspection PyUnresolvedReferences
         """
         Open the connection to the TV. use in a `with` statement
 

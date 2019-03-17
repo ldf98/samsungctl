@@ -61,6 +61,7 @@ def get_mac_address(ip):
         if not PY2:
             ip = ip.encode()
 
+        # noinspection PyPep8,PyBroadException
         try:
             dst_addr = wsock32.inet_addr(ip)
             if dst_addr in (0, -1):
@@ -70,6 +71,7 @@ def get_mac_address(ip):
             dst_addr = wsock32.inet_addr(dst_ip)
 
         src_addr = ULONG(INADDR_ANY)
+        # noinspection PyCallingNonCallable,PyTypeChecker
         buf = (UBYTE * 6)()
 
         add_len = ULONG(ctypes.sizeof(buf))
@@ -135,6 +137,8 @@ def get_mac_address(ip):
                 devnull = open(os.devnull, 'wb')
             else:
                 import subprocess
+
+                # noinspection PyUnresolvedReferences
                 devnull = subprocess.DEVNULL
 
             output = check_output(cmd, stderr=devnull, env=env)
@@ -142,9 +146,11 @@ def get_mac_address(ip):
             if PY2:
                 return str(output)
             elif isinstance(output, bytes):
+                # noinspection PyArgumentList
                 return str(output, 'utf-8')
 
         def _uuid_ip():
+            # noinspection PyUnresolvedReferences
             from uuid import _arp_getnode
 
             _gethostbyname = socket.gethostbyname
@@ -229,6 +235,7 @@ def get_mac_address(ip):
         ]
 
         for m in methods:
+            # noinspection PyPep8,PyBroadException
             try:
                 mac = m()
                 if mac:

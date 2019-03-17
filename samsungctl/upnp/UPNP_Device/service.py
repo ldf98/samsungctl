@@ -11,6 +11,7 @@ from .xmlns import strip_xmlns
 try:
     from urlparse import urlparse
 except ImportError:
+    # noinspection PyUnresolvedReferences
     from urllib.parse import urlparse
 
 import logging

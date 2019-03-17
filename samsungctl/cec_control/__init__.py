@@ -920,7 +920,6 @@ class EventThread(threading.Thread):
             old_volume = None
 
         power_count = 0
-        start_time = None
 
         while not self.__event.isSet():
             new_audio = self._adapter.audio
@@ -950,7 +949,9 @@ class EventThread(threading.Thread):
                         value=new_mute
                     )
                     logger.debug(
-                        'CEC.AVRAudio.Mute.{0}'.format('On' if new_mute else 'Off')
+                        'CEC.AVRAudio.Mute.{0}'.format(
+                            'On' if new_mute else 'Off'
+                        )
                     )
 
                 if new_volume != old_volume:
@@ -1042,7 +1043,10 @@ class EventThread(threading.Thread):
                         )
 
                         logger.debug(
-                            'CEC.Device.{0}.OSD.Changed.{0}'.format(name, osd_name)
+                            'CEC.Device.{0}.OSD.Changed.{0}'.format(
+                                name,
+                                osd_name
+                            )
                         )
 
                 elif device.connected:
@@ -1119,6 +1123,7 @@ class PyCECDevice(object):
             address = (port * 16) * 256
             if self.physical_address == address:
                 return port
+
     @property
     def logical_address(self):
         return self._logical_address
@@ -1931,6 +1936,7 @@ CEC_DEVICE_MAPPING = {
 }
 
 
+# noinspection PyMethodMayBeStatic
 class PyCECAdapter(object):
 
     @property
@@ -2648,7 +2654,6 @@ if __name__ == '__main__':
     )
     lib = PyCECAdapter(config)
 
-
     print lib.tv.power
 
     if lib.tv.power == 1:
@@ -2716,6 +2721,5 @@ if __name__ == '__main__':
             print 'physical_address:', dev.physical_address
             print 'vendor:', dev.vendor
             print 'logical_address:', dev.logical_address
-
 
     # lib.lib_cec_device.display_osd_message('Message', 30)

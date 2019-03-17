@@ -5,6 +5,7 @@ import sys
 from .key_mappings import KEY_MAPPINGS
 
 try:
+    # noinspection PyShadowingBuiltins
     input = raw_input
 except NameError:
     pass
@@ -48,7 +49,9 @@ class Interactive(object):
                     print()
                     print("brightness [value]")
                     print("    Sets the TV brightness to the entered value,\n")
-                    print("    a value of -1 will display the brightness level")
+                    print(
+                        "    a value of -1 will display the brightness level"
+                    )
                     print()
                     print("contrast [value]")
                     print("    Sets the TV contrast to the entered value,\n")
@@ -88,6 +91,7 @@ class Interactive(object):
                     print()
                     continue
 
+                # noinspection PyPep8,PyBroadException
                 try:
                     if command.upper().startswith('LOG'):
                         logging_commands = (
@@ -188,7 +192,11 @@ class Interactive(object):
                                     else:
                                         try:
                                             value = int(value)
-                                            setattr(self.remote, command, value)
+                                            setattr(
+                                                self.remote,
+                                                command,
+                                                value
+                                            )
                                         except ValueError:
                                             print(
                                                 'Not a correct value '

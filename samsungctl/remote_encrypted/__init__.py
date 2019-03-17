@@ -88,7 +88,6 @@ class URL(object):
             ') ""'
         )
 
-
         try:
             websocket_response = requests.get(self.step4, timeout=3)
         except (requests.HTTPError, requests.exceptions.ConnectTimeout):
@@ -242,6 +241,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if websocket_url is None:
                 return False
 
+            # noinspection PyPep8,PyBroadException
             try:
                 self.sock = websocket.create_connection(websocket_url)
             except:
@@ -471,6 +471,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 self._send_key('KEY_POWEROFF')
 
     def on_message(self, data):
+        # noinspection PyPep8,PyBroadException
         try:
             data = self.aes.decrypt(data)
         except:
@@ -520,7 +521,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 self.config.host +
                 ' <-- "1::/com.samsung.companion"'
             )
-
+            # noinspection PyPep8,PyBroadException
             try:
                 self.sock.send('1::/com.samsung.companion')
                 time.sleep(0.35)

@@ -141,6 +141,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
 
+            # noinspection PyPep8,PyBroadException
             try:
                 self.sock = websocket.create_connection(url, sslopt=sslopt)
             except:
@@ -232,6 +233,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 str(payload)
             )
 
+            # noinspection PyPep8,PyBroadException
             try:
                 self.sock.send(json.dumps(payload))
                 self.send_event.wait(0.3)
@@ -267,8 +269,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self._cec.tv.power = False
             else:
                 self._send_key('KEY_POWER')
-
-
 
     def _send_key(self, key, cmd='Click'):
         """

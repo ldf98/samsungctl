@@ -1059,6 +1059,7 @@ class GUI(wx.Frame):
             remote.open()
             config.save()
 
+            # noinspection PyTypeChecker
             pane = TVPane(self, remote)
             pane_info = aui.AuiPaneInfo()
 
@@ -1115,6 +1116,7 @@ class GUI(wx.Frame):
                 remote.open()
                 config.save()
 
+                # noinspection PyTypeChecker
                 pane = TVPane(self, remote)
                 pane_info = aui.AuiPaneInfo()
 
