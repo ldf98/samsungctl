@@ -844,7 +844,7 @@ def run_test(config):
             'exit after 30 seconds.'
         )
         counter = 0
-        set_property('power', False)
+        remote.power = False
         while remote.power is True:
             time.sleep(2.0)
             counter += 1
@@ -853,13 +853,16 @@ def run_test(config):
                 break
 
         if remote.power is False:
+            auto_discover.logging = True
+
             print('POWER OFF TEST: [PASS]')
-            set_property('power', True)
+            remote.power = True
             counter = 0
 
             while remote.power is False:
                 time.sleep(2.0)
                 counter += 1
+                remote.power = True
                 print(counter * 2, 'seconds have passed')
                 if counter == 15:
                     break
