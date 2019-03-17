@@ -1406,6 +1406,9 @@ class UPNPTV(UPNPObject):
     def source(self):
         try:
             source_id = self.MainTVAgent2.GetCurrentExternalSource()[2]
+            if source_id is None:
+                return None
+
             for source in self.sources:
                 if source.id == int(source_id):
                     return source
