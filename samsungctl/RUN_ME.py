@@ -295,8 +295,6 @@ def run_test(config):
         while remote.power is False:
             time.sleep(0.5)
     except:
-        import traceback
-
         traceback.print_exc()
         sys.exit(1)
 
@@ -821,8 +819,6 @@ def run_test(config):
                                 try:
                                     print(content.run())
                                 except:
-                                    import traceback
-
                                     traceback.print_exc()
 
                                 time.sleep(2)

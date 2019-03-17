@@ -256,28 +256,17 @@ class IntegerBase(object):
 
         if self.direction == 'in':
 
-            if (
-                not isinstance(value, int) or
-                value < self._min or
-                value > self._max
-            ):
+            if not isinstance(value, int):
                 raise ValueError('Value is not a ' + self._label)
 
             if self.minimum is not None and value < self.minimum:
-                raise ValueError(
-                    'Value {0} is lower then the minimum of {1}'.format(
-                        value,
-                        self.minimum
-                    )
-                )
-
-            if self.maximum is not None and value > self.maximum:
-                raise ValueError(
-                    'Value {0} is higher then the maximum of {1}'.format(
-                        value,
-                        self.maximum
-                    )
-                )
+                value = self.minimum
+            elif value < self._min:
+                value = self._min
+            elif self.maximum is not None and value > self.maximum:
+                value = self.maximum
+            elif value > self._max:
+                value = self._max
 
             if self.step is not None and value % self.step:
                 raise ValueError(
@@ -452,7 +441,6 @@ class FloatBase(object):
             self.minimum = self._min
             self.maximum = self._max
             self.step = 1.0
-
 
         default_value = node.find('defaultValue')
         if default_value is not None:

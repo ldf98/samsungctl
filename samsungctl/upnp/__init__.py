@@ -1481,17 +1481,35 @@ class UPNPTV(UPNPObject):
                 if not self._cec.tv.power:
                     return None
 
-                return list(
-                    Source(
-                        source.logical_address,
-                        source.name,
-                        self,
-                        True,
-                        source
+                sources = []
+                devices = list(iter(self._cec))
+                for i in range(1, 16):
+                    for device in devices:
+                        port = device.port
+                        if port is not None and port == i:
+                            sources += [
+                                Source(
+                                    device.logical_address,
+                                    device.name,
+                                    self,
+                                    True,
+                                    device
 
-                    )
-                    for source in self._cec
-                )
+                                )
+                            ]
+                            break
+                    else:
+                        sources += [
+                            Source(
+                                i,
+                                'HDMI ' + str(i),
+                                self,
+                                True,
+                                self._cec
+                            )
+                        ]
+
+                return sources
 
     def start_ext_source_view(self, source, id):
         try:
@@ -2963,14 +2981,25 @@ class Source(object):
     @property
     def name(self):
         if self._cec_source is not None:
-            return self._cec_source.name
+            if isinstance(self._cec_source, cec_control.PyCECAdapter):
+                return self.__name__
+
+            port = self._cec_source.port
+
+            if port is not None:
+                return self._cec_source.name + ' [HDMI ' + str(port) + ']'
+            else:
+                return self._cec_source.name
 
         return self.__name__
 
     @property
     def is_viewable(self):
         if self._cec_source is not None:
-            return self._cec_source.power
+            if isinstance(self._cec_source, cec_control.PyCECAdapter):
+                return True
+
+            return self._cec_source.connected and self._cec_source.power
 
         _ = self._parent.sources
         return self._viewable
@@ -2978,6 +3007,8 @@ class Source(object):
     @property
     def is_editable(self):
         if self._cec_source is not None:
+            if isinstance(self._cec_source, cec_control.PyCECAdapter):
+                return False
             return True
 
         return self._editable
@@ -2993,6 +3024,9 @@ class Source(object):
     @property
     def label(self):
         if self._cec_source is not None:
+            if isinstance(self._cec_source, cec_control.PyCECAdapter):
+                return self.__name__
+
             return self._cec_source.osd_name
 
         _ = self._parent.sources
@@ -3053,7 +3087,11 @@ class Source(object):
         if self.is_connected:
 
             if self._cec_source is not None:
-                self._cec_source.active_source = True
+                if isinstance(self._cec_source, cec_control.PyCECAdapter):
+                    port = int(self.__name__.split('I')[-1].strip())
+                    self._cec_source.source = port
+                else:
+                    self._cec_source.active_source = True
             else:
                 try:
                     self._parent.MainTVAgent2.SetMainTVSource(

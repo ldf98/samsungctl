@@ -1113,6 +1113,13 @@ class PyCECDevice(object):
         return self._adapter.LogicalAddressToString(self._logical_address)
 
     @property
+    def port(self):
+
+        for port in range(1, 16):
+            address = (port * 16) * 256
+            if self.physical_address == address:
+                return port
+    @property
     def logical_address(self):
         return self._logical_address
 
@@ -1133,6 +1140,29 @@ class PyCECDevice(object):
     @active_source.setter
     def active_source(self, flag=True):
         if flag:
+            port = self.port
+
+            if port is not None:
+                packet = cec.cec_command()
+
+                packet.Format(
+                    packet,
+                    4,
+                    15,
+                    130
+                )
+
+                address = (port * 16) * 256
+                address = hex(address)[2:]
+                address = list(
+                    int(address[i] + address[i + 1], 16)
+                    for i in range(0, len(address), 2)
+                )
+
+                for addr in address:
+                    packet.PushBack(addr)
+
+                self._adapter.Transmit(packet)
             self._adapter.SetActiveSource(self._logical_address)
 
     @property
@@ -1911,6 +1941,35 @@ class PyCECAdapter(object):
     @audio.setter
     def audio(self, value):
         self._adapter.AudioEnable(bool(value))
+
+    @property
+    def source(self):
+        for device in self:
+            if device.active_source:
+                return device.port
+
+    @source.setter
+    def source(self, port):
+        packet = cec.cec_command()
+
+        packet.Format(
+            packet,
+            4,
+            15,
+            130
+        )
+
+        address = (port * 16) * 256
+        address = hex(address)[2:]
+        address = list(
+            int(address[i] + address[i + 1], 16)
+            for i in range(0, len(address), 2)
+        )
+
+        for addr in address:
+            packet.PushBack(addr)
+
+        self._adapter.Transmit(packet)
 
     @property
     def mute(self):
