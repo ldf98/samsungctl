@@ -324,7 +324,7 @@ class Application(object):
             self._remote.send('ms.channel.emit', **params)
         else:
 
-            if action_play_url.startswiith('http://'):
+            if action_play_url.startswith('http://'):
                 url = action_play_url.replace(
                     'localhost',
                     self._remote.config.host
