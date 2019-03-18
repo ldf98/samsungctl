@@ -6,17 +6,29 @@ import struct
 import sys
 import platform
 import logging
-from .upnp.UPNP_Device import adapter_addresses
+
+
+try:
+    ModuleNotFoundError = ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+
+
+try:
+    from .upnp.UPNP_Device import adapter_addresses
+except (ValueError, ModuleNotFoundError):
+    from upnp.UPNP_Device import adapter_addresses
 
 
 logger = logging.getLogger(__name__)
+
+PY2 = sys.version_info[0] == 2
 
 NULL = None
 PVOID = ctypes.c_void_p
 UBYTE = ctypes.c_ubyte
 POINTER = ctypes.POINTER
 
-PY2 = sys.version_info[0] == 2
 
 if platform.system() == 'Darwin':
     OSX = True
@@ -289,16 +301,19 @@ def send_wol(mac_address):
     hex_mac = struct.pack('BBBBBB', *hex_mac)
 
     # create the magic packet from MAC address
-    packet = b'\xff' * 6 + hex_mac * 16
+    packet = b'\xff' * 6 + (hex_mac * 16)
 
     for ip in adapter_addresses.get_adapter_ips():
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        logger.debug('WOL: ' + repr(packet))
         try:
             sock.bind((ip, 0))
             for _ in range(5):
                 sock.sendto(packet, ('255.255.255.255', 9))
+                sock.sendto(packet, ('255.255.255.255', 7))
+                sock.sendto(packet, ('255.255.255.255', 0))
         except socket.error:
             pass
 
@@ -306,6 +321,7 @@ def send_wol(mac_address):
 
 
 if __name__ == '__main__':
+    logger.setLevel(logging.DEBUG)
     try:
         entered_ip = raw_input('Enter IP address:')
     except NameError:
