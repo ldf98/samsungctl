@@ -13,11 +13,19 @@ try:
 except NameError:
     ModuleNotFoundError = ImportError
 
-
 try:
     from .upnp.UPNP_Device import adapter_addresses
 except (ValueError, ModuleNotFoundError):
-    from upnp.UPNP_Device import adapter_addresses
+    import os
+
+    if not __file__:
+        cwd = os.getcwd()
+    else:
+        cwd = os.path.dirname(__file__)
+
+    sys.path.insert(0, os.path.join(cwd, 'upnp', 'UPNP_Device'))
+
+    import adapter_addresses
 
 
 logger = logging.getLogger(__name__)
