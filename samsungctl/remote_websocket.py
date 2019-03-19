@@ -175,6 +175,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 self.send_event.wait(0.5)
                 self.connect()
+                self._power_event.set()
 
                 return True
 
@@ -189,6 +190,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     self.config.port = 8002
                     return self.open()
 
+                self._power_event.set()
                 raise RuntimeError('Auth Failure')
 
             if self.config.token is not None:
@@ -199,6 +201,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 if not res:
                     self.config.token = saved_token
+                    self._power_event.set()
                     raise RuntimeError(
                         'Auth Error: invalid token - '
                         'create a new pairing to the TV.'
@@ -211,6 +214,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                         ' old token: ' +
                         str(saved_token)
                     )
+            self._power_event.set()
             raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
 
     @LogIt
@@ -257,7 +261,16 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             if self._cec is not None:
                 self._cec.tv.power = True
             elif self.mac_address:
+                self._power_event.clear()
+
+                while not self._power_event.isSet():
+                    wake_on_lan.send_wol(self.mac_address)
+                    self._power_event.wait(2.0)
                 wake_on_lan.send_wol(self.mac_address)
+
+                self._power_event.clear()
+
+
             else:
                 logging.error(
                     self.config.host +

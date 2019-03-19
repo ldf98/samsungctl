@@ -36,6 +36,8 @@ SERVICES = (
     'urn:samsung.com:device:RemoteControlReceiver:1',
 )
 
+SSDP_DEBUG = False
+
 
 def convert_ssdp_response(packet, _):
     packet_type, packet = packet.decode('utf-8').split('\n', 1)
@@ -128,11 +130,10 @@ CONNECTION_TYPES = {
 
 class UPNPDiscoverSocket(threading.Thread):
 
-    def __init__(self, parent, local_address, _logging):
+    def __init__(self, parent, local_address):
         self._timeout = 5.0
         self._local_address = local_address
         self._parent = parent
-        self.logging = _logging
         self._event = threading.Event()
         self._found = {}
         self._program_powered_off = {}
@@ -206,7 +207,7 @@ class UPNPDiscoverSocket(threading.Thread):
     @timeout.setter
     def timeout(self, timeout):
         if self.sock is not None:
-            if self.logging:
+            if SSDP_DEBUG:
                 logger.debug(
                     'SSDP: %s -- new timeout %s',
                     self._local_address,
@@ -221,7 +222,7 @@ class UPNPDiscoverSocket(threading.Thread):
 
             for service in SERVICES:
                 packet = IPV4_SSDP.format(service)
-                if self.logging:
+                if SSDP_DEBUG:
                     logger.debug(
                         'SSDP: %s - %s\n%s',
                         self._local_address,
@@ -262,7 +263,7 @@ class UPNPDiscoverSocket(threading.Thread):
                         ):
                             continue
 
-                        if self.logging:
+                        if SSDP_DEBUG:
                             logger.debug(
                                 connected_ip +
                                 ' --> ' +
@@ -287,7 +288,7 @@ class UPNPDiscoverSocket(threading.Thread):
                 self.sock = self._create_socket()
 
                 if found_packets:
-                    if self.logging:
+                    if SSDP_DEBUG:
                         logger.debug(found_packets)
                         powered_on = []
 
@@ -305,7 +306,7 @@ class UPNPDiscoverSocket(threading.Thread):
                             else:
                                 continue
 
-                            if self.logging:
+                            if SSDP_DEBUG:
                                 logger.debug(
                                     host +
                                     ' <-- (' +
@@ -320,7 +321,7 @@ class UPNPDiscoverSocket(threading.Thread):
                             ):
                                 continue
 
-                            if self.logging:
+                            if SSDP_DEBUG:
                                 logger.debug(
                                     host +
                                     ' --> (' +
@@ -438,25 +439,56 @@ class UPNPDiscoverSocket(threading.Thread):
                                     # user_id=user_id,
                                     port=port,
                                 )
+                                logger.debug(
+                                    'Discovered TV:' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    host
+                                )
 
                                 self._parent.callback(config, None)
                                 self._found[uuid] = config
 
+                                logger.debug(
+                                    'Discovered TV: setting power on,' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    host
+                                )
+                                self._powered_on[uuid] = config
+                                self._parent.callback(config, state=True)
+
                             if uuid in self._powering_off:
+                                logger.debug(
+                                    'Power Smoothing: TV is actually on,' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    host
+                                )
                                 self._powered_on[uuid] = (
                                     self._powering_off.pop(uuid)
                                 )
                                 if not self._powering_off:
+                                    logger.debug(
+                                        'Power Smoothing: setting '
+                                        'socket timeout to 5.0'
+                                    )
                                     self.sock.settimeout(5.0)
 
                             elif uuid in self._powered_off:
+                                logger.debug(
+                                    'TV power on:' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    host
+                                )
                                 del self._powered_off[uuid]
                                 self._powered_on[uuid] = config
                                 self._parent.callback(config, state=True)
-                            else:
-                                self._powered_on[uuid] = config
-                                self._parent.callback(config, state=True)
-
                             powered_on += [uuid]
 
                         for uuid in list(self._powered_on.keys())[:]:
@@ -465,32 +497,67 @@ class UPNPDiscoverSocket(threading.Thread):
                                 uuid not in self._powering_off and
                                 uuid not in self._program_powered_off
                             ):
-                                self._powering_off[uuid] = (
-                                    self._powered_on.pop(uuid)
+                                config = self._powered_on.pop(uuid)
+
+                                logger.debug(
+                                    'Power smoothing: TV might be off,' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    config.host
+
                                 )
+                                self._powering_off[uuid] = config
+
+                                logger.debug(
+                                    'Power Smoothing: setting '
+                                    'socket timeout to 10.0 '
+                                )
+
                                 self.sock.settimeout(10.0)
                             elif (
                                 uuid not in powered_on and
                                 uuid in self._powering_off
                             ):
-                                self._powered_off[uuid] = (
-                                    self._powering_off.pop(uuid)
+                                config = self._powering_off.pop(uuid)
+
+                                logger.debug(
+                                    'Power smoothing: TV is off,' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    config.host
+
                                 )
+
+                                self._powered_off[uuid] = config
 
                                 self._parent.callback(
                                     self._powered_off[uuid],
                                     state=False
                                 )
                                 if not self._powering_off:
+                                    logger.debug(
+                                        'Power Smoothing: setting '
+                                        'socket timeout to 5.0 '
+                                    )
                                     self.sock.settimeout(5.0)
                             elif uuid in self._program_powered_off:
-                                self._powered_off[uuid] = (
-                                    self._program_powered_off.pop(uuid)
+                                config = self._program_powered_off.pop(uuid)
+
+                                logger.debug(
+                                    'Program power off:' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    config.host
+
                                 )
+                                self._powered_off[uuid] = config
+                else:
+                    self._event.wait(2.0)
 
-                self._event.wait(2.0)
-
-                if self.logging:
+                if SSDP_DEBUG:
                     logger.debug(
                         self._local_address +
                         ' -- (SSDP) loop restart'
@@ -522,21 +589,19 @@ class Discover(object):
     def __init__(self):
         self._callbacks = []
         self._threads = []
-        self._logging = False
 
     @property
     def logging(self):
-        return self._logging
+        return SSDP_DEBUG
 
     @logging.setter
     def logging(self, value):
-        self._logging = value
-        for thread in self._threads:
-            thread.logging = value
+        global SSDP_DEBUG
+        SSDP_DEBUG = value
 
     def start(self):
         for adapter_ip in adapter_addresses.get_adapter_ips():
-            thread = UPNPDiscoverSocket(self, adapter_ip, self._logging)
+            thread = UPNPDiscoverSocket(self, adapter_ip)
             self._threads += [thread]
             thread.start()
 
@@ -566,11 +631,12 @@ class Discover(object):
             pass
 
     def register_callback(self, callback, uuid=None):
+        global SSDP_DEBUG
         self._callbacks += [(callback, uuid)]
 
         if not self.is_running:
             if logger.getEffectiveLevel() == logging.DEBUG:
-                self.logging = True
+                SSDP_DEBUG = True
 
             self.start()
 
