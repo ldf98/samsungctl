@@ -841,7 +841,7 @@ def run_test(config):
         print(
             'This process may take a while to complete.\n'
             'If there is an issue the program will automatically\n'
-            'exit after 30 seconds.'
+            'exit after 60 seconds.'
         )
         counter = 0
         remote.power = False
@@ -849,7 +849,7 @@ def run_test(config):
             time.sleep(2.0)
             counter += 1
             print(counter * 2, 'seconds have passed')
-            if counter == 15:
+            if counter == 30:
                 break
 
         if remote.power is False:
@@ -857,16 +857,23 @@ def run_test(config):
 
             print('POWER OFF TEST: [PASS]')
             remote.power = True
+
+            power_event = threading.Event()
+
+            def power_on():
+                remote.power = True
+                power_event.set()
+
             counter = 0
 
-            while remote.power is False:
-                time.sleep(2.0)
-                counter += 1
-                remote.power = True
-                print(counter * 2, 'seconds have passed')
-                if counter == 15:
-                    break
-
+            while not power_event.isSet():
+                power_event.wait(1.0)
+                if not power_event.isSet():
+                    counter += 1
+                    print(counter, 'seconds have passed')
+                    if counter == 60:
+                        break
+            
             if remote.power is False:
                 print('POWER ON TEST: [FAIL]')
 
