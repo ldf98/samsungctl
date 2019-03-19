@@ -50,7 +50,7 @@
 # You should have received a copy of the GNU General Public License along
 # with EventGhost. If not, see <http://www.gnu.org/licenses/>.
 
-
+from __future__ import print_function
 import threading
 import cec
 import time
@@ -2654,7 +2654,7 @@ if __name__ == '__main__':
     )
     lib = PyCECAdapter(config)
 
-    print lib.tv.power
+    print(lib.tv.power)
 
     if lib.tv.power == 1:
 
@@ -2679,27 +2679,27 @@ if __name__ == '__main__':
     # time.sleep(20)
 
     try:
-        print 'volume:', lib.volume
+        print('volume:', lib.volume)
     except AttributeError:
-        print 'volume not enabled'
+        print('volume not enabled')
 
     try:
-        print 'mute:', lib.mute
+        print('mute:', lib.mute)
     except AttributeError:
-        print 'mute not enabled'
-    print 'audio:', lib.audio
+        print('mute not enabled')
+    print('audio:', lib.audio)
 
     for _ in range(10):
         lib.volume_up()
         time.sleep(1)
 
-    print 'info:', lib.info
-    print 'product_id:', lib.product_id
-    print 'vendor:', lib.vendor
-    print 'server_version:', lib.server_version
-    print 'port:', lib.port
-    print 'name:', lib.name
-    print 'power:', lib.power
+    print('info:', lib.info)
+    print('product_id:', lib.product_id)
+    print('vendor:', lib.vendor)
+    print('server_version:', lib.server_version)
+    print('port:', lib.port)
+    print('name:', lib.name)
+    print('power:', lib.power)
 
     lib.tv.active_source = True
 
@@ -2707,19 +2707,19 @@ if __name__ == '__main__':
 
     for dev in lib:
         if dev.active_device:
-            print
-            print
-            print
-            print 'name:', dev.name
-            print 'power:', dev.power
+            print()
+            print()
+            print()
+            print('name:', dev.name)
+            print('power:', dev.power)
             # print 'type:', dev.type
-            print 'menu_language:', dev.menu_language
-            print 'osd_name:', dev.osd_name
-            print 'cec_version:', dev.cec_version
-            print 'active_source:', dev.active_source
-            print 'active_device:', dev.active_device
-            print 'physical_address:', dev.physical_address
-            print 'vendor:', dev.vendor
-            print 'logical_address:', dev.logical_address
+            print('menu_language:', dev.menu_language)
+            print('osd_name:', dev.osd_name)
+            print('cec_version:', dev.cec_version)
+            print('active_source:', dev.active_source)
+            print('active_device:', dev.active_device)
+            print('physical_address:', dev.physical_address)
+            print('vendor:', dev.vendor)
+            print('logical_address:', dev.logical_address)
 
     # lib.lib_cec_device.display_osd_message('Message', 30)
