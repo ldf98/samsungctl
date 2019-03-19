@@ -853,9 +853,7 @@ def run_test(config):
                 break
 
         if remote.power is False:
-            auto_discover.logging = True
-
-            print('POWER OFF TEST: [PASS]')
+            print('POWER OFF TEST: [pass]')
             remote.power = True
 
             power_event = threading.Event()
@@ -863,6 +861,10 @@ def run_test(config):
             def power_on():
                 remote.power = True
                 power_event.set()
+
+            t = threading.Thread(target=power_on)
+            t.daemon = True
+            t.start()
 
             counter = 0
 
@@ -873,13 +875,13 @@ def run_test(config):
                     print(counter, 'seconds have passed')
                     if counter == 60:
                         break
-            
+
             if remote.power is False:
-                print('POWER ON TEST: [FAIL]')
+                print('POWER ON TEST: [fail]')
 
         else:
-            print('POWER OFF TEST: [FAIL]')
-            print('POWER ON TEST: [SKIPPED]')
+            print('POWER OFF TEST: [fail]')
+            print('POWER ON TEST: [skipped]')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     with WRITE_LOCK:
