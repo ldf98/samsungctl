@@ -140,6 +140,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     def open(self):
         with self._auth_lock:
             if self.sock is not None:
+                self._power_event.set()
                 return True
 
             del self._registered_callbacks[:]
@@ -164,6 +165,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                                 self.config.host +
                                 '-- pin retry limit reached.'
                             )
+                            self._power_event.set()
                             return False
 
                         if tv_pin is None:
@@ -229,6 +231,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                     self.close_pin_page()
 
             if self.config.token is None:
+                self._power_event.set()
                 raise RuntimeError('Unknown Authentication Error')
 
             aes_key, current_session_id = self.config.token.rsplit(':', 1)
@@ -239,19 +242,21 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             websocket_url = self.url.websocket
             if websocket_url is None:
+                self._power_event.set()
                 return False
 
             # noinspection PyPep8,PyBroadException
             try:
                 self.sock = websocket.create_connection(websocket_url)
             except:
+                self._power_event.set()
                 return False
 
             self.connect()
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
-
             time.sleep(0.35)
+            self._power_event.seet()
 
             return True
 
@@ -457,7 +462,14 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             if self._cec is not None:
                 self._cec.tv.power = True
             elif self.mac_address:
+                self._power_event.clear()
+
+                while not self._power_event.isSet():
+                    wake_on_lan.send_wol(self.mac_address)
+                    self._power_event.wait(2.0)
                 wake_on_lan.send_wol(self.mac_address)
+
+                self._power_event.clear()
             else:
                 logging.error(
                     self.config.host +

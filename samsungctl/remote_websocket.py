@@ -65,6 +65,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     def open(self):
         with self._auth_lock:
             if self.sock is not None:
+                self._power_event.set()
                 return True
 
             if self.config.port == 8002:
@@ -145,6 +146,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             try:
                 self.sock = websocket.create_connection(url, sslopt=sslopt)
             except:
+                self._power_event.set()
                 if not self.config.paired:
                     raise RuntimeError('Unable to connect to the TV')
 
