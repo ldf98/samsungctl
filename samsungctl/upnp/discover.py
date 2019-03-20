@@ -137,6 +137,7 @@ class UPNPDiscoverSocket(threading.Thread):
         self._event = threading.Event()
         self._found = {}
         self._program_powered_off = {}
+        self._program_powered_on = {}
         self._powering_off = {}
         self._powered_off = {}
         self._powered_on = {}
@@ -191,10 +192,25 @@ class UPNPDiscoverSocket(threading.Thread):
     def set_powered_off(self, config):
         uuid = config.uuid
         if uuid in self._powered_on:
-            self._program_powered_off[uuid] = config
+            self._program_powered_off[uuid] = self._powered_on.pop(uuid)
+        elif uuid in self._program_powered_on:
+            self._program_powered_off[uuid] = self._program_powered_on.pop(uuid)
+        elif uuid in self._powered_off:
+            self._program_powered_off[uuid] = self._powered_off.pop(uuid)
         elif uuid in self._powering_off:
-            del self._powering_off[uuid]
-            self._powered_off[uuid] = config
+            self._program_powered_off[uuid] = self._powering_off.pop(uuid)
+
+    def set_powered_on(self, config):
+        uuid = config.uuid
+
+        if uuid in self._powered_on:
+            self._program_powered_on[uuid] = self._powered_on.pop(uuid)
+        elif uuid in self._program_powered_off:
+            self._program_powered_on[uuid] = self._program_powered_off.pop(uuid)
+        elif uuid in self._powered_off:
+            self._program_powered_on[uuid] = self._powered_off.pop(uuid)
+        elif uuid in self._powering_off:
+            self._program_powered_on[uuid] = self._powering_off.pop(uuid)
 
     @property
     def discovered(self):
@@ -460,7 +476,19 @@ class UPNPDiscoverSocket(threading.Thread):
                                 self._powered_on[uuid] = config
                                 self._parent.callback(config, state=True)
 
-                            if uuid in self._powering_off:
+                            if uuid in self._program_powered_on:
+                                logger.debug(
+                                    'TV power on:' +
+                                    ' UUID - ' +
+                                    uuid +
+                                    ' IP - ' +
+                                    host
+                                )
+                                del self._program_powered_on[uuid]
+                                self._powered_on[uuid] = config
+                                self._parent.callback(config, state=True)
+
+                            elif uuid in self._powering_off:
                                 logger.debug(
                                     'Power Smoothing: TV is actually on,' +
                                     ' UUID - ' +
@@ -612,6 +640,10 @@ class Discover(object):
             config = thread.is_on(uuid)
             if config is not None:
                 return config
+
+    def set_powered_on(self, config):
+        for thread in self._threads:
+            thread.set_powered_on(config)
 
     def set_powered_off(self, config):
         for thread in self._threads:

@@ -268,10 +268,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 while not self._power_event.isSet():
                     wake_on_lan.send_wol(self.mac_address)
                     self._power_event.wait(2.0)
-                wake_on_lan.send_wol(self.mac_address)
 
                 self._power_event.clear()
-
 
             else:
                 logging.error(

@@ -171,8 +171,11 @@ class WebSocketBase(UPNPTV):
     @LogIt
     def power(self, value):
         with self._auth_lock:
-            self._set_power(value)
-            if not value and self.power:
+            if value and not self.power:
+                auto_discover.set_powered_on(self.config)
+                self._set_power(value)
+            elif not value and self.power:
+                self._set_power(value)
                 auto_discover.set_powered_off(self.config)
                 self._close_connection()
                 self._power_event.wait(3.0)

@@ -837,6 +837,9 @@ def run_test(config):
         upnp_logger.setLevel(logging.DEBUG)
 
     if remote.year > 2013 or remote._cec is not None:
+        sam_logger.setLevel(logging.DEBUG)
+        upnp_logger.setLevel(logging.DEBUG)
+
         print('\nPOWER TESTS\n')
         print(
             'This process may take a while to complete.\n'
@@ -854,8 +857,6 @@ def run_test(config):
 
         if remote.power is False:
             print('POWER OFF TEST: [pass]')
-            remote.power = True
-
             power_event = threading.Event()
 
             def power_on():
@@ -878,6 +879,9 @@ def run_test(config):
 
             if remote.power is False:
                 print('POWER ON TEST: [fail]')
+
+            else:
+                print('POWER ON TEST: [pass]')
 
         else:
             print('POWER OFF TEST: [fail]')
