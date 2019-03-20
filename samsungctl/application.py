@@ -359,7 +359,6 @@ class Application(object):
                 return response.content
 
             response = requests.post(url, data=action_play_url)
-            response.raise_for_status()
             return response.content
 
     @property
