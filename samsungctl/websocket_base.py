@@ -173,7 +173,12 @@ class WebSocketBase(UPNPTV):
         with self._auth_lock:
             if value and not self.power:
                 auto_discover.set_powered_on(self.config)
-                self._set_power(value)
+                if self._cec is not None:
+                    self._cec.tv.power = True
+                elif self.open():
+                   self._send_key('KEY_POWERON')
+                else:
+                    self._set_power(value)
             elif not value and self.power:
                 self._set_power(value)
                 auto_discover.set_powered_off(self.config)

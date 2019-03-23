@@ -108,8 +108,12 @@ class RemoteLegacy(upnp.UPNPTV):
     def power(self, value):
         with self._auth_lock:
             if value and not self.power:
+                auto_discover.set_powered_on(self.config)
+
                 if self._cec is not None:
                     self._cec.tv.power = True
+                elif self.open():
+                    self._send_key('KEY_POWERON')
 
                 elif self.mac_address:
                     wake_on_lan.send_wol(self.mac_address)

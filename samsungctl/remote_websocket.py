@@ -260,9 +260,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         }
         """
         if value and not self.power:
-            if self._cec is not None:
-                self._cec.tv.power = True
-            elif self.mac_address:
+            if self.mac_address:
                 self._power_event.clear()
 
                 while not self._power_event.isSet():
