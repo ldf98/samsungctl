@@ -765,7 +765,12 @@ def run_test(config):
                 print('Now starting application.')
                 time.sleep(2)
                 app.run()
-                time.sleep(2)
+                count = 0
+                while count != 8:
+                    count += 1
+                    sys.stdout.write('.')
+                    time.sleep(1.0)
+
                 print(app.name + ' is running: ' + str(app.is_running))
                 print(app.name + ' is visible: ' + str(app.is_visible))
                 try:
@@ -782,59 +787,77 @@ def run_test(config):
 
                 print(answer.lower() == 'y')
                 print()
-
-                sam_logger.setLevel(logging.NOTSET)
-                upnp_logger.setLevel(logging.NOTSET)
-
-                for group in app:
-                    print(group.title)
+                app.close()
+                count = 0
+                while count != 8:
+                    count += 1
+                    sys.stdout.write('.')
+                    time.sleep(1.0)
 
                 try:
-                    answer = raw_input(
-                        'Please enter one of the above content groups:')
+                    answer = raw_input('Is the app closed?: (y/n)')
                 except NameError:
-                    answer = input(
-                        'Please enter one of the above content groups:')
+                    answer = input('Is the app closed?: (y/n)')
 
-                answer = answer.lower()
+                print(answer.lower() == 'y')
+                print()
 
-                for group in app:
-                    if group.title.lower() == answer:
-                        for content in group:
-                            print(content.title)
-
-                        try:
-                            answer = raw_input(
-                                'Please enter one of the above content items:')
-                        except NameError:
-                            answer = input(
-                                'Please enter one of the above content items:')
-
-                        answer = answer.lower()
-
-                        for content in group:
-                            if content.title.lower() == answer:
-                                sam_logger.setLevel(logging.DEBUG)
-                                upnp_logger.setLevel(logging.DEBUG)
-
-                                try:
-                                    print(content.run())
-                                except:
-                                    traceback.print_exc()
-
-                                time.sleep(2)
-
-                        try:
-                            answer = raw_input('Is the content playing?: (y/n)')
-                        except NameError:
-                            answer = input('Is the content playing?: (y/n)')
-
-                        print(answer.lower() == 'y')
-
-                        print('\n\n')
+                #
+                # sam_logger.setLevel(logging.NOTSET)
+                # upnp_logger.setLevel(logging.NOTSET)
+                #
+                # for group in app:
+                #     print(group.title)
+                #
+                # try:
+                #     answer = raw_input(
+                #         'Please enter one of the above content groups:')
+                # except NameError:
+                #     answer = input(
+                #         'Please enter one of the above content groups:')
+                #
+                # answer = answer.lower()
+                #
+                # for group in app:
+                #     if group.title.lower() == answer:
+                #         for content in group:
+                #             print(content.title)
+                #
+                #         try:
+                #             answer = raw_input(
+                #                 'Please enter one of the above content items:')
+                #         except NameError:
+                #             answer = input(
+                #                 'Please enter one of the above content items:')
+                #
+                #         answer = answer.lower()
+                #
+                #         for content in group:
+                #             if content.title.lower() == answer:
+                #                 sam_logger.setLevel(logging.DEBUG)
+                #                 upnp_logger.setLevel(logging.DEBUG)
+                #
+                #                 try:
+                #                     print(content.run())
+                #                 except:
+                #                     traceback.print_exc()
+                #
+                #                 time.sleep(2)
+                #
+                #         try:
+                #             answer = raw_input('Is the content playing?: (y/n)')
+                #         except NameError:
+                #             answer = input('Is the content playing?: (y/n)')
+                #
+                #         print(answer.lower() == 'y')
+                #
+                #         print('\n\n')
 
         sam_logger.setLevel(logging.DEBUG)
         upnp_logger.setLevel(logging.DEBUG)
+
+    print(config)
+    config.save()
 
     if remote.year > 2013 or remote._cec is not None:
         sam_logger.setLevel(logging.DEBUG)
