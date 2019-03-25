@@ -10,6 +10,7 @@ import socket
 import sys
 
 try:
+    from .upnp.discover import discover, auto_discover
     from . import __doc__ as doc
     from . import __title__ as title
     from . import __version__ as version
@@ -26,7 +27,7 @@ except ValueError:
         path = os.getcwd()
 
     sys.path.insert(0, os.path.abspath(os.path.join(path, '..')))
-
+    from samsungctl.upnp.discover import discover, auto_discover
     from samsungctl import __doc__ as doc
     from samsungctl import __title__ as title
     from samsungctl import __version__ as version
@@ -122,8 +123,15 @@ def get_key(key):
         logging.warning("Warning: Key {0} not found.".format(key))
 
 
+def exit_func(code):
+    auto_discover.stop()
+    sys.exit(code)
+
+
 # noinspection PyTypeChecker
 def main():
+    auto_discover.start()
+
     epilog = "E.g. %(prog)s --host 192.168.0.10 --name myremote KEY_VOLDOWN"
     parser = argparse.ArgumentParser(
         prog=title,
@@ -352,14 +360,13 @@ def main():
     if config.upnp_locations is None:
         config.upnp_locations = []
 
-    if not config.paired:
-        from .upnp.discover import discover
-
+    if not config.host or not config.uuid:
         configs = discover(config.host)
         if len(configs) > 1:
+
             while True:
                 for i, cfg in enumerate(configs):
-                    print(i + 1, ':', config.model)
+                    print(i + 1, ':', cfg.model)
                 try:
                     answer = raw_input(
                         'Enter the number of the TV you want to pair with:'
@@ -371,15 +378,17 @@ def main():
 
                 try:
                     answer = int(answer) - 1
-                    config.copy(configs[answer])
+                    cfg = configs[answer]
                     break
-                except ValueError:
+                except (TypeError, ValueError, IndexError):
                     pass
+
         elif configs:
-            config.copy(configs[0])
+            cfg = configs[0]
+
         else:
             print('Unable to discover any TV\'s')
-            sys.exit(0)
+            exit_func(0)
 
     try:
         with Remote(config) as remote:
@@ -388,8 +397,35 @@ def main():
                 from . import interactive
                 inter = interactive.Interactive(remote)
                 inter.run()
+                exit_func(0)
 
-            elif config.method == 'websocket' and args.start_app:
+            if (
+                args.key and
+                args.key[0] in ('KEY_POWER', 'KEY_POWERON') and
+                config.paired and
+                not remote.power
+            ):
+                args.key.pop(0)
+
+                import threading
+
+                event = threading.Event()
+
+                def callback(_, state):
+                    if state:
+                        event.set()
+
+                auto_discover.register_callback(callback, config.uuid)
+                remote.power = True
+
+                event.wait(10.0)
+                auto_discover.unregister_callback(callback, config.uuid)
+
+                if not event.isSet():
+                    print('Unable to send command TV is not powered on.')
+                    exit_func(1)
+
+            if config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
                     app.run(args.app_metadata)
@@ -475,7 +511,11 @@ def main():
 
     if args.config_file:
         config.save()
+        exit_func(0)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit_func(2)

@@ -178,39 +178,17 @@ class UPNPDiscoverSocket(threading.Thread):
     @property
     def powered_on(self):
         return (
-            list(self._powered_on.values())[:] +
-            list(self._powering_off.values())[:]
+            list(self._powered_on.values())[:]
         )
 
     @property
     def powered_off(self):
         return (
-            list(self._powered_off.values())[:] +
-            list(self._program_powered_off.values())[:]
+            list(
+                self._found[uuid] for uuid in self._found.keys()
+                if uuid not in self._powered_on.keys()
+            )
         )
-
-    def set_powered_off(self, config):
-        uuid = config.uuid
-        if uuid in self._powered_on:
-            self._program_powered_off[uuid] = self._powered_on.pop(uuid)
-        elif uuid in self._program_powered_on:
-            self._program_powered_off[uuid] = self._program_powered_on.pop(uuid)
-        elif uuid in self._powered_off:
-            self._program_powered_off[uuid] = self._powered_off.pop(uuid)
-        elif uuid in self._powering_off:
-            self._program_powered_off[uuid] = self._powering_off.pop(uuid)
-
-    def set_powered_on(self, config):
-        uuid = config.uuid
-
-        if uuid in self._powered_on:
-            self._program_powered_on[uuid] = self._powered_on.pop(uuid)
-        elif uuid in self._program_powered_off:
-            self._program_powered_on[uuid] = self._program_powered_off.pop(uuid)
-        elif uuid in self._powered_off:
-            self._program_powered_on[uuid] = self._powered_off.pop(uuid)
-        elif uuid in self._powering_off:
-            self._program_powered_on[uuid] = self._powering_off.pop(uuid)
 
     @property
     def discovered(self):
@@ -452,7 +430,6 @@ class UPNPDiscoverSocket(threading.Thread):
                                     uuid=uuid,
                                     mac=mac,
                                     app_id=app_id,
-                                    # user_id=user_id,
                                     port=port,
                                 )
                                 logger.debug(
@@ -464,124 +441,23 @@ class UPNPDiscoverSocket(threading.Thread):
                                 )
 
                                 self._parent.callback(config, None)
-                                self._found[uuid] = config
 
-                                logger.debug(
-                                    'Discovered TV: setting power on,' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    host
-                                )
-                                self._powered_on[uuid] = config
-                                self._parent.callback(config, state=True)
+                            self._found[uuid] = config
+                            self._powered_on[uuid] = config
 
-                            if uuid in self._program_powered_on:
-                                logger.debug(
-                                    'TV power on:' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    host
-                                )
-                                del self._program_powered_on[uuid]
-                                self._powered_on[uuid] = config
-                                self._parent.callback(config, state=True)
-
-                            elif uuid in self._powering_off:
-                                logger.debug(
-                                    'Power Smoothing: TV is actually on,' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    host
-                                )
-                                self._powered_on[uuid] = (
-                                    self._powering_off.pop(uuid)
-                                )
-                                if not self._powering_off:
-                                    logger.debug(
-                                        'Power Smoothing: setting '
-                                        'socket timeout to 5.0'
-                                    )
-                                    self.sock.settimeout(5.0)
-
-                            elif uuid in self._powered_off:
-                                logger.debug(
-                                    'TV power on:' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    host
-                                )
-                                del self._powered_off[uuid]
-                                self._powered_on[uuid] = config
-                                self._parent.callback(config, state=True)
+                            self._parent.callback(config, state=True)
                             powered_on += [uuid]
 
-                        for uuid in list(self._powered_on.keys())[:]:
-                            if (
-                                uuid not in powered_on and
-                                uuid not in self._powering_off and
-                                uuid not in self._program_powered_off
-                            ):
-                                config = self._powered_on.pop(uuid)
-
-                                logger.debug(
-                                    'Power smoothing: TV might be off,' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    config.host
-
-                                )
-                                self._powering_off[uuid] = config
-
-                                logger.debug(
-                                    'Power Smoothing: setting '
-                                    'socket timeout to 10.0 '
-                                )
-
-                                self.sock.settimeout(10.0)
-                            elif (
-                                uuid not in powered_on and
-                                uuid in self._powering_off
-                            ):
-                                config = self._powering_off.pop(uuid)
-
-                                logger.debug(
-                                    'Power smoothing: TV is off,' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    config.host
-
-                                )
-
-                                self._powered_off[uuid] = config
+                        for uuid, config in list(self._found.items())[:]:
+                            if uuid not in powered_on:
+                                if uuid in self._powered_on:
+                                    del self._powered_on[uuid]
 
                                 self._parent.callback(
-                                    self._powered_off[uuid],
+                                    config,
                                     state=False
                                 )
-                                if not self._powering_off:
-                                    logger.debug(
-                                        'Power Smoothing: setting '
-                                        'socket timeout to 5.0 '
-                                    )
-                                    self.sock.settimeout(5.0)
-                            elif uuid in self._program_powered_off:
-                                config = self._program_powered_off.pop(uuid)
 
-                                logger.debug(
-                                    'Program power off:' +
-                                    ' UUID - ' +
-                                    uuid +
-                                    ' IP - ' +
-                                    config.host
-
-                                )
-                                self._powered_off[uuid] = config
                 else:
                     self._event.wait(2.0)
 
@@ -640,14 +516,6 @@ class Discover(object):
             config = thread.is_on(uuid)
             if config is not None:
                 return config
-
-    def set_powered_on(self, config):
-        for thread in self._threads:
-            thread.set_powered_on(config)
-
-    def set_powered_off(self, config):
-        for thread in self._threads:
-            thread.set_powered_off(config)
 
     def stop(self):
         del self._callbacks[:]

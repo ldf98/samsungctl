@@ -39,15 +39,19 @@ class WebSocketBase(UPNPTV):
             config.uuid
         )
 
-    @LogIt
+        self.open()
+
     def _connect(self, config, power):
         with self._auth_lock:
             if config is None:
                 return
 
-            if power and not self._thread:
-                self.config.copy(config)
-                self.open()
+            if power:
+                if not self._thread:
+                    self.config.copy(config)
+                    self.open()
+                elif not self.is_connected:
+                    self.connect()
 
             elif not power and self._thread:
                 self._close_connection()
@@ -172,16 +176,14 @@ class WebSocketBase(UPNPTV):
     def power(self, value):
         with self._auth_lock:
             if value and not self.power:
-                auto_discover.set_powered_on(self.config)
                 if self._cec is not None:
                     self._cec.tv.power = True
                 elif self.open():
-                   self._send_key('KEY_POWERON')
+                    self._send_key('KEY_POWERON')
                 else:
                     self._set_power(value)
             elif not value and self.power:
                 self._set_power(value)
-                auto_discover.set_powered_off(self.config)
                 self._close_connection()
                 self._power_event.wait(3.0)
 

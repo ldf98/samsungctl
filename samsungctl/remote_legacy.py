@@ -61,16 +61,21 @@ class RemoteLegacy(upnp.UPNPTV):
             config.uuid
         )
 
+        self.open()
+
     def _connect(self, config, power):
-        if config is None:
-            return
+        with self._auth_lock:
+            if config is None:
+                return
+            if power:
+                if not self._thread:
+                    self.config.copy(config)
+                    self.open()
+                elif not self.is_connected:
+                    self.connect()
 
-        if power and not self._thread:
-            self.config.copy(config)
-            self.open()
-
-        elif not power:
-            self._close_connection()
+            elif not power:
+                self._close_connection()
 
     @property
     @LogItWithReturn
@@ -108,13 +113,10 @@ class RemoteLegacy(upnp.UPNPTV):
     def power(self, value):
         with self._auth_lock:
             if value and not self.power:
-                auto_discover.set_powered_on(self.config)
-
                 if self._cec is not None:
                     self._cec.tv.power = True
                 elif self.open():
                     self._send_key('KEY_POWERON')
-
                 elif self.mac_address:
                     wake_on_lan.send_wol(self.mac_address)
                 else:
@@ -129,7 +131,6 @@ class RemoteLegacy(upnp.UPNPTV):
                 else:
                     self.control('KEY_POWEROFF')
 
-                auto_discover.set_powered_off(self.config)
                 self._close_connection()
                 self._power_event.wait(3.0)
 

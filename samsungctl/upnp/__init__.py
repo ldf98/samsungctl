@@ -9,17 +9,51 @@ from .UPNP_Device.upnp_class import UPNPObject
 from .UPNP_Device.instance_singleton import InstanceSingleton
 from .UPNP_Device.xmlns import strip_xmlns
 
-try:
-    from .. import cec_control
-except ImportError:
-    import traceback
-
-    traceback.print_exc()
-    cec_control = None
-
 import logging
 
 logger = logging.getLogger(__name__)
+
+try:
+    from .. import cec_control
+except ImportError:
+    cec_control = None
+except:
+    cec_control = None
+
+    try:
+        cec = __import__('cec')
+        if cec.LIBCEC_VERSION_CURRENT != 262146:
+            logger.error(
+                'Installed LibCEC version is not compatible with samsungctl.\n'
+                'Version 4.0.4 is required to be able to use CEC with this '
+                'library.\n\n'
+                'There are several fixes included in libCEC 4.0.4 that are '
+                'specific to Samsung TV\'s.\n' 
+                'libCEC 4.0.4 may not yet be released and will need to be'
+                'compiled for your operating system.\n'
+                'You can find additional details on this process here\n\n'
+                'https://github.com/Pulse-Eight/libcec\n\n'
+                'If you need any assistance do not hesitate to ask me for\n'
+                'assistance, I will do the best I can to help.\n\n'
+                'kdschlosser aka Kevin Schlosser\n\n'
+                'samsungctl github repository\n\n'
+                'https://github.com/kdschlosser/samsungctl\n\n'
+            )
+        else:
+            logger.error(
+                'UNKNOWN libCEC IMPORT ERROR\n\n' +
+                __import__('traceback').format_exc()
+            )
+
+    except ImportError:
+        logger.info('libCEC not found.')
+
+    except:
+        logger.error(
+            'UNKNOWN libCEC IMPORT ERROR\n\n' +
+            __import__('traceback').format_exc()
+        )
+
 
 PY2 = sys.version_info[0] < 3
 
@@ -144,8 +178,12 @@ class UPNPTV(UPNPObject):
         if not self.is_connected:
             logger.debug('Connecting UPNP')
             logger.debug('UPNP locations: ' + str(self.config.upnp_locations))
-            self.build(self.config.host, self.config.upnp_locations)
-            self.is_connected = True
+            try:
+                self.build(self.config.host, self.config.upnp_locations)
+                self.is_connected = True
+            except:
+                logger.debug('UPNP Connect Failed')
+                self.is_connected = False
 
     def disconnect(self):
         if self.is_connected:
