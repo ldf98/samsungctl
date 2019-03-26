@@ -69,7 +69,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 return True
 
             if self.config.port == 8002:
-
                 if self.config.token:
                     token = "&token=" + self.config.token
                 else:
@@ -97,25 +96,28 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 unauth_event.set()
                 auth_event.set()
 
-            token = None
-
             @LogItWithReturn
             def auth_callback(data):
-                global token
-
                 if 'data' in data and 'token' in data["data"]:
-                    token = data['data']["token"]
+                    self.config.token = data['data']["token"]
+                    if self.config.path:
+                        self.config.save()
+
                     logger.debug(
                         self.config.host +
                         ' -- (token) ' +
-                        token
+                        self.config.token
                     )
+
+                self.config.paired = True
 
                 logger.debug(
                     self.config.host +
                     ' -- access granted'
                 )
+                self._power_event.set()
                 auth_event.set()
+                self.connect()
 
             del self._registered_callbacks[:]
 
@@ -169,31 +171,17 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             )
 
             if auth_event.isSet() and not unauth_event.is_set():
-                self.config.token = token
-                self.config.paired = True
-
-                if self.config.path:
-                    self.config.save()
-
-                self.send_event.wait(0.5)
-                self.connect()
-                self._power_event.set()
-
                 return True
 
             self._close_connection()
 
-            if not self.config.paired:
-                if self.config.port == 8001:
-                    logger.debug(
-                        self.config.host +
-                        ' -- trying SSL connection.'
-                    )
-                    self.config.port = 8002
-                    return self.open()
-
-                self._power_event.set()
-                raise RuntimeError('Auth Failure')
+            if self.config.port == 8001:
+                logger.debug(
+                    self.config.host +
+                    ' -- trying SSL connection.'
+                )
+                self.config.port = 8002
+                return self.open()
 
             if self.config.token is not None:
                 saved_token = self.config.token
@@ -216,6 +204,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                         ' old token: ' +
                         str(saved_token)
                     )
+
             self._power_event.set()
             raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
 
