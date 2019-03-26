@@ -31,6 +31,7 @@ class WebSocketBase(UPNPTV):
         self._send_lock = threading.Lock()
         self._registered_callbacks = []
         self._thread = None
+        self._art_mode = None
 
         UPNPTV.__init__(self, config)
 
@@ -50,11 +51,14 @@ class WebSocketBase(UPNPTV):
                 if not self._thread:
                     self.config.copy(config)
                     self.open()
+
                 elif not self.is_connected:
                     self.connect()
 
             elif not power and self._thread:
                 self._close_connection()
+                if self._art_mode is not None:
+                    self._art_mode.close()
 
     def _send_key(self, *args, **kwargs):
         raise NotImplementedError
@@ -144,14 +148,6 @@ class WebSocketBase(UPNPTV):
         self.disconnect()
         if not self._loop_event.isSet():
             self.open()
-
-    @property
-    def artmode(self):
-        return None
-
-    @artmode.setter
-    def artmode(self, value):
-        pass
 
     @property
     @LogItWithReturn

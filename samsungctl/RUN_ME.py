@@ -856,6 +856,109 @@ def run_test(config):
         sam_logger.setLevel(logging.DEBUG)
         upnp_logger.setLevel(logging.DEBUG)
 
+        if remote.art_mode.is_supported:
+            print('ART Mode Tests:  [running]')
+            art_mode = remote.art_mode.artmode
+            if art_mode is not None:
+                print('Get Art Mode:  [pass]')
+                remote.art_mode.artmode = not art_mode
+
+                if remote.art_mode.artmode != art_mode:
+                    print('Set Art Mode:  [pass]')
+                    remote.art_mode.artmode = art_mode
+                else:
+                    print('Set Art Mode:  [fail]')
+            else:
+                print('Get Art Mode:  [fail]')
+
+            brightness_sensor = remote.art_mode.brightness_sensor
+            if brightness_sensor is not None:
+                print('Get Art Brightness Sensor:  [pass]')
+                remote.art_mode.brightness_sensor = not brightness_sensor
+
+                if remote.art_mode.brightness_sensor != brightness_sensor:
+                    print('Set Art Brightness Sensor:  [pass]')
+                    remote.art_mode.brightness_sensor = brightness_sensor
+                else:
+                    print('Set Art Brightness Sensor:  [fail]')
+            else:
+                print('Get Art Brightness Sensor:  [fail]')
+
+            brightness = remote.art_mode.brightness
+            if brightness is not None:
+                print('Get Art Brightness:  [pass]')
+                new_brightness = brightness + 1
+                if new_brightness > 3:
+                    new_brightness = 1
+
+                remote.art_mode.brightness = new_brightness
+
+                if remote.art_mode.brightness == new_brightness:
+                    print('Set Art Brightness:  [pass]')
+                    remote.art_mode.brightness = brightness
+                else:
+                    print('Set Art Brightness:  [fail]')
+            else:
+                print('Get Art Brightness:  [fail]')
+
+            color_temperature = remote.art_mode.color_temperature
+            if color_temperature is not None:
+                print('Get Art Color Temp:  [pass]')
+                new_color_temperature = color_temperature + 1
+                if new_color_temperature > 3:
+                    new_color_temperature = 1
+
+                remote.art_mode.color_temperature = new_color_temperature
+
+                if remote.art_mode.color_temperature == new_color_temperature:
+                    print('Set Art Color Temp:  [pass]')
+                    remote.art_mode.color_temperature = color_temperature
+                else:
+                    print('Set Art Color Temp:  [fail]')
+            else:
+                print('Get Art Color Temp:  [fail]')
+
+            motion_sensitivity = remote.art_mode.motion_sensitivity
+            if motion_sensitivity is not None:
+                print('Get Art Motion Sensitivity:  [pass]')
+                new_motion_sensitivity = motion_sensitivity + 1
+                if new_motion_sensitivity > 3:
+                    new_motion_sensitivity = 1
+
+                remote.art_mode.motion_sensitivity = new_motion_sensitivity
+
+                if remote.art_mode.motion_sensitivity == new_motion_sensitivity:
+                    print('Set Art Motion Sensitivity:  [pass]')
+                    remote.art_mode.motion_sensitivity = motion_sensitivity
+                else:
+                    print('Set Art Motion Sensitivity:  [fail]')
+            else:
+                print('Get Art Motion Sensitivity:  [fail]')
+
+            motion_timer = remote.art_mode.motion_timer
+            if motion_timer is not None:
+                print('Get Art Motion Timer:  [pass]')
+                motion_timer_choices = motion_timer['valid_values']
+                motion_timer = motion_timer['value']
+
+                motion_timer_index = motion_timer_choices.index(motion_timer)
+                motion_timer_index += 1
+
+                if motion_timer_index == len(motion_timer_choices):
+                    motion_timer_index = 0
+
+                new_motion_timer = motion_timer_choices[motion_timer_index]
+                remote.art_mode.motion_timer = new_motion_timer
+
+                if remote.art_mode.motion_timer == new_motion_timer:
+                    print('Set Art Motion Timer:  [pass]')
+                    remote.art_mode.motion_timer = motion_timer
+                else:
+                    print('Set Art Motion Timer:  [fail]')
+            else:
+                print('Get Art Motion Timer:  [fail]')
+        else:
+            print('ART Mode Tests:  [not supported]')
     print(config)
     config.save()
 
