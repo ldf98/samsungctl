@@ -752,112 +752,106 @@ def run_test(config):
         time.sleep(2)
         print('\n\n')
 
-        for app in apps:
-            print(app.name)
+        if apps:
+            for app in apps:
+                print(app.name)
 
-        try:
-            answer = raw_input(
-                'Please enter one of the above application names:'
-            )
-        except NameError:
-            answer = input('Please enter one of the above application names:')
+            try:
+                answer = raw_input(
+                    'Please enter one of the above application names:'
+                )
+            except NameError:
+                answer = input('Please enter one of the above application names:')
 
-        answer = answer.lower()
-        print()
-        for app in apps:
-            if app.name.lower() == answer:
-                print('Now starting application.')
-                app.run()
-                count = 0
-                while count != 8:
-                    count += 1
-                    sys.stdout.write('.')
-                    time.sleep(1.0)
+            answer = answer.lower()
+            print()
+            for app in apps:
+                if app.name.lower() == answer:
+                    print('Now starting application.')
+                    app.run()
+                    count = 0
+                    while count != 8:
+                        count += 1
+                        sys.stdout.write('.')
+                        time.sleep(1.0)
 
-                print(app.name + ' is running: ' + str(app.is_running))
-                print(app.name + ' is visible: ' + str(app.is_visible))
-                try:
-                    answer = raw_input('Is the app running: (y/n)')
-                except NameError:
-                    answer = input('Is the app running: (y/n)')
+                    print(app.name + ' is running: ' + str(app.is_running))
+                    print(app.name + ' is visible: ' + str(app.is_visible))
+                    try:
+                        answer = raw_input('Is the app running: (y/n)')
+                    except NameError:
+                        answer = input('Is the app running: (y/n)')
 
-                print(answer.lower() == 'y')
-                print()
-                try:
-                    answer = raw_input('Is the app visible: (y/n)')
-                except NameError:
-                    answer = input('Is the app visible: (y/n)')
+                    print(answer.lower() == 'y')
+                    print()
+                    try:
+                        answer = raw_input('Is the app visible: (y/n)')
+                    except NameError:
+                        answer = input('Is the app visible: (y/n)')
 
-                print(answer.lower() == 'y')
-                print()
-                app.close()
-                count = 0
-                while count != 8:
-                    count += 1
-                    sys.stdout.write('.')
-                    time.sleep(1.0)
+                    print(answer.lower() == 'y')
+                    print()
+                    app.close()
+                    count = 0
+                    while count != 8:
+                        count += 1
+                        sys.stdout.write('.')
+                        time.sleep(1.0)
 
-                try:
-                    answer = raw_input('Is the app closed?: (y/n)')
-                except NameError:
-                    answer = input('Is the app closed?: (y/n)')
+                    try:
+                        answer = raw_input('Is the app closed?: (y/n)')
+                    except NameError:
+                        answer = input('Is the app closed?: (y/n)')
 
-                print(answer.lower() == 'y')
-                print()
+                    print(answer.lower() == 'y')
+                    print()
 
-                #
-                # sam_logger.setLevel(logging.NOTSET)
-                # upnp_logger.setLevel(logging.NOTSET)
-                #
-                # for group in app:
-                #     print(group.title)
-                #
-                # try:
-                #     answer = raw_input(
-                #         'Please enter one of the above content groups:')
-                # except NameError:
-                #     answer = input(
-                #         'Please enter one of the above content groups:')
-                #
-                # answer = answer.lower()
-                #
-                # for group in app:
-                #     if group.title.lower() == answer:
-                #         for content in group:
-                #             print(content.title)
-                #
-                #         try:
-                #             answer = raw_input(
-                #                 'Please enter one of the above content items:')
-                #         except NameError:
-                #             answer = input(
-                #                 'Please enter one of the above content items:')
-                #
-                #         answer = answer.lower()
-                #
-                #         for content in group:
-                #             if content.title.lower() == answer:
-                #                 sam_logger.setLevel(logging.DEBUG)
-                #                 upnp_logger.setLevel(logging.DEBUG)
-                #
-                #                 try:
-                #                     print(content.run())
-                #                 except:
-                #                     traceback.print_exc()
-                #
-                #                 time.sleep(2)
-                #
-                #         try:
-                #             answer = raw_input('Is the content playing?: (y/n)')
-                #         except NameError:
-                #             answer = input('Is the content playing?: (y/n)')
-                #
-                #         print(answer.lower() == 'y')
-                #
-                #         print('\n\n')
-
-        sam_logger.setLevel(logging.DEBUG)
-        upnp_logger.setLevel(logging.DEBUG)
+                    # for group in app:
+                    #     print(group.title)
+                    #
+                    # try:
+                    #     answer = raw_input(
+                    #         'Please enter one of the above content groups:')
+                    # except NameError:
+                    #     answer = input(
+                    #         'Please enter one of the above content groups:')
+                    #
+                    # answer = answer.lower()
+                    #
+                    # for group in app:
+                    #     if group.title.lower() == answer:
+                    #         for content in group:
+                    #             print(content.title)
+                    #
+                    #         try:
+                    #             answer = raw_input(
+                    #                 'Please enter one of the above content items:')
+                    #         except NameError:
+                    #             answer = input(
+                    #                 'Please enter one of the above content items:')
+                    #
+                    #         answer = answer.lower()
+                    #
+                    #         for content in group:
+                    #             if content.title.lower() == answer:
+                    #                 sam_logger.setLevel(logging.DEBUG)
+                    #                 upnp_logger.setLevel(logging.DEBUG)
+                    #
+                    #                 try:
+                    #                     print(content.run())
+                    #                 except:
+                    #                     traceback.print_exc()
+                    #
+                    #                 time.sleep(2)
+                    #
+                    #         try:
+                    #             answer = raw_input('Is the content playing?: (y/n)')
+                    #         except NameError:
+                    #             answer = input('Is the content playing?: (y/n)')
+                    #
+                    #         print(answer.lower() == 'y')
+                    #
+                    #         print('\n\n')
 
         if remote.art_mode.is_supported:
             print('ART Mode Tests:  [running]')
