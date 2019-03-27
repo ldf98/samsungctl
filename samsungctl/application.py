@@ -272,7 +272,7 @@ class Application(object):
         if 'running' not in response:
             return None
 
-        return response['running']
+        return response['running'] or self.is_visible
 
     def get_category(self, title):
         for group in self:

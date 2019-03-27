@@ -68,7 +68,10 @@ except NameError:
 print()
 print()
 
-SSDP_FILENAME = os.path.join(DATA_PATH, 'ssdp_output' + PY_VERSION_STR + '.log')
+SSDP_FILENAME = os.path.join(
+    DATA_PATH,
+    'ssdp_output' + PY_VERSION_STR + '.log'
+)
 
 if not os.path.exists(DATA_PATH):
     try:
@@ -109,9 +112,6 @@ with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
 
 
 WRITE_LOCK = threading.RLock()
-
-
-log_file = open(SSDP_FILENAME, 'w')
 
 
 def print(*args):
@@ -162,11 +162,14 @@ import samsungctl # NOQA
 from samsungctl.upnp.discover import auto_discover # NOQA
 import logging # NOQA
 
-sam_logger = logging.getLogger('samsungctl')
-upnp_logger = logging.getLogger('UPNP_Device')
+logger = logging.getLogger('samsungctl')
+logger.setLevel(logging.DEBUG)
 
-sam_logger.setLevel(logging.DEBUG)
-upnp_logger.setLevel(logging.DEBUG)
+upnp_logger = logging.getLogger('samsungctl.upnp.discover')
+upnp_logger_handler = logging.FileHandler(SSDP_FILENAME, 'w')
+
+upnp_logger_handler.setLevel(logging.DEBUG)
+upnp_logger.addHandler(upnp_logger_handler)
 
 event = threading.Event()
 THREADS = []
@@ -191,15 +194,16 @@ print('TESTING DISCOVER')
 print('REGISTERING DISCOVER CALLBACK')
 auto_discover.register_callback(discover_callback)
 print('STARTING DISCOVER')
-auto_discover.logging = True
 auto_discover.start()
 
 
 def run_test(config):
     global log_file
 
-    auto_discover.logging = False
-    log_path = os.path.join(DATA_PATH, config.uuid + '.' + PY_VERSION_STR + '.log')
+    log_path = os.path.join(
+        DATA_PATH,
+        config.uuid + '.' + PY_VERSION_STR + '.log'
+    )
     with WRITE_LOCK:
         log_file.close()
         log_file = open(log_path, 'w')
@@ -229,6 +233,17 @@ def run_test(config):
         config.path = config_file
         config.save()
 
+    log_file_handler = logging.FileHandler(
+        os.path.join(
+            DATA_PATH,
+            config.uuid + '.DEBUG.(0).log'.format(PY_VERSION_STR)
+        ),
+        'w'
+    )
+    log_file_handler.setLevel(logging.DEBUG)
+
+    # add ch to logger
+    logger.addHandler(log_file_handler)
     config.log_level = logging.DEBUG
 
     POWER_ON = []
@@ -305,18 +320,19 @@ def run_test(config):
 
             if ret_val_names:
                 if ret_vals == [None] * len(ret_val_names):
-                    print(method + ': UNSUPPORTED')
+                    print(method + ':  [skip]')
                     return [None] * len(ret_val_names)
-                for i, name in enumerate(ret_val_names):
-                    print(name, '=', repr(ret_vals[i]))
+                print(method + ':  [pass]')
 
                 return ret_vals
 
+            print(method + ':  [pass]')
             print('return value:', repr(ret_vals))
 
             return ret_vals
         except:
             traceback.print_exc()
+            print(method + ':  [failed')
             if ret_val_names:
                 return [None] * len(ret_val_names)
             return None
@@ -331,36 +347,31 @@ def run_test(config):
 
             if ret_val_names:
                 if ret_vals == [None] * len(ret_val_names):
-                    print(property_name + ': UNSUPPORTED')
+                    print('get ' + property_name + ':  [skip]')
                     return [None] * len(ret_val_names)
 
-                for i, ret_val in enumerate(ret_vals):
-                    print(ret_val_names[i], '=', repr(ret_val))
+                print('get ' + property_name + ':  [pass]')
 
                 return ret_vals
 
-            print('Returned Value:', repr(ret_vals))
-
+            print('get ' + property_name + ':  [pass]')
             return ret_vals
         except:
             traceback.print_exc()
+            print('get ' + property_name + ':  [fail]')
 
             if ret_val_names:
                 return [None] * len(ret_val_names)
 
             return None
 
-        finally:
-            print('\n')
-
     def set_property(property_name, value):
-        print(property_name)
         try:
             setattr(remote, property_name, value)
+            print('set ' + property_name + ':  [pass]')
         except:
             traceback.print_exc()
-
-        print('\n')
+            print('set ' + property_name + ':  [fail]')
 
     print('\nMISC TESTS\n')
 
@@ -472,6 +483,8 @@ def run_test(config):
                 'peer_connection_id', 'direction', 'status'],
             int(_current_connection_ids[0])
         )
+    else:
+        print('current_connection_info:  [skip]')
 
     _current_show_state, _current_theme_id, _total_theme_number = get_property(
         'tv_slide_show',
@@ -480,17 +493,16 @@ def run_test(config):
     # set_property('tv_slide_show', (_current_show_state, _current_theme_id))
 
     _aspect_ratio = get_property('aspect_ratio', [])
-
     if _aspect_ratio is not None:
         if _aspect_ratio == 'Default':
             set_property('aspect_ratio', 'FitScreen')
         else:
             set_property('aspect_ratio', 'Default')
 
-        time.sleep(0.5)
-        get_property('aspect_ratio', [])
-        time.sleep(0.5)
-        set_property('aspect_ratio', _aspect_ratio)
+        time.sleep(0.2)
+        remote.aspect_ratio = _aspect_ratio
+    else:
+        print('set aspect_ratio:  [skip]')
 
     _play_mode = get_property('play_mode', [])
 
@@ -502,11 +514,11 @@ def run_test(config):
     )
     if _max_distance is not None:
         set_property('hts_all_speaker_distance', _max_distance)
-        get_property(
-            'hts_all_speaker_distance',
-            ['max_distance', 'all_speaker_distance']
-        )
-        set_property('hts_all_speaker_distance', _all_speaker_distance)
+        time.sleep(0.2)
+        remote.hts_all_speaker_distance = _all_speaker_distance
+
+    else:
+        print('set hts_all_speaker_distance:  [skip]')
 
     _max_level, _all_speaker_level = get_property(
         'hts_all_speaker_level',
@@ -514,8 +526,10 @@ def run_test(config):
     )
     if _all_speaker_level is not None:
         set_property('hts_all_speaker_level', _all_speaker_level - 1)
-        get_property('hts_all_speaker_level', ['max_level', 'all_speaker_level'])
-        set_property('hts_all_speaker_level', _all_speaker_level + 1)
+        time.sleep(0.2)
+        remote.hts_all_speaker_level = _all_speaker_level + 1
+    else:
+        print('set hts_all_speaker_level:  [skip]')
 
     _sound_effect, _sound_effect_list = get_property(
         'hts_sound_effect',
@@ -524,44 +538,49 @@ def run_test(config):
     if _sound_effect is not None:
         set_property('hts_sound_effect', _sound_effect)
 
+    else:
+        print('set hts_sound_effect:  [skip]')
+
     _speaker_channel, _speaker_lfe = get_property(
         'hts_speaker_config',
         ['speaker_channel', 'speaker_lfe']
     )
+
+    print('set hts_speaker_config:  [skip]')
 
     print('\nIMAGE TESTS\n')
 
     _brightness = get_property('brightness', [])
     if _brightness is not None:
         set_property('brightness', 0)
-        time.sleep(0.5)
-        get_property('brightness', [])
-        time.sleep(0.5)
-        set_property('brightness', _brightness)
+        time.sleep(0.2)
+        remote.brightness = _brightness
+    else:
+        print('set brightness:  [skip]')
 
     _color_temperature = get_property('color_temperature', [])
     if _color_temperature is not None:
         set_property('color_temperature', 0)
-        time.sleep(0.5)
-        get_property('color_temperature', [])
-        time.sleep(0.5)
-        set_property('color_temperature', _color_temperature)
+        time.sleep(0.2)
+        remote.color_temperature = _color_temperature
+    else:
+        print('set color_temperature:  [skip]')
 
     _contrast = get_property('contrast', [])
     if _contrast is not None:
         set_property('contrast', 0)
-        time.sleep(0.5)
-        get_property('contrast', [])
-        time.sleep(0.5)
-        set_property('contrast', _contrast)
+        time.sleep(0.2)
+        remote.contrast = _contrast
+    else:
+        print('set contrast:  [skip]')
 
     _sharpness = get_property('sharpness', [])
     if _sharpness is not None:
         set_property('sharpness', 0)
-        time.sleep(0.5)
-        get_property('sharpness', [])
-        time.sleep(0.5)
-        set_property('sharpness', _sharpness)
+        time.sleep(0.2)
+        remote.sharpness = _sharpness
+    else:
+        print('set sharpness:  [skip]')
 
     print('\nVOLUME TESTS\n')
 
@@ -569,48 +588,35 @@ def run_test(config):
     if _mute is not None:
         set_property('mute', not _mute)
         time.sleep(0.5)
-        get_property('mute', [])
-        time.sleep(0.5)
-        set_property('mute', _mute)
+        remote.mute = _mute
+    else:
+        print('set mute:  [skip]')
 
     _volume = get_property('volume', [])
     if _volume is not None:
-        print('\nRETURNED VOLUME IS TYPE: ', type(_volume), '\n')
         set_property('volume', _volume + 1)
-        time.sleep(1.0)
-        if get_property('volume', []) == _volume + 1:
-            print('UPNP VOLUME UP: [pass]')
+        time.sleep(0.2)
+        remote.volume = remote.volume - 1
 
-        else:
-            print('REMOTE VOLUME UP: [fail]')
-
-        _volume = get_property('volume', [])
-        set_property('volume', _volume - 1)
-        time.sleep(1.0)
-
-        if get_property('volume', []) == _volume - 1:
-            print('UPNP VOLUME DOWN: [pass]')
-
-        else:
-            print('REMOTE VOLUME DOWN: [fail]')
-
-        print('\nVOLUME ADJUST WITH REMOTE COMMANDS\n')
-        _volume = get_property('volume', [])
+        _volume = remote.volume
         remote.control('KEY_VOLUP')
-        time.sleep(1.0)
-        if get_property('volume', []) == _volume + 1:
-            print('REMOTE VOLUME UP: [pass]')
+        time.sleep(0.2)
+
+        if remote.volume == _volume + 1:
+            print('KEY_VOLUP:  [pass]')
         else:
-            print('REMOTE VOLUME UP: [fail]')
+            print('KEY_VOLUP: [fail]')
             _volume -= 1
 
-        _volume = get_property('volume', [])
+        _volume = remote.volume
         remote.control('KEY_VOLDOWN')
-        time.sleep(1.0)
-        if get_property('volume', []) == _volume - 1:
-            print('REMOTE VOLUME DOWN: [pass]')
+        time.sleep(0.2)
+        if remote.volume == _volume - 1:
+            print('KEY_VOLDOWN: [pass]')
         else:
-            print('REMOTE VOLUME DOWN: [fail]')
+            print('KEY_VOLDOWN: [fail]')
+    else:
+        print('set volume:  [skip]')
 
     if remote.year <= 2015:
         print('\nSOURCE TESTS\n')
@@ -742,8 +748,6 @@ def run_test(config):
                     print('       content.subtitle:', content.subtitle)
                     print('       content.subtitle2:', content.subtitle2)
                     print('       content.subtitle3:', content.subtitle3)
-        sam_logger.setLevel(logging.NOTSET)
-        upnp_logger.setLevel(logging.NOTSET)
 
         time.sleep(2)
         print('\n\n')
@@ -752,7 +756,9 @@ def run_test(config):
             print(app.name)
 
         try:
-            answer = raw_input('Please enter one of the above application names:')
+            answer = raw_input(
+                'Please enter one of the above application names:'
+            )
         except NameError:
             answer = input('Please enter one of the above application names:')
 
@@ -760,10 +766,7 @@ def run_test(config):
         print()
         for app in apps:
             if app.name.lower() == answer:
-                sam_logger.setLevel(logging.DEBUG)
-                upnp_logger.setLevel(logging.DEBUG)
                 print('Now starting application.')
-                time.sleep(2)
                 app.run()
                 count = 0
                 while count != 8:
@@ -860,33 +863,33 @@ def run_test(config):
             print('ART Mode Tests:  [running]')
             art_mode = remote.art_mode.artmode
             if art_mode is not None:
-                print('Get Art Mode:  [pass]')
+                print('get art_mode.artmode:  [pass]')
                 remote.art_mode.artmode = not art_mode
 
                 if remote.art_mode.artmode != art_mode:
-                    print('Set Art Mode:  [pass]')
+                    print('set art_mode.artmode  [pass]')
                     remote.art_mode.artmode = art_mode
                 else:
-                    print('Set Art Mode:  [fail]')
+                    print('set art_mode.artmode:  [fail]')
             else:
-                print('Get Art Mode:  [fail]')
+                print('get art_mode.artmode:  [fail]')
 
             brightness_sensor = remote.art_mode.brightness_sensor
             if brightness_sensor is not None:
-                print('Get Art Brightness Sensor:  [pass]')
+                print('get art_mode.brightness_sensor:  [pass]')
                 remote.art_mode.brightness_sensor = not brightness_sensor
 
                 if remote.art_mode.brightness_sensor != brightness_sensor:
-                    print('Set Art Brightness Sensor:  [pass]')
+                    print('set art_mode.brightness_sensor:  [pass]')
                     remote.art_mode.brightness_sensor = brightness_sensor
                 else:
-                    print('Set Art Brightness Sensor:  [fail]')
+                    print('set art_mode.brightness_sensor:  [fail]')
             else:
-                print('Get Art Brightness Sensor:  [fail]')
+                print('get art_mode.brightness_sensor:  [fail]')
 
             brightness = remote.art_mode.brightness
             if brightness is not None:
-                print('Get Art Brightness:  [pass]')
+                print('get art_mode.brightness:  [pass]')
                 new_brightness = brightness + 1
                 if new_brightness > 3:
                     new_brightness = 1
@@ -894,16 +897,16 @@ def run_test(config):
                 remote.art_mode.brightness = new_brightness
 
                 if remote.art_mode.brightness == new_brightness:
-                    print('Set Art Brightness:  [pass]')
+                    print('set art_mode.brightness:  [pass]')
                     remote.art_mode.brightness = brightness
                 else:
-                    print('Set Art Brightness:  [fail]')
+                    print('set art_mode.brightness:  [fail]')
             else:
-                print('Get Art Brightness:  [fail]')
+                print('get art_mode.brightness:  [fail]')
 
             color_temperature = remote.art_mode.color_temperature
             if color_temperature is not None:
-                print('Get Art Color Temp:  [pass]')
+                print('get art_mode.color_temperature:  [pass]')
                 new_color_temperature = color_temperature + 1
                 if new_color_temperature > 3:
                     new_color_temperature = 1
@@ -911,16 +914,16 @@ def run_test(config):
                 remote.art_mode.color_temperature = new_color_temperature
 
                 if remote.art_mode.color_temperature == new_color_temperature:
-                    print('Set Art Color Temp:  [pass]')
+                    print('set art_mode.color_temperature:  [pass]')
                     remote.art_mode.color_temperature = color_temperature
                 else:
-                    print('Set Art Color Temp:  [fail]')
+                    print('set art_mode.color_temperature:  [fail]')
             else:
-                print('Get Art Color Temp:  [fail]')
+                print('get art_mode.color_temperature:  [fail]')
 
             motion_sensitivity = remote.art_mode.motion_sensitivity
             if motion_sensitivity is not None:
-                print('Get Art Motion Sensitivity:  [pass]')
+                print('get art_mode.motion_sensitivity:  [pass]')
                 new_motion_sensitivity = motion_sensitivity + 1
                 if new_motion_sensitivity > 3:
                     new_motion_sensitivity = 1
@@ -928,16 +931,16 @@ def run_test(config):
                 remote.art_mode.motion_sensitivity = new_motion_sensitivity
 
                 if remote.art_mode.motion_sensitivity == new_motion_sensitivity:
-                    print('Set Art Motion Sensitivity:  [pass]')
+                    print('set art_mode.motion_sensitivity:  [pass]')
                     remote.art_mode.motion_sensitivity = motion_sensitivity
                 else:
-                    print('Set Art Motion Sensitivity:  [fail]')
+                    print('set art_mode.motion_sensitivity:  [fail]')
             else:
-                print('Get Art Motion Sensitivity:  [fail]')
+                print('get art_mode.motion_sensitivity:  [fail]')
 
             motion_timer = remote.art_mode.motion_timer
             if motion_timer is not None:
-                print('Get Art Motion Timer:  [pass]')
+                print('get art_mode.motion_timer:  [pass]')
                 motion_timer_choices = motion_timer['valid_values']
                 motion_timer = motion_timer['value']
 
@@ -951,20 +954,18 @@ def run_test(config):
                 remote.art_mode.motion_timer = new_motion_timer
 
                 if remote.art_mode.motion_timer == new_motion_timer:
-                    print('Set Art Motion Timer:  [pass]')
+                    print('set art_mode.motion_timer:  [pass]')
                     remote.art_mode.motion_timer = motion_timer
                 else:
-                    print('Set Art Motion Timer:  [fail]')
+                    print('set art_mode.motion_timer:  [fail]')
             else:
-                print('Get Art Motion Timer:  [fail]')
+                print('get art_mode.motion_timer:  [fail]')
         else:
             print('ART Mode Tests:  [not supported]')
     print(config)
     config.save()
 
     if remote.year > 2013 or remote._cec is not None:
-        sam_logger.setLevel(logging.DEBUG)
-        upnp_logger.setLevel(logging.DEBUG)
 
         print('\nPOWER TESTS\n')
         print(
@@ -974,14 +975,23 @@ def run_test(config):
         )
         power_event = threading.Event()
 
+        def power_off():
+            remote.power = False
+            power_event.set()
+
+        t = threading.Thread(target=power_off)
+        t.daemon = True
+        t.start()
+
         counter = 0
-        remote.power = False
-        while remote.power is True:
+
+        while not power_event.isSet():
             power_event.wait(2.0)
-            counter += 1
-            print(counter, 'seconds have passed')
-            if counter == 120:
-                break
+            if not power_event.isSet():
+                counter += 1
+                print(counter, 'seconds have passed')
+                if counter == 120:
+                    break
 
         if remote.power is False:
             print('POWER OFF TEST: [pass]')
@@ -1021,7 +1031,8 @@ def run_test(config):
 
     remote.close()
 
-    auto_discover.logging = True
+    logger.removeHandler(log_file_handler)
+    log_file_handler.close()
 
 
 start = time.time()
@@ -1033,5 +1044,7 @@ while time.time() - start < 20:
         start = time.time()
 
 
+upnp_logger.removeHandler(upnp_logger_handler)
+upnp_logger_handler.close()
 auto_discover.stop()
 log_file.close()

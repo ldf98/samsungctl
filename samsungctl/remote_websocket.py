@@ -270,6 +270,18 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self._cec.tv.power = False
             else:
                 self._send_key('KEY_POWER')
+                count = 0
+                while self.sock is not None and count < 9:
+                    self.send_event.wait(1.0)
+                    count += 1
+
+                if self.sock is not None:
+                    self._send_key('KEY_POWEROFF')
+
+                    count = 0
+                    while self.sock is not None and count < 9:
+                        self.send_event.wait(1.0)
+                        count += 1
 
     def _send_key(self, key, cmd='Click'):
         """

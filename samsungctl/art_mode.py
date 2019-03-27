@@ -191,7 +191,7 @@ class ArtMode(object):
             self.close()
             return False
 
-        auth_event.wait(5.0)
+        auth_event.wait(10.0)
 
         self.unregister_receive_callback(
             auth_callback,
