@@ -1178,8 +1178,5 @@ while time.time() - start < 20:
         print_test('DISCOVERING TV\'s')
 
 
-print_test('STOPPING DISCOVER')
 auto_discover.stop()
-print_test('CLOSING LOG FILES')
 logging.close(True)
-print('FINISHED!!!')

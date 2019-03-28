@@ -173,7 +173,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             )
 
             if auth_event.isSet() and not unauth_event.is_set():
-                self._app_websocket = application.AppWebsocket(self.config)
+                # self._app_websocket = application.AppWebsocket(self.config)
                 return True
 
             self._close_connection()
