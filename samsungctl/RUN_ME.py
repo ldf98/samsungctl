@@ -333,8 +333,9 @@ def run_test(config):
         answer = input('Run tests on TV ' + str(config.model) + '? (y/n):')
 
     if not answer.lower().startswith('y'):
+        print_test('remote connection:  [skip]')
         logging.close()
-        return
+        return config.model, True
 
     print()
     print()
@@ -414,12 +415,14 @@ def run_test(config):
 
     try:
         remote = samsungctl.Remote(config)
-        print_test('Remote created')
+        print_test('remote connection:  [pass]')
         while remote.power is False:
             time.sleep(0.5)
     except:
-        traceback.print_exc()
-        sys.exit(1)
+        logging.write(traceback.format_exc() + '\n')
+        print_test('remote connection:  [fail]')
+        logging.close()
+        return config.model, True
 
     def run_method(method, ret_val_names, *args):
         try:
@@ -442,7 +445,7 @@ def run_test(config):
             logging.write('return value: ' + repr(ret_vals))
             return ret_vals
         except:
-            traceback.print_exc()
+            logging.write(traceback.format_exc() + '\n')
             print_test(method + ':  [fail]')
             if ret_val_names:
                 return [None] * len(ret_val_names)
@@ -1161,10 +1164,15 @@ def run_test(config):
             print_test('POWER ON TEST: [skipped]')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
+    print_test('CLOSING CONNECTION TO TV ' + config.model)
     remote.close()
+    print_test('CLOSING LOGS FOR TV ' + config.model)
     logging.close()
+    return config.model, False
 
-
+tv_count = 0
+tests_ran = []
+tests_skipped = []
 start = time.time()
 print_test('DISCOVERING TV\'s')
 while time.time() - start < 20:
@@ -1172,11 +1180,22 @@ while time.time() - start < 20:
     event.wait(2.0)
     event.clear()
     while tests_to_run:
+        tv_count += 1
         _stdout.write('\n')
-        run_test(tests_to_run.pop(0))
+        model_run, skipped_test = run_test(tests_to_run.pop(0))
+        if skipped_test:
+            tests_skipped += [model_run]
+        else:
+            tests_ran += [model_run]
         start = time.time()
         print_test('DISCOVERING TV\'s')
 
 
+print_test('\ntests ran on the following TV\'s: ' + ', '.join(tests_ran))
+print_test('tests skipped on the following TV\'s: ' + ', '.join(tests_skipped))
+
+print_test('STOPPING DISCOVER')
 auto_discover.stop()
+print_test('CLOSING LOG FILES')
 logging.close(True)
+print_test('FINISHED')
