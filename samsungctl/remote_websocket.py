@@ -448,8 +448,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
         for callback, key, data in self._registered_callbacks[:]:
             if key in response and (data is None or response[key] == data):
-                callback(response)
                 self._registered_callbacks.remove([callback, key, data])
+                callback(response)
                 break
         else:
             if 'params' in response and 'event' in response['params']:
@@ -461,10 +461,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     if 'event' in data:
                         for callback, key, _ in self._registered_callbacks[:]:
                             if key == data['event']:
-                                callback(data)
                                 self._registered_callbacks.remove(
                                     [callback, key, None]
                                 )
+                                callback(data)
                                 break
 
     def run_browser(self, url):
