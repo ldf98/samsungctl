@@ -7,12 +7,49 @@ import six
 import sys
 import logging
 from .utils import LogIt, LogItWithReturn
+from .websocket_base import AuxWebsocketBase
 
 logger = logging.getLogger(__name__)
 
 PY3 = sys.version_info[0] > 2
 
 _instances = {}
+
+URL_FORMAT = "ws://{}:{}/api/v2?name={}"
+SSL_URL_FORMAT = "wss://{}:{}/api/v2?name={}"
+
+
+class AppWebsocket(AuxWebsocketBase):
+
+    def __init__(self, config):
+        AuxWebsocketBase.__init__(self, config, URL_FORMAT, SSL_URL_FORMAT)
+
+    @LogIt
+    def on_message(self, message):
+        response = json.loads(message)
+
+        print(json.dumps(response, indent=4))
+
+        for callback, key, data in self._registered_callbacks[:]:
+            if key in response and (data is None or response[key] == data):
+                callback(response)
+                self._registered_callbacks.remove([callback, key, data])
+                break
+        else:
+            if 'params' in response and 'event' in response['params']:
+                event = response['params']['event']
+
+                if event == 'd2d_service_message':
+                    data = json.loads(response['params']['data'])
+
+                    if 'event' in data:
+                        for callback, key, _ in self._registered_callbacks[:]:
+                            if key == data['event']:
+                                callback(data)
+                                self._registered_callbacks.remove(
+                                    [callback, key, None]
+                                )
+                                break
 
 
 # noinspection PyPep8Naming

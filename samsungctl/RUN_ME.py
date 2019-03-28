@@ -1166,13 +1166,20 @@ def run_test(config):
 
 
 start = time.time()
+print_test('DISCOVERING TV\'s')
 while time.time() - start < 20:
+    _stdout.write('.')
     event.wait(2.0)
     event.clear()
     while tests_to_run:
+        _stdout.write('\n')
         run_test(tests_to_run.pop(0))
         start = time.time()
+        print_test('DISCOVERING TV\'s')
 
 
+print_test('STOPPING DISCOVER')
 auto_discover.stop()
+print_test('CLOSING LOG FILES')
 logging.close(True)
+print('FINISHED!!!')

@@ -32,6 +32,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         self._cec = None
         websocket_base.WebSocketBase.__init__(self, config)
         self._art_mode = None
+        self._app_websocket = None
 
     @property
     @LogItWithReturn
@@ -172,6 +173,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             )
 
             if auth_event.isSet() and not unauth_event.is_set():
+                self._app_websocket = application.AppWebsocket(self.config)
                 return True
 
             self._close_connection()
