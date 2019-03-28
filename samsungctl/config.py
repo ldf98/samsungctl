@@ -282,9 +282,8 @@ class Config(object):
     @log_level.setter
     def log_level(self, log_level):
         if log_level is None or log_level == logging.NOTSET:
-            logging.basicConfig(format=LOGGING_FORMAT, level=None)
+            logger.setLevel(logging.NOTSET)
         else:
-            logging.basicConfig(format=LOGGING_FORMAT, level=log_level)
             logger.setLevel(log_level)
 
     def __eq__(self, other):

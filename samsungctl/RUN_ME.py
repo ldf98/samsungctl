@@ -1,10 +1,17 @@
 from __future__ import print_function
+
+import sys
+
+_stdout = sys.stdout
+_stderr = sys.stderr
+
 import os
 import sys
 import time
 import threading
 import traceback
 import platform
+
 
 import warnings
 warnings.simplefilter("ignore")
@@ -57,21 +64,19 @@ drop me a line on github and I will tell you how to get it going.
 Features are Power on for legacy TV's, Source list for 2016+ TV's, 
 volume and mute direct input will use CEC instead of UPNP.
 
-press any key to continue...
-'''
+do you want to continue? (y/n)'''
 
 try:
-    raw_input(INTRO.format(DATA_PATH))
+    answer = raw_input(INTRO.format(DATA_PATH))
 except NameError:
-    input(INTRO.format(DATA_PATH))
+    answer = input(INTRO.format(DATA_PATH))
 
-print()
-print()
+if not answer.lower().startswith('y'):
+    sys.exit(0)
 
-SSDP_FILENAME = os.path.join(
-    DATA_PATH,
-    'ssdp_output' + PY_VERSION_STR + '.log'
-)
+
+_stdout.write('\n\n')
+_stdout.flush()
 
 if not os.path.exists(DATA_PATH):
     try:
@@ -93,9 +98,7 @@ if not os.path.exists(DATA_PATH):
         os.mkdir(DATA_PATH)
     else:
         sys.exit(1)
-
-    print()
-    print()
+    print('\n')
 
 
 with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
@@ -113,17 +116,152 @@ with open(os.path.join(DATA_PATH, 'system.log'), 'w') as f:
 
 WRITE_LOCK = threading.RLock()
 
+import logging as _logging # NOQA
 
-def print(*args):
+
+SSDP_FILENAME = os.path.join(
+    DATA_PATH,
+    'ssdp_output.' + PY_VERSION_STR + '.log'
+)
+
+
+class LogHandler(object):
+
+    def __init__(self):
+        self.file = None
+        self.lock = threading.Lock()
+        self.level = _logging.NOTSET
+
+    def setLevel(self, level):
+        self.level = level
+
+    def getLevel(self):
+        return self.level
+
+    def getEffectiveLevel(self):
+        return self.level
+
+    def addHandler(self, *_, **__):
+        pass
+
+    def write(self, msg, *args):
+        if args:
+            msg = msg % args
+
+        with self.lock:
+            if self.file is not None:
+                self.file.write(str(msg) + '\n')
+                self.file.flush()
+
+    def debug(self, *args):
+        self.write(*args)
+
+    def info(self, *args):
+        self.write(*args)
+
+    def warn(self, *args):
+        self.write(*args)
+
+    def error(self, *args):
+        self.write(*args)
+
+    def close(self):
+        with self.lock:
+            if self.file is not None:
+                self.file.close()
+                self.file = None
+
+    def open(self, path):
+
+        with self.lock:
+            if self.file is not None:
+                self.file.close()
+                self.file = None
+
+            self.file = open(path, 'w')
+
+
+class Logging(object):
+
+    @staticmethod
+    def NullHandler():
+        pass
+
+    def __init__(self):
+        self.default_handler = LogHandler()
+        self.upnp_handler = LogHandler()
+        self.upnp_handler.open(SSDP_FILENAME)
+        self.lock = threading.Lock()
+        self.file = None
+
+        self.loggers = {}
+        sys.modules['logging'] = self
+
+    def getLogger(self, module):
+        if 'samsungctl' in module and 'discover' in module:
+            return self.upnp_handler
+        elif 'samsungctl' in module:
+            return self.default_handler
+
+        else:
+            return _logging.getLogger(module)
+
+    def __getattr__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+
+        return getattr(_logging, item)
+
+    def open(self, uuid):
+
+        with self.lock:
+            log = os.path.join(
+                DATA_PATH,
+                uuid + '.' + PY_VERSION_STR + '.log'
+            )
+            sam_log = os.path.join(
+                DATA_PATH,
+                'samsungctl.' + uuid + '.' + PY_VERSION_STR + '.log'
+            )
+
+            if self.file is not None:
+                self.file.close()
+                self.file = None
+
+            self.file = open(log, 'w')
+            self.default_handler.open(sam_log)
+
+    def close(self, close_upnp=False):
+        with self.lock:
+            self.default_handler.close()
+
+            if self.file is not None:
+                self.file.close()
+                self.file = None
+
+            if close_upnp:
+                self.upnp_handler.close()
+
+    def write(self, data):
+        with self.lock:
+            if self.file is not None:
+                self.file.write(data)
+                self.file.flush()
+
+
+logging = Logging()
+
+
+def print_test(*args):
     output = ''
 
     for arg in args:
         try:
-            output += ' ' + str(arg)
+            output += str(arg) + ' '
         except:
-            output += ' ' + repr(arg)
+            output += repr(arg) + ' '
 
-    sys.stdout.write(output + '\n')
+    print(output[:-1])
 
 
 class STD:
@@ -136,10 +274,9 @@ class STD:
                 if '\n' in data:
                     for line in data.split('\n'):
                         line = line.rstrip() + '\n'
-                        log_file.write(line)
+                        logging.write(line)
                 else:
-                    log_file.write(data)
-                    log_file.flush()
+                    logging.write(data)
             except:
                 pass
 
@@ -160,22 +297,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), '..')))
 
 import samsungctl # NOQA
 from samsungctl.upnp.discover import auto_discover # NOQA
-import logging # NOQA
 
-logger = logging.getLogger('samsungctl')
-logger.setLevel(logging.DEBUG)
-
-upnp_logger = logging.getLogger('samsungctl.upnp.discover')
-upnp_logger_handler = logging.FileHandler(SSDP_FILENAME, 'w')
-
-upnp_logger_handler.setLevel(logging.DEBUG)
-upnp_logger.addHandler(upnp_logger_handler)
-
+auto_discover.logging = True
 event = threading.Event()
 THREADS = []
 
 ignore_tv = []
-
 tests_to_run = []
 
 
@@ -183,44 +310,30 @@ def discover_callback(cfg):
     if (cfg.model, cfg.host) in ignore_tv:
         return
 
-    print('DISCOVER CALLBACK CALLED')
+    print_test('DISCOVER CALLBACK CALLED')
 
     tests_to_run.append(cfg)
     ignore_tv.append((cfg.model, cfg.host))
     event.set()
 
 
-print('TESTING DISCOVER')
-print('REGISTERING DISCOVER CALLBACK')
+print_test('TESTING DISCOVER')
+print_test('REGISTERING DISCOVER CALLBACK')
 auto_discover.register_callback(discover_callback)
-print('STARTING DISCOVER')
-auto_discover.start()
 
 
 def run_test(config):
-    global log_file
+    logging.open(config.uuid)
 
-    log_path = os.path.join(
-        DATA_PATH,
-        config.uuid + '.' + PY_VERSION_STR + '.log'
-    )
-    with WRITE_LOCK:
-        log_file.close()
-        log_file = open(log_path, 'w')
-
-    print('FOUND TV')
-    print(config)
+    print_test('FOUND TV')
+    print_test(config)
     try:
-        answer = raw_input('Run tests on TV ' + str(config.model) + '? ((y/n):')
+        answer = raw_input('Run tests on TV ' + str(config.model) + '? (y/n):')
     except:
-        answer = input('Run tests on TV ' + str(config.model) + '? ((y/n):')
+        answer = input('Run tests on TV ' + str(config.model) + '? (y/n):')
 
     if not answer.lower().startswith('y'):
-        with WRITE_LOCK:
-            log_file.close()
-            log_file = open(SSDP_FILENAME, 'a')
-
-        auto_discover.logging = True
+        logging.close()
         return
 
     print()
@@ -228,22 +341,17 @@ def run_test(config):
 
     config_file = os.path.join(DATA_PATH, config.uuid + '.config')
     if os.path.exists(config_file):
-        config = samsungctl.Config.load(config_file)
-    else:
-        config.path = config_file
-        config.save()
+        cfg = samsungctl.Config.load(config_file)
 
-    log_file_handler = logging.FileHandler(
-        os.path.join(
-            DATA_PATH,
-            config.uuid + '.DEBUG.(0).log'.format(PY_VERSION_STR)
-        ),
-        'w'
-    )
-    log_file_handler.setLevel(logging.DEBUG)
+        for key, value in cfg:
+            if key in ('host', 'upnp_locations'):
+                continue
 
-    # add ch to logger
-    logger.addHandler(log_file_handler)
+            setattr(config, key, value)
+
+    config.path = config_file
+    config.save()
+
     config.log_level = logging.DEBUG
 
     POWER_ON = []
@@ -255,9 +363,9 @@ def run_test(config):
                 if c == conf:
                     POWER_ON.append(conf)
                     POWER_OFF.remove(conf)
-                    print('Power Test Callback')
-                    print(conf)
-                    print('state =', state)
+                    print_test('Power Test Callback')
+                    print_test(conf)
+                    print_test('state =', state)
                     break
             else:
                 for c in POWER_ON[:]:
@@ -265,18 +373,18 @@ def run_test(config):
                         break
                 else:
                     POWER_ON.append(conf)
-                    print('Power Test Callback')
-                    print(conf)
-                    print('state =', state)
+                    print_test('Power Test Callback')
+                    print_test(conf)
+                    print_test('state =', state)
             return
 
         for c in POWER_ON[:]:
             if c == conf:
                 POWER_OFF.append(conf)
                 POWER_ON.remove(conf)
-                print('Power Test Callback')
-                print(conf)
-                print('state =', state)
+                print_test('Power Test Callback')
+                print_test(conf)
+                print_test('state =', state)
                 break
         else:
             for c in POWER_OFF[:]:
@@ -284,29 +392,29 @@ def run_test(config):
                     break
             else:
                 POWER_OFF.append(conf)
-                print('Power Test Callback')
-                print(conf)
-                print('state =', state)
+                print_test('Power Test Callback')
+                print_test(conf)
+                print_test('state =', state)
 
     auto_discover.register_callback(power_callback, uuid=config.uuid)
 
     if config.method == 'encrypted':
-        print('Testing PIN get function')
+        print_test('Testing PIN get function')
         _old_get_pin = config.get_pin
 
         def get_pin():
             with WRITE_LOCK:
                 pin = _old_get_pin()
-                print('PIN function test complete')
+                print_test('PIN function test complete')
                 return pin
 
         config.get_pin = get_pin
 
-    print('SETTING UP REMOTE')
+    print_test('SETTING UP REMOTE')
 
     try:
         remote = samsungctl.Remote(config)
-        print('Remote created')
+        print_test('Remote created')
         while remote.power is False:
             time.sleep(0.5)
     except:
@@ -314,51 +422,63 @@ def run_test(config):
         sys.exit(1)
 
     def run_method(method, ret_val_names, *args):
-        print(method)
         try:
             ret_vals = getattr(remote, method)(*args)
 
-            if ret_val_names:
-                if ret_vals == [None] * len(ret_val_names):
-                    print(method + ':  [skip]')
+            if isinstance(ret_vals, tuple):
+                for ret_val in ret_vals:
+                    if ret_val is not None:
+                        break
+                else:
+                    print_test(method + ':  [skip]')
                     return [None] * len(ret_val_names)
-                print(method + ':  [pass]')
 
+                print_test(method + ':  [pass]')
+
+                logging.write('return value: ' + repr(ret_vals))
                 return ret_vals
 
-            print(method + ':  [pass]')
-            print('return value:', repr(ret_vals))
+            if ret_vals is None:
+                print_test(method + ':  [skip]')
+            else:
+                print_test(method + ':  [pass]')
 
+            logging.write('return value: ' + repr(ret_vals))
             return ret_vals
         except:
             traceback.print_exc()
-            print(method + ':  [failed')
+            print_test(method + ':  [fail]')
             if ret_val_names:
                 return [None] * len(ret_val_names)
             return None
 
         finally:
-            print('\n')
+            print_test('\n')
 
     def get_property(property_name, ret_val_names):
-        print(property_name)
         try:
             ret_vals = getattr(remote, property_name)
 
-            if ret_val_names:
-                if ret_vals == [None] * len(ret_val_names):
-                    print('get ' + property_name + ':  [skip]')
+            if isinstance(ret_vals, tuple):
+                for ret_val in ret_vals:
+                    if ret_val is not None:
+                        break
+                else:
+                    print_test('get ' + property_name + ':  [skip]')
                     return [None] * len(ret_val_names)
 
-                print('get ' + property_name + ':  [pass]')
+                print_test('get ' + property_name + ':  [pass]')
 
                 return ret_vals
 
-            print('get ' + property_name + ':  [pass]')
+            if ret_vals is None:
+                print_test('get ' + property_name + ':  [skip]')
+            else:
+                print_test('get ' + property_name + ':  [pass]')
             return ret_vals
         except:
-            traceback.print_exc()
-            print('get ' + property_name + ':  [fail]')
+            logging.write(traceback.format_exc() + '\n')
+            print_test('get ' + property_name + ':  [fail]')
 
             if ret_val_names:
                 return [None] * len(ret_val_names)
@@ -368,12 +488,12 @@ def run_test(config):
     def set_property(property_name, value):
         try:
             setattr(remote, property_name, value)
-            print('set ' + property_name + ':  [pass]')
+            print_test('set ' + property_name + ':  [pass]')
         except:
             traceback.print_exc()
-            print('set ' + property_name + ':  [fail]')
+            print_test('set ' + property_name + ':  [fail]')
 
-    print('\nMISC TESTS\n')
+    print_test('\nMISC TESTS\n')
 
     get_property('tv_options', [])
     get_property('dtv_information', [])
@@ -484,7 +604,7 @@ def run_test(config):
             int(_current_connection_ids[0])
         )
     else:
-        print('current_connection_info:  [skip]')
+        print_test('current_connection_info:  [skip]')
 
     _current_show_state, _current_theme_id, _total_theme_number = get_property(
         'tv_slide_show',
@@ -502,11 +622,11 @@ def run_test(config):
         time.sleep(0.2)
         remote.aspect_ratio = _aspect_ratio
     else:
-        print('set aspect_ratio:  [skip]')
+        print_test('set aspect_ratio:  [skip]')
 
     _play_mode = get_property('play_mode', [])
 
-    print('\nSPEAKER TESTS\n')
+    print_test('\nSPEAKER TESTS\n')
 
     _max_distance, _all_speaker_distance = get_property(
         'hts_all_speaker_distance',
@@ -518,7 +638,7 @@ def run_test(config):
         remote.hts_all_speaker_distance = _all_speaker_distance
 
     else:
-        print('set hts_all_speaker_distance:  [skip]')
+        print_test('set hts_all_speaker_distance:  [skip]')
 
     _max_level, _all_speaker_level = get_property(
         'hts_all_speaker_level',
@@ -529,7 +649,7 @@ def run_test(config):
         time.sleep(0.2)
         remote.hts_all_speaker_level = _all_speaker_level + 1
     else:
-        print('set hts_all_speaker_level:  [skip]')
+        print_test('set hts_all_speaker_level:  [skip]')
 
     _sound_effect, _sound_effect_list = get_property(
         'hts_sound_effect',
@@ -539,16 +659,16 @@ def run_test(config):
         set_property('hts_sound_effect', _sound_effect)
 
     else:
-        print('set hts_sound_effect:  [skip]')
+        print_test('set hts_sound_effect:  [skip]')
 
     _speaker_channel, _speaker_lfe = get_property(
         'hts_speaker_config',
         ['speaker_channel', 'speaker_lfe']
     )
 
-    print('set hts_speaker_config:  [skip]')
+    print_test('set hts_speaker_config:  [skip]')
 
-    print('\nIMAGE TESTS\n')
+    print_test('\nIMAGE TESTS\n')
 
     _brightness = get_property('brightness', [])
     if _brightness is not None:
@@ -556,7 +676,7 @@ def run_test(config):
         time.sleep(0.2)
         remote.brightness = _brightness
     else:
-        print('set brightness:  [skip]')
+        print_test('set brightness:  [skip]')
 
     _color_temperature = get_property('color_temperature', [])
     if _color_temperature is not None:
@@ -564,7 +684,7 @@ def run_test(config):
         time.sleep(0.2)
         remote.color_temperature = _color_temperature
     else:
-        print('set color_temperature:  [skip]')
+        print_test('set color_temperature:  [skip]')
 
     _contrast = get_property('contrast', [])
     if _contrast is not None:
@@ -572,7 +692,7 @@ def run_test(config):
         time.sleep(0.2)
         remote.contrast = _contrast
     else:
-        print('set contrast:  [skip]')
+        print_test('set contrast:  [skip]')
 
     _sharpness = get_property('sharpness', [])
     if _sharpness is not None:
@@ -580,9 +700,9 @@ def run_test(config):
         time.sleep(0.2)
         remote.sharpness = _sharpness
     else:
-        print('set sharpness:  [skip]')
+        print_test('set sharpness:  [skip]')
 
-    print('\nVOLUME TESTS\n')
+    print_test('\nVOLUME TESTS\n')
 
     _mute = get_property('mute', [])
     if _mute is not None:
@@ -590,7 +710,7 @@ def run_test(config):
         time.sleep(0.5)
         remote.mute = _mute
     else:
-        print('set mute:  [skip]')
+        print_test('set mute:  [skip]')
 
     _volume = get_property('volume', [])
     if _volume is not None:
@@ -603,51 +723,79 @@ def run_test(config):
         time.sleep(0.2)
 
         if remote.volume == _volume + 1:
-            print('KEY_VOLUP:  [pass]')
+            print_test('KEY_VOLUP:  [pass]')
         else:
-            print('KEY_VOLUP: [fail]')
+            print_test('KEY_VOLUP: [fail]')
             _volume -= 1
 
         _volume = remote.volume
         remote.control('KEY_VOLDOWN')
         time.sleep(0.2)
         if remote.volume == _volume - 1:
-            print('KEY_VOLDOWN: [pass]')
+            print_test('KEY_VOLDOWN: [pass]')
         else:
-            print('KEY_VOLDOWN: [fail]')
+            print_test('KEY_VOLDOWN: [fail]')
     else:
-        print('set volume:  [skip]')
+        print_test('set volume:  [skip]')
+
+    print_test('\nICON TESTS\n')
+
+    icon = get_property('icon', [])
+    if icon is not None:
+        print_test(icon)
+
+    print_test('\nBROWSER TESTS\n')
+
+    run_method('run_browser', [], 'github.com/kdschlosser/samsungctl')
+    get_property('browser_mode', [])
+    get_property('browser_url', [])
+    run_method('stop_browser', [])
 
     if remote.year <= 2015:
-        print('\nSOURCE TESTS\n')
+        print_test('\nSOURCE TESTS\n')
 
         _source = get_property('source', [])
         _sources = get_property('sources', [])
 
         if _source is not None:
-            print('source.name: ' + _source.name)
-            print('source.label: ' + _source.label)
+            print_test('source.name: ' + _source.name)
+            print_test('source.label: ' + _source.label)
 
         if _sources is not None:
             for source in _sources:
-                print('-' * 40)
-                print('source.id: ' + str(source.id))
-                print('source.name: ' + source.name)
-                print('source.is_viewable: ' + str(source.is_viewable))
-                print('source.is_editable: ' + str(source.is_editable))
-                print('source.is_connected: ' + str(source.is_connected))
-                print('source.label: ' + source.label)
+                active = source.is_active
+
+                print_test('-' * 40)
+                print_test('source.id: ' + str(source.id))
+                print_test('source.name: ' + source.name)
+                print_test('source.is_viewable: ' + str(source.is_viewable))
+                print_test('source.is_editable: ' + str(source.is_editable))
+                print_test('source.is_connected: ' + str(source.is_connected))
+                print_test('source.label: ' + source.label)
                 # source.label = 'TEST LABEL'
-                print('source.device_name: ' + str(source.device_name))
-                print('source.is_active: ' + str(source.is_active))
-                print('-' * 40)
-                source.activate()
-                time.sleep(2)
+                print_test('source.device_name: ' + str(source.device_name))
+                print_test('source.is_active: ' + str(active))
+
+                if source.is_connected:
+                    if not active:
+                        print_test('activating source...')
+                        source.activate()
+                        time.sleep(6)
+                        if source.is_active:
+                            print_test('activate source:  [pass]')
+                        else:
+                            print_test('activate source:  [fail]')
+                    else:
+                        print_test('activate source:  [already active]')
+                else:
+                    print_test('activate source:  [not connected]')
+
+                print_test('-' * 40)
 
         if _source is not None:
             _source.activate()
 
-        print('\nCHANNEL TESTS\n')
+        print_test('\nCHANNEL TESTS\n')
 
         _channels = get_property('channels', [])
         _channel = get_property('channel', [])
@@ -666,95 +814,82 @@ def run_test(config):
 
         if _channels is not None:
             for channel in _channels:
-                print('channel.number: ' + str(channel.number))
-                print('channel.name: ' + str(channel.name))
-                print('channel.channel_type: ' + str(channel.channel_type))
-                # print('channel.is_recording: ' + str(_channel.is_recording))
-                print('channel.is_active: ' + str(channel.is_active))
-                print('channel content:')
+                print_test('channel.number: ' + str(channel.number))
+                print_test('channel.name: ' + str(channel.name))
+                print_test('channel.channel_type: ' + str(channel.channel_type))
+                # print_test('channel.is_recording: ' + str(_channel.is_recording))
+                print_test('channel.is_active: ' + str(channel.is_active))
+                print_test('channel content:')
                 for content in channel:
-                    print('    start_time', content.start_time)
-                    print('    end_time', content.end_time)
-                    print('    title', content.title)
-                    print('    genre', content.genre)
-                    print('    series_id', content.series_id)
-                    print('    detail_info', content.detail_info)
-                    print('    detail_information', content.detail_information)
+                    print_test('    start_time', content.start_time)
+                    print_test('    end_time', content.end_time)
+                    print_test('    title', content.title)
+                    print_test('    genre', content.genre)
+                    print_test('    series_id', content.series_id)
+                    print_test('    detail_info', content.detail_info)
+                    print_test('    detail_information', content.detail_information)
 
         if _channel is not None:
-            print('\n')
-            print('channel.number: ' + str(_channel.number))
-            print('channel.name: ' + str(_channel.name))
-            # print('channel.is_recording: ' + str(_channel.is_recording))
-            print('channel.is_active: ' + str(_channel.is_active))
+            print_test('\n')
+            print_test('channel.number: ' + str(_channel.number))
+            print_test('channel.name: ' + str(_channel.name))
+            # print_test('channel.is_recording: ' + str(_channel.is_recording))
+            print_test('channel.is_active: ' + str(_channel.is_active))
 
             list(_channels)[-1].activate()
 
-            print(list(_channels)[-1].label + ' is active: ' + str(list(_channels)[-1].is_active))
+            print_test(list(_channels)[-1].label + ' is active: ' + str(list(_channels)[-1].is_active))
 
-            print(_channel.label + ' is_active: ' + str(_channel.is_active))
+            print_test(_channel.label + ' is_active: ' + str(_channel.is_active))
             _channel.activate()
-            print(_channel.label + ' is_active: ' + str(_channel.is_active))
-
-    print('\nICON TESTS\n')
-
-    icon = get_property('icon', [])
-    if icon is not None:
-        print(icon)
-
-    print('\nBROWSER TESTS\n')
-
-    run_method('run_browser', [], 'github.com/kdschlosser/samsungctl')
-    get_property('browser_mode', [])
-    get_property('browser_url', [])
-    run_method('stop_browser', [])
+            print_test(_channel.label + ' is_active: ' + str(_channel.is_active))
 
     if remote.year >= 2016:
-        print('\nAPPLICATION TESTS\n')
+        print_test('\nAPPLICATION TESTS\n')
         apps = remote.applications
         for app in apps:
-            print('app.name:', app.name)
-            print('app.id:', app.id)
-            print('app.is_running:', app.is_running)
-            print('app.version:', app.version)
-            print('app.is_visible:', app.is_visible)
-            print('app.app_type:', app.app_type)
-            print('app.position:', app.position)
-            print('app.app_id:', app.app_id)
-            print('app.launcher_type:', app.launcher_type)
-            print('app.action_type:', app.action_type)
-            print('app.mbr_index:', app.mbr_index)
-            print('app.source_type_num:', app.source_type_num)
-            print('app.mbr_source:', app.mbr_source)
-            print('app.is_lock:', app.is_lock)
+            print_test('app.name:', app.name)
+            print_test('app.id:', app.id)
+            print_test('app.is_running:', app.is_running)
+            print_test('app.version:', app.version)
+            print_test('app.is_visible:', app.is_visible)
+            print_test('app.app_type:', app.app_type)
+            print_test('app.position:', app.position)
+            print_test('app.app_id:', app.app_id)
+            print_test('app.launcher_type:', app.launcher_type)
+            print_test('app.action_type:', app.action_type)
+            print_test('app.mbr_index:', app.mbr_index)
+            print_test('app.source_type_num:', app.source_type_num)
+            print_test('app.mbr_source:', app.mbr_source)
+            print_test('app.is_lock:', app.is_lock)
             for group in app:
-                print('   ', group.title)
+                print_test('   ', group.title)
                 for content in group:
-                    print('       content.title:', content.title)
-                    print('       content.app_type:', content.app_type)
-                    print('       content.mbr_index:', content.mbr_index)
-                    print('       content.live_launcher_type:', content.live_launcher_type)
-                    print('       content.action_play_url:', content.action_play_url)
-                    print('       content.service_id:', content.service_id)
-                    print('       content.launcher_type:', content.launcher_type)
-                    print('       content.source_type_num:', content.source_type_num)
-                    print('       content.action_type:', content.action_type)
-                    print('       content.app_id:', content.app_id)
-                    print('       content.display_from:', content.display_from)
-                    print('       content.display_until:', content.display_until)
-                    print('       content.mbr_source:', content.mbr_source)
-                    print('       content.id:', content.id)
-                    print('       content.is_playable:', content.is_playable)
-                    print('       content.subtitle:', content.subtitle)
-                    print('       content.subtitle2:', content.subtitle2)
-                    print('       content.subtitle3:', content.subtitle3)
+                    print_test('       content.title:', content.title)
+                    print_test('       content.app_type:', content.app_type)
+                    print_test('       content.mbr_index:', content.mbr_index)
+                    print_test('       content.live_launcher_type:', content.live_launcher_type)
+                    print_test('       content.action_play_url:', content.action_play_url)
+                    print_test('       content.service_id:', content.service_id)
+                    print_test('       content.launcher_type:', content.launcher_type)
+                    print_test('       content.source_type_num:', content.source_type_num)
+                    print_test('       content.action_type:', content.action_type)
+                    print_test('       content.app_id:', content.app_id)
+                    print_test('       content.display_from:', content.display_from)
+                    print_test('       content.display_until:', content.display_until)
+                    print_test('       content.mbr_source:', content.mbr_source)
+                    print_test('       content.id:', content.id)
+                    print_test('       content.is_playable:', content.is_playable)
+                    print_test('       content.subtitle:', content.subtitle)
+                    print_test('       content.subtitle2:', content.subtitle2)
+                    print_test('       content.subtitle3:', content.subtitle3)
 
         time.sleep(2)
-        print('\n\n')
+        print_test('\n\n')
 
         if apps:
             for app in apps:
-                print(app.name)
+                print_test(app.name)
 
             try:
                 answer = raw_input(
@@ -767,7 +902,7 @@ def run_test(config):
             print()
             for app in apps:
                 if app.name.lower() == answer:
-                    print('Now starting application.')
+                    print_test('Now starting application.')
                     app.run()
                     count = 0
                     while count != 8:
@@ -775,21 +910,21 @@ def run_test(config):
                         sys.stdout.write('.')
                         time.sleep(1.0)
 
-                    print(app.name + ' is running: ' + str(app.is_running))
-                    print(app.name + ' is visible: ' + str(app.is_visible))
+                    print_test(app.name + ' is running: ' + str(app.is_running))
+                    print_test(app.name + ' is visible: ' + str(app.is_visible))
                     try:
                         answer = raw_input('Is the app running: (y/n)')
                     except NameError:
                         answer = input('Is the app running: (y/n)')
 
-                    print(answer.lower() == 'y')
+                    print_test(answer.lower() == 'y')
                     print()
                     try:
                         answer = raw_input('Is the app visible: (y/n)')
                     except NameError:
                         answer = input('Is the app visible: (y/n)')
 
-                    print(answer.lower() == 'y')
+                    print_test(answer.lower() == 'y')
                     print()
                     app.close()
                     count = 0
@@ -803,11 +938,11 @@ def run_test(config):
                     except NameError:
                         answer = input('Is the app closed?: (y/n)')
 
-                    print(answer.lower() == 'y')
+                    print_test(answer.lower() == 'y')
                     print()
 
                     # for group in app:
-                    #     print(group.title)
+                    #     print_test(group.title)
                     #
                     # try:
                     #     answer = raw_input(
@@ -821,7 +956,7 @@ def run_test(config):
                     # for group in app:
                     #     if group.title.lower() == answer:
                     #         for content in group:
-                    #             print(content.title)
+                    #             print_test(content.title)
                     #
                     #         try:
                     #             answer = raw_input(
@@ -838,7 +973,7 @@ def run_test(config):
                     #                 upnp_logger.setLevel(logging.DEBUG)
                     #
                     #                 try:
-                    #                     print(content.run())
+                    #                     print_test(content.run())
                     #                 except:
                     #                     traceback.print_exc()
                     #
@@ -849,41 +984,41 @@ def run_test(config):
                     #         except NameError:
                     #             answer = input('Is the content playing?: (y/n)')
                     #
-                    #         print(answer.lower() == 'y')
+                    #         print_test(answer.lower() == 'y')
                     #
-                    #         print('\n\n')
+                    #         print_test('\n\n')
 
         if remote.art_mode.is_supported:
-            print('ART Mode Tests:  [running]')
+            print_test('ART Mode Tests:  [running]')
             art_mode = remote.art_mode.artmode
             if art_mode is not None:
-                print('get art_mode.artmode:  [pass]')
+                print_test('get art_mode.artmode:  [pass]')
                 remote.art_mode.artmode = not art_mode
 
                 if remote.art_mode.artmode != art_mode:
-                    print('set art_mode.artmode  [pass]')
+                    print_test('set art_mode.artmode  [pass]')
                     remote.art_mode.artmode = art_mode
                 else:
-                    print('set art_mode.artmode:  [fail]')
+                    print_test('set art_mode.artmode:  [fail]')
             else:
-                print('get art_mode.artmode:  [fail]')
+                print_test('get art_mode.artmode:  [fail]')
 
             brightness_sensor = remote.art_mode.brightness_sensor
             if brightness_sensor is not None:
-                print('get art_mode.brightness_sensor:  [pass]')
+                print_test('get art_mode.brightness_sensor:  [pass]')
                 remote.art_mode.brightness_sensor = not brightness_sensor
 
                 if remote.art_mode.brightness_sensor != brightness_sensor:
-                    print('set art_mode.brightness_sensor:  [pass]')
+                    print_test('set art_mode.brightness_sensor:  [pass]')
                     remote.art_mode.brightness_sensor = brightness_sensor
                 else:
-                    print('set art_mode.brightness_sensor:  [fail]')
+                    print_test('set art_mode.brightness_sensor:  [fail]')
             else:
-                print('get art_mode.brightness_sensor:  [fail]')
+                print_test('get art_mode.brightness_sensor:  [fail]')
 
             brightness = remote.art_mode.brightness
             if brightness is not None:
-                print('get art_mode.brightness:  [pass]')
+                print_test('get art_mode.brightness:  [pass]')
                 new_brightness = brightness + 1
                 if new_brightness > 3:
                     new_brightness = 1
@@ -891,16 +1026,16 @@ def run_test(config):
                 remote.art_mode.brightness = new_brightness
 
                 if remote.art_mode.brightness == new_brightness:
-                    print('set art_mode.brightness:  [pass]')
+                    print_test('set art_mode.brightness:  [pass]')
                     remote.art_mode.brightness = brightness
                 else:
-                    print('set art_mode.brightness:  [fail]')
+                    print_test('set art_mode.brightness:  [fail]')
             else:
-                print('get art_mode.brightness:  [fail]')
+                print_test('get art_mode.brightness:  [fail]')
 
             color_temperature = remote.art_mode.color_temperature
             if color_temperature is not None:
-                print('get art_mode.color_temperature:  [pass]')
+                print_test('get art_mode.color_temperature:  [pass]')
                 new_color_temperature = color_temperature + 1
                 if new_color_temperature > 3:
                     new_color_temperature = 1
@@ -908,16 +1043,16 @@ def run_test(config):
                 remote.art_mode.color_temperature = new_color_temperature
 
                 if remote.art_mode.color_temperature == new_color_temperature:
-                    print('set art_mode.color_temperature:  [pass]')
+                    print_test('set art_mode.color_temperature:  [pass]')
                     remote.art_mode.color_temperature = color_temperature
                 else:
-                    print('set art_mode.color_temperature:  [fail]')
+                    print_test('set art_mode.color_temperature:  [fail]')
             else:
-                print('get art_mode.color_temperature:  [fail]')
+                print_test('get art_mode.color_temperature:  [fail]')
 
             motion_sensitivity = remote.art_mode.motion_sensitivity
             if motion_sensitivity is not None:
-                print('get art_mode.motion_sensitivity:  [pass]')
+                print_test('get art_mode.motion_sensitivity:  [pass]')
                 new_motion_sensitivity = motion_sensitivity + 1
                 if new_motion_sensitivity > 3:
                     new_motion_sensitivity = 1
@@ -925,16 +1060,16 @@ def run_test(config):
                 remote.art_mode.motion_sensitivity = new_motion_sensitivity
 
                 if remote.art_mode.motion_sensitivity == new_motion_sensitivity:
-                    print('set art_mode.motion_sensitivity:  [pass]')
+                    print_test('set art_mode.motion_sensitivity:  [pass]')
                     remote.art_mode.motion_sensitivity = motion_sensitivity
                 else:
-                    print('set art_mode.motion_sensitivity:  [fail]')
+                    print_test('set art_mode.motion_sensitivity:  [fail]')
             else:
-                print('get art_mode.motion_sensitivity:  [fail]')
+                print_test('get art_mode.motion_sensitivity:  [fail]')
 
             motion_timer = remote.art_mode.motion_timer
             if motion_timer is not None:
-                print('get art_mode.motion_timer:  [pass]')
+                print_test('get art_mode.motion_timer:  [pass]')
                 motion_timer_choices = motion_timer['valid_values']
                 motion_timer = motion_timer['value']
 
@@ -948,21 +1083,21 @@ def run_test(config):
                 remote.art_mode.motion_timer = new_motion_timer
 
                 if remote.art_mode.motion_timer == new_motion_timer:
-                    print('set art_mode.motion_timer:  [pass]')
+                    print_test('set art_mode.motion_timer:  [pass]')
                     remote.art_mode.motion_timer = motion_timer
                 else:
-                    print('set art_mode.motion_timer:  [fail]')
+                    print_test('set art_mode.motion_timer:  [fail]')
             else:
-                print('get art_mode.motion_timer:  [fail]')
+                print_test('get art_mode.motion_timer:  [fail]')
         else:
-            print('ART Mode Tests:  [not supported]')
-    print(config)
+            print_test('ART Mode Tests:  [not supported]')
+    print_test(config)
     config.save()
 
     if remote.year > 2013 or remote._cec is not None:
 
-        print('\nPOWER TESTS\n')
-        print(
+        print_test('\nPOWER TESTS\n')
+        print_test(
             'This process may take a while to complete.\n'
             'If there is an issue the program will automatically\n'
             'exit after 60 seconds.'
@@ -983,12 +1118,12 @@ def run_test(config):
             power_event.wait(2.0)
             if not power_event.isSet():
                 counter += 1
-                print(counter, 'seconds have passed')
+                print_test(counter, 'seconds have passed')
                 if counter == 120:
                     break
 
         if remote.power is False:
-            print('POWER OFF TEST: [pass]')
+            print_test('POWER OFF TEST: [pass]')
 
             def power_on():
                 remote.power = True
@@ -1004,29 +1139,23 @@ def run_test(config):
                 power_event.wait(2.0)
                 if not power_event.isSet():
                     counter += 1
-                    print(counter, 'seconds have passed')
+                    print_test(counter, 'seconds have passed')
                     if counter == 120:
                         break
 
             if remote.power is False:
-                print('POWER ON TEST: [fail]')
+                print_test('POWER ON TEST: [fail]')
 
             else:
-                print('POWER ON TEST: [pass]')
+                print_test('POWER ON TEST: [pass]')
 
         else:
-            print('POWER OFF TEST: [fail]')
-            print('POWER ON TEST: [skipped]')
+            print_test('POWER OFF TEST: [fail]')
+            print_test('POWER ON TEST: [skipped]')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
-    with WRITE_LOCK:
-        log_file.close()
-        log_file = open(SSDP_FILENAME, 'a')
-
     remote.close()
-
-    logger.removeHandler(log_file_handler)
-    log_file_handler.close()
+    logging.close()
 
 
 start = time.time()
@@ -1038,7 +1167,5 @@ while time.time() - start < 20:
         start = time.time()
 
 
-upnp_logger.removeHandler(upnp_logger_handler)
-upnp_logger_handler.close()
 auto_discover.stop()
-log_file.close()
+logging.close(True)

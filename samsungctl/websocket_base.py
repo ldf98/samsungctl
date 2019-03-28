@@ -28,6 +28,7 @@ class WebSocketBase(UPNPTV):
         self._power_event = threading.Event()
         self._loop_event = threading.Event()
         self._auth_lock = threading.RLock()
+        self._connect_lock = threading.Lock()
         self._send_lock = threading.Lock()
         self._registered_callbacks = []
         self._thread = None
@@ -43,7 +44,7 @@ class WebSocketBase(UPNPTV):
         self.open()
 
     def _connect(self, config, power):
-        with self._auth_lock:
+        with self._connect_lock:
             if config is None:
                 return
 

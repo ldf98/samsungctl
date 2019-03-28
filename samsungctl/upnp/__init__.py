@@ -628,8 +628,6 @@ class UPNPTV(UPNPObject):
         try:
             res = self.MainTVAgent2.GetChannelListURL()[1:]
 
-            print(res)
-
             if len(res) == 5:
                 (
                     channel_list_version,
@@ -678,14 +676,6 @@ class UPNPTV(UPNPObject):
 
                 support_channel_list = lists[:]
 
-            print(
-                channel_list_version,
-                support_channel_list,
-                channel_list_url,
-                channel_list_type,
-                satellite_id,
-                sort
-            )
             return (
                 channel_list_version,
                 support_channel_list,
@@ -2801,6 +2791,17 @@ class Channel(object):
         return self._is_active
 
     def activate(self):
+
+        if self.is_active:
+            return
+
+        sources = self._parent.sources
+
+        if sources is not None:
+            for source in sources:
+                if source.name == 'TV' and not source.is_active:
+                    source.activate()
+
         from xml.dom.minidom import Document
 
         antenna_mode = 1
@@ -2845,6 +2846,25 @@ class Channel(object):
                 satellite_id,
                 channel
             )
+
+        except ValueError:
+            if satellite_id == '':
+                satellite_id = 0
+                try:
+                    self._parent.MainTVAgent2.SetMainTVChannel(
+                        antenna_mode,
+                        channel_list_type,
+                        satellite_id,
+                        channel
+                    )
+                except RuntimeError:
+                    self._parent.MainTVAgent2.SetMainTVChannel(
+                        channel_list_type,
+                        satellite_id,
+                        channel
+                    )
+            else:
+                raise
 
     def __iter__(self):
         url = self._parent.program_information_url

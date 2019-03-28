@@ -48,6 +48,7 @@ class RemoteLegacy(upnp.UPNPTV):
         self.sock = None
         self.config = config
         self._auth_lock = threading.Lock()
+        self._connect_lock = threading.Lock()
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
         self._receive_event = threading.Event()
@@ -61,10 +62,9 @@ class RemoteLegacy(upnp.UPNPTV):
             config.uuid
         )
 
-        self.open()
-
+    @LogIt
     def _connect(self, config, power):
-        with self._auth_lock:
+        with self._connect_lock:
             if config is None:
                 return
             if power:
@@ -201,7 +201,9 @@ class RemoteLegacy(upnp.UPNPTV):
 
     @LogIt
     def open(self):
+        logger.debug('setting lock')
         with self._auth_lock:
+            logger.debug('lock set')
             if self.sock is not None:
                 return True
 

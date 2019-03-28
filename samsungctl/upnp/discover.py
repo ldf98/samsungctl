@@ -504,10 +504,12 @@ class Discover(object):
         SSDP_DEBUG = value
 
     def start(self):
-        for adapter_ip in adapter_addresses.get_adapter_ips():
-            thread = UPNPDiscoverSocket(self, adapter_ip)
-            self._threads += [thread]
-            thread.start()
+        if not self.is_running:
+            for adapter_ip in adapter_addresses.get_adapter_ips():
+                print(adapter_ip)
+                thread = UPNPDiscoverSocket(self, adapter_ip)
+                self._threads += [thread]
+                thread.start()
 
         atexit.register(self.stop)
 

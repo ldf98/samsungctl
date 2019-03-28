@@ -266,7 +266,7 @@ class IntegerBase(object):
         if self.direction == 'in':
 
             if not isinstance(value, int):
-                raise ValueError('Value is not a ' + self._label)
+                raise ValueError('Value is not a ' + self._label + ' ')
 
             if self.minimum is not None and value < self.minimum:
                 value = self.minimum
