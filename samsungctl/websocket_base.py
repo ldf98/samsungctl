@@ -188,6 +188,8 @@ class WebSocketBase(UPNPTV):
             elif not value and self.power:
                 self._set_power(value)
                 self._close_connection()
+                event = threading.Event()
+                event.wait(3.0)
 
     def _set_power(self, value):
         raise NotImplementedError
