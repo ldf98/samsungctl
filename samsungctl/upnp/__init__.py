@@ -495,6 +495,81 @@ class UPNPTV(UPNPObject):
         except AttributeError:
             pass
 
+    def set_channel(self, major, minor=0):
+
+        sources = self.sources
+
+        if sources is not None:
+            for source in sources:
+                if source.name == 'TV' and not source.is_active:
+                    source.activate()
+
+        from xml.dom.minidom import Document
+
+        antenna_mode = 1
+        channel_list_type, satellite_id = (
+            self.channel_list_url[3:-1]
+        )
+
+        if satellite_id is None:
+            satellite_id = ''
+
+        doc = Document()
+        channel = doc.createElementNS('', 'Channel')
+
+        _major = doc.createElement('MajorCh')
+        tmp_text_node = doc.createTextNode(str(major))
+        _major.appendChild(tmp_text_node)
+        channel.appendChild(_major)
+
+        _minor = doc.createElement('MinorCh')
+        tmp_text_node = doc.createTextNode(str(minor))
+        _minor.appendChild(tmp_text_node)
+        channel.appendChild(_minor)
+
+        # <Channel>
+        #     <MajorCh>10</MajorCh>
+        #     <MinorCh>65534</MinorCh>
+        # </Channel>
+
+        channel = channel.toxml()
+        channel = saxutils.escape(channel)
+
+        try:
+            self.MainTVAgent2.SetMainTVChannel(
+                antenna_mode,
+                channel_list_type,
+                satellite_id,
+                channel
+            )
+        except RuntimeError:
+            self.MainTVAgent2.SetMainTVChannel(
+                channel_list_type,
+                satellite_id,
+                channel
+            )
+        except AttributeError:
+            pass
+
+        except ValueError:
+            if satellite_id == '':
+                satellite_id = 0
+                try:
+                    self.MainTVAgent2.SetMainTVChannel(
+                        antenna_mode,
+                        channel_list_type,
+                        satellite_id,
+                        channel
+                    )
+                except RuntimeError:
+                    self.MainTVAgent2.SetMainTVChannel(
+                        channel_list_type,
+                        satellite_id,
+                        channel
+                    )
+            else:
+                pass
+
     @property
     def channel(self):
         try:

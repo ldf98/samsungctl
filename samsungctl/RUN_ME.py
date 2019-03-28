@@ -438,11 +438,7 @@ def run_test(config):
                 logging.write('return value: ' + repr(ret_vals))
                 return ret_vals
 
-            if ret_vals is None:
-                print_test(method + ':  [skip]')
-            else:
-                print_test(method + ':  [pass]')
-
+            print_test(method + ':  [pass]')
             logging.write('return value: ' + repr(ret_vals))
             return ret_vals
         except:
@@ -794,6 +790,7 @@ def run_test(config):
 
         if _source is not None:
             _source.activate()
+            time.sleep(6)
 
         print_test('\nCHANNEL TESTS\n')
 
@@ -830,19 +827,26 @@ def run_test(config):
                     print_test('    detail_information', content.detail_information)
 
         if _channel is not None:
-            print_test('\n')
-            print_test('channel.number: ' + str(_channel.number))
-            print_test('channel.name: ' + str(_channel.name))
-            # print_test('channel.is_recording: ' + str(_channel.is_recording))
-            print_test('channel.is_active: ' + str(_channel.is_active))
+            print_test('initial channel.number: ' + str(_channel.number))
+            print_test('initial channel.name: ' + str(_channel.name))
+            print_test('initial channel.is_active: ' + str(_channel.is_active))
 
-            list(_channels)[-1].activate()
+            run_method('set_channel', [], 2)
+            time.sleep(4)
+            chnl = get_property('channel', [])
 
-            print_test(list(_channels)[-1].label + ' is active: ' + str(list(_channels)[-1].is_active))
+            if chnl.name == '2.65534':
+                print_test('manual channel change: [pass]')
+            else:
+                print_test('manual channel change: [fail]')
 
-            print_test(_channel.label + ' is_active: ' + str(_channel.is_active))
             _channel.activate()
-            print_test(_channel.label + ' is_active: ' + str(_channel.is_active))
+            time.sleep(4)
+            chnl = get_property('channel', [])
+            if chnl == _channel:
+                print_test('channel change from list: [pass]')
+            else:
+                print_test('channel change from list: [fail]')
 
     if remote.year >= 2016:
         print_test('\nAPPLICATION TESTS\n')
