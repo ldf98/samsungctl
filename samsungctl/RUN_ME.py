@@ -156,8 +156,12 @@ class LogHandler(object):
     def debug(self, *args):
         self.write(*args)
 
-    def info(self, *args):
-        self.write(*args)
+    def info(self, msg, *args):
+        if args:
+            msg = msg % args
+
+        print(msg + '\n')
+        self.write(msg)
 
     def warn(self, *args):
         self.write(*args)
@@ -410,19 +414,25 @@ def run_test(config):
         def get_pin():
             with WRITE_LOCK:
                 pin = _old_get_pin()
-                print_test('pin test:  [pass]')
                 return pin
 
         config.get_pin = get_pin
 
+    paired = config.paired
+
     try:
         remote = samsungctl.Remote(config)
-        print_test('remote connection:  [pass]')
+
         while remote.power is False:
             time.sleep(0.5)
+
+        if config.method == 'encrypted' and not paired:
+            print_test('pin test:  [pass]')
+
+        print_test('remote connection:  [pass]')
     except:
         logging.write(traceback.format_exc() + '\n')
-        if config.method == 'encrypted' and not config.paired:
+        if config.method == 'encrypted' and not paired:
             print_test('pin test:  [fail]')
         print_test('remote connection:  [fail]')
         logging.close()
