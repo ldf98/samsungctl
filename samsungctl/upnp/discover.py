@@ -506,7 +506,6 @@ class Discover(object):
     def start(self):
         if not self.is_running:
             for adapter_ip in adapter_addresses.get_adapter_ips():
-                print(adapter_ip)
                 thread = UPNPDiscoverSocket(self, adapter_ip)
                 self._threads += [thread]
                 thread.start()
