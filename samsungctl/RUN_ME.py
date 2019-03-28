@@ -398,20 +398,22 @@ def run_test(config):
                 print_test('state =', state)
 
     auto_discover.register_callback(power_callback, uuid=config.uuid)
+    print_test('SETTING UP REMOTE CONNECTION')
+    if config.paired:
+        print_test('USING STORED CONFIG FILE')
+    else:
+        print_test('STARTING TV PAIRING PROCESS')
 
-    if config.method == 'encrypted':
-        print_test('Testing PIN get function')
+    if config.method == 'encrypted' and not config.paired:
         _old_get_pin = config.get_pin
 
         def get_pin():
             with WRITE_LOCK:
                 pin = _old_get_pin()
-                print_test('PIN function test complete')
+                print_test('pin test:  [pass]')
                 return pin
 
         config.get_pin = get_pin
-
-    print_test('SETTING UP REMOTE')
 
     try:
         remote = samsungctl.Remote(config)
@@ -420,6 +422,8 @@ def run_test(config):
             time.sleep(0.5)
     except:
         logging.write(traceback.format_exc() + '\n')
+        if config.method == 'encrypted' and not config.paired:
+            print_test('pin test:  [fail]')
         print_test('remote connection:  [fail]')
         logging.close()
         return config.model, True
