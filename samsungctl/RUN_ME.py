@@ -430,7 +430,7 @@ def run_test(config):
     try:
         remote = samsungctl.Remote(config)
 
-        while remote.power is False:
+        while not remote.is_connected:
             time.sleep(0.5)
 
         if config.method == 'encrypted' and not paired:
