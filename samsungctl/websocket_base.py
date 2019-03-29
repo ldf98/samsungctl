@@ -341,7 +341,7 @@ class AuxWebsocketBase(object):
 
         if self.config.port == 8002:
             if self.config.token:
-                token = "&token=" + self.config.token
+                token = "&token=" + str(self.config.token)
             else:
                 token = ''
 

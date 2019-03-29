@@ -150,8 +150,15 @@ class LogHandler(object):
 
         with self.lock:
             if self.file is not None:
-                self.file.write(str(msg) + '\n')
-                self.file.flush()
+                try:
+                    self.file.write(msg + '\n')
+                    self.file.flush()
+                except UnicodeEncodeError:
+                    self.file.write(msg.decode('utf-8') + '\n')
+                    self.file.flush()
+                except (TypeError, ValueError):
+                    self.file.write(str(msg) + '\n')
+                    self.file.flush()
 
     def debug(self, *args):
         self.write(*args)

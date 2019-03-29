@@ -70,7 +70,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             if self.config.port == 8002:
                 if self.config.token:
-                    token = "&token=" + self.config.token
+                    token = "&token=" + str(self.config.token)
                 else:
                     token = ''
 
@@ -106,7 +106,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     logger.debug(
                         self.config.host +
                         ' -- (token) ' +
-                        self.config.token
+                        str(self.config.token)
                     )
 
                 self.config.paired = True
