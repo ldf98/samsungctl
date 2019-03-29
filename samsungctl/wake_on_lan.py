@@ -9,6 +9,7 @@ import logging
 
 
 try:
+    # noinspection PyUnboundLocalVariable,PyUnresolvedReferences
     ModuleNotFoundError = ModuleNotFoundError
 except NameError:
     ModuleNotFoundError = ImportError
@@ -25,6 +26,7 @@ except (ValueError, ModuleNotFoundError):
 
     sys.path.insert(0, os.path.join(cwd, 'upnp', 'UPNP_Device'))
 
+    # noinspection PyUnresolvedReferences
     import adapter_addresses
 
 
@@ -70,10 +72,14 @@ def get_mac_address(ip):
         from ctypes.wintypes import DWORD, ULONG
         wsock32 = ctypes.windll.wsock32
 
+        # noinspection PyPep8Naming
         IPAddr = ULONG
+        # noinspection PyPep8Naming
         PULONG = POINTER(ULONG)
+        # noinspection PyPep8Naming
         INADDR_ANY = 0x00000000
 
+        # noinspection PyPep8Naming
         SendARP = ctypes.windll.Iphlpapi.SendARP
         SendARP.argtype = [IPAddr, IPAddr, PVOID, PULONG]
         SendARP.restype = DWORD
@@ -170,7 +176,7 @@ def get_mac_address(ip):
                 return str(output, 'utf-8')
 
         def _uuid_ip():
-            # noinspection PyUnresolvedReferences
+            # noinspection PyUnresolvedReferences,PyProtectedMember
             from uuid import _arp_getnode
 
             _gethostbyname = socket.gethostbyname
@@ -331,6 +337,7 @@ def send_wol(mac_address):
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
     try:
+        # noinspection PyCompatibility
         entered_ip = raw_input('Enter IP address:')
     except NameError:
         entered_ip = input('Enter IP address:')
@@ -340,6 +347,7 @@ if __name__ == '__main__':
 
     if returned_mac is not None:
         try:
+            # noinspection PyCompatibility
             answer = raw_input('Send WOL packet (Y/N)?')
         except NameError:
             answer = input('Send WOL packet (Y/N)?')

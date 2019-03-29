@@ -5,7 +5,7 @@ import logging
 import socket
 import threading
 import sys
-
+# noinspection PyCompatibility
 from . import exceptions
 from . import upnp
 from . import wake_on_lan
@@ -39,6 +39,7 @@ else:
     ]
 
 
+# noinspection PyAbstractClass
 class RemoteLegacy(upnp.UPNPTV):
     """Object for remote control connection."""
 

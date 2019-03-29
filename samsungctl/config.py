@@ -5,6 +5,7 @@ import socket
 import json
 import logging
 import uuid as _uuid
+# noinspection PyCompatibility
 from . import exceptions
 
 logger = logging.getLogger('samsungctl')

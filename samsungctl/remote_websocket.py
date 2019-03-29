@@ -22,6 +22,7 @@ URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 
 
+# noinspection PyAbstractClass
 class RemoteWebsocket(websocket_base.WebSocketBase):
     """Object for remote control connection."""
 

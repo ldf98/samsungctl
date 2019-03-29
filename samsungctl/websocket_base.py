@@ -17,6 +17,7 @@ from .utils import LogIt, LogItWithReturn
 logger = logging.getLogger(__name__)
 
 
+# noinspection PyAbstractClass
 class WebSocketBase(UPNPTV):
     """Base class for TV's with websocket connection."""
 

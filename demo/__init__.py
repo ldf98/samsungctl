@@ -51,6 +51,7 @@ class StdOut(object):
 
     def write(self, data):
         self._std.write(data)
+
         def do():
             self._ctrl.BeginTextColour((255, 255, 255))
             self._ctrl.WriteText(data)
@@ -73,6 +74,7 @@ class StdErr(object):
 
     def write(self, data):
         self._std.write(data)
+
         def do():
             self._ctrl.BeginTextColour((255, 0, 0))
             self._ctrl.WriteText(data)
@@ -226,7 +228,7 @@ class BoolPanel(wx.Panel):
 class StringPanel(wx.Panel):
 
     def __init__(self, handler, parent, name):
-        wx.Panel.__init__(self, parent, -1, style = wx.BORDER_NONE)
+        wx.Panel.__init__(self, parent, -1, style=wx.BORDER_NONE)
 
         ctrl = wx.TextCtrl(self, -1, ' ' * 20)
         label = wx.StaticText(self, -1, name + ':')

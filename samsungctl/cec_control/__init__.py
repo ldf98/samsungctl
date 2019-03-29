@@ -1935,7 +1935,7 @@ CEC_DEVICE_MAPPING = {
 }
 
 
-# noinspection PyMethodMayBeStatic
+# noinspection PyMethodMayBeStatic,PyPep8Naming
 class PyCECAdapter(object):
 
     @property

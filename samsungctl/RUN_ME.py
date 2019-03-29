@@ -5,15 +5,14 @@ import sys
 _stdout = sys.stdout
 _stderr = sys.stderr
 
-import os
-import sys
-import time
-import threading
-import traceback
-import platform
+import os # NOQA
+import sys # NOQA
+import time # NOQA
+import threading # NOQA
+import traceback # NOQA
+import platform # NOQA
+import warnings # NOQA
 
-
-import warnings
 warnings.simplefilter("ignore")
 
 if platform.system() == 'Windows':
@@ -67,6 +66,7 @@ volume and mute direct input will use CEC instead of UPNP.
 do you want to continue? (y/n)'''
 
 try:
+    # noinspection PyCompatibility
     answer = raw_input(INTRO.format(DATA_PATH))
 except NameError:
     answer = input(INTRO.format(DATA_PATH))
@@ -80,6 +80,7 @@ _stdout.flush()
 
 if not os.path.exists(DATA_PATH):
     try:
+        # noinspection PyCompatibility
         answer = raw_input(
             'The test directory\n' +
             DATA_PATH + '\n' +
@@ -125,6 +126,7 @@ SSDP_FILENAME = os.path.join(
 )
 
 
+# noinspection PyPep8Naming
 class LogHandler(object):
 
     def __init__(self):
@@ -192,6 +194,7 @@ class LogHandler(object):
             self.file = open(path, 'w')
 
 
+# noinspection PyPep8Naming
 class Logging(object):
 
     @staticmethod
@@ -267,6 +270,7 @@ def print_test(*args):
     output = ''
 
     for arg in args:
+        # noinspection PyBroadException,PyPep8
         try:
             output += str(arg) + ' '
         except:
@@ -281,6 +285,7 @@ class STD:
 
     def write(self, data):
         with WRITE_LOCK:
+            # noinspection PyBroadException,PyPep8
             try:
                 if '\n' in data:
                     for line in data.split('\n'):
@@ -333,12 +338,15 @@ print_test('REGISTERING DISCOVER CALLBACK')
 auto_discover.register_callback(discover_callback)
 
 
+# noinspection PyTypeChecker,PyUnresolvedReferences
 def run_test(config):
     logging.open(config.uuid)
 
     print_test('FOUND TV')
     print_test(config)
+    # noinspection PyBroadException,PyPep8
     try:
+        # noinspection PyCompatibility
         answer = raw_input('Run tests on TV ' + str(config.model) + '? (y/n):')
     except:
         answer = input('Run tests on TV ' + str(config.model) + '? (y/n):')
@@ -366,7 +374,9 @@ def run_test(config):
 
     config.log_level = logging.DEBUG
 
+    # noinspection PyPep8Naming
     POWER_ON = []
+    # noinspection PyPep8Naming
     POWER_OFF = []
 
     def power_callback(conf, state):
@@ -427,6 +437,7 @@ def run_test(config):
 
     paired = config.paired
 
+    # noinspection PyBroadException,PyPep8
     try:
         remote = samsungctl.Remote(config)
 
@@ -446,6 +457,7 @@ def run_test(config):
         return config.model, True
 
     def run_method(method, ret_val_names, *args):
+        # noinspection PyBroadException,PyPep8
         try:
             ret_vals = getattr(remote, method)(*args)
 
@@ -476,6 +488,7 @@ def run_test(config):
             print_test('\n')
 
     def get_property(property_name, ret_val_names):
+        # noinspection PyBroadException,PyPep8
         try:
             ret_vals = getattr(remote, property_name)
 
@@ -506,6 +519,7 @@ def run_test(config):
             return None
 
     def set_property(property_name, value):
+        # noinspection PyBroadException,PyPep8
         try:
             setattr(remote, property_name, value)
             print_test('set ' + property_name + ':  [pass]')
@@ -583,7 +597,8 @@ def run_test(config):
     get_property(
         'position_info',
         ['track', 'track_duration', 'track_metadata', 'track_uri',
-            'relative_time', 'absolute_time', 'relative_count', 'absolute_count']
+            'relative_time', 'absolute_time', 'relative_count',
+            'absolute_count']
     )
     get_property(
         'media_info',
@@ -598,7 +613,8 @@ def run_test(config):
     )
     get_property(
         'transport_info',
-        ['current_transport_state', 'current_transport_status', 'current_speed']
+        ['current_transport_state', 'current_transport_status',
+            'current_speed']
     )
     get_property(
         'transport_settings',
@@ -612,21 +628,26 @@ def run_test(config):
 
     _program_information_url = get_property('program_information_url', [])
     if _program_information_url is not None:
-        with open(os.path.join(DATA_PATH, config.uuid + '-program_information_url.' + PY_VERSION_STR + '.log'), 'w') as f:
+        pth = os.path.join(
+            DATA_PATH,
+            config.uuid + '-program_information_url.' + PY_VERSION_STR + '.log'
+        )
+        with open(pth, 'w') as f:
             f.write(repr(_program_information_url))
 
     _current_connection_ids = get_property('current_connection_ids', [])
     if _current_connection_ids is not None:
         run_method(
             'current_connection_info',
-            ['rcs_id', 'av_transport_id', 'protocol_info', 'peer_connection_manager',
-                'peer_connection_id', 'direction', 'status'],
+            ['rcs_id', 'av_transport_id', 'protocol_info',
+                'peer_connection_manager', 'peer_connection_id',
+                'direction', 'status'],
             int(_current_connection_ids[0])
         )
     else:
         print_test('current_connection_info:  [skip]')
 
-    _current_show_state, _current_theme_id, _total_theme_number = get_property(
+    get_property(
         'tv_slide_show',
         ['current_show_state', 'current_theme_id', 'total_theme_number']
     )
@@ -644,7 +665,7 @@ def run_test(config):
     else:
         print_test('set aspect_ratio:  [skip]')
 
-    _play_mode = get_property('play_mode', [])
+    get_property('play_mode', [])
 
     print_test('\nSPEAKER TESTS\n')
 
@@ -681,7 +702,7 @@ def run_test(config):
     else:
         print_test('set hts_sound_effect:  [skip]')
 
-    _speaker_channel, _speaker_lfe = get_property(
+    get_property(
         'hts_speaker_config',
         ['speaker_channel', 'speaker_lfe']
     )
@@ -823,25 +844,23 @@ def run_test(config):
 
         _channels = get_property('channels', [])
         _channel = get_property('channel', [])
-        (
-            _channel_list_version,
-            _support_channel_list,
-            _channel_list_url,
-            _channel_list_type,
-            _satellite_id,
-            _sort
-        ) = get_property(
+        get_property(
             'channel_list_url',
-            ['channel_list_version', 'support_channel_list', 'channel_list_url',
-                'channel_list_type', 'satellite_id', 'sort']
+            ['channel_list_version', 'support_channel_list',
+                'channel_list_url', 'channel_list_type', 'satellite_id',
+                'sort']
         )
 
         if _channels is not None:
             for channel in _channels:
                 print_test('channel.number: ' + str(channel.number))
                 print_test('channel.name: ' + str(channel.name))
-                print_test('channel.channel_type: ' + str(channel.channel_type))
-                # print_test('channel.is_recording: ' + str(_channel.is_recording))
+                print_test(
+                    'channel.channel_type: ' + str(channel.channel_type)
+                )
+                # print_test(
+                # 'channel.is_recording: ' + str(_channel.is_recording)
+                # )
                 print_test('channel.is_active: ' + str(channel.is_active))
                 print_test('channel content:')
                 for content in channel:
@@ -851,7 +870,9 @@ def run_test(config):
                     print_test('    genre', content.genre)
                     print_test('    series_id', content.series_id)
                     print_test('    detail_info', content.detail_info)
-                    print_test('    detail_information', content.detail_information)
+                    print_test(
+                        '    detail_information', content.detail_information
+                    )
 
         if _channel is not None:
             print_test('initial channel.number: ' + str(_channel.number))
@@ -899,18 +920,48 @@ def run_test(config):
                     print_test('       content.title:', content.title)
                     print_test('       content.app_type:', content.app_type)
                     print_test('       content.mbr_index:', content.mbr_index)
-                    print_test('       content.live_launcher_type:', content.live_launcher_type)
-                    print_test('       content.action_play_url:', content.action_play_url)
-                    print_test('       content.service_id:', content.service_id)
-                    print_test('       content.launcher_type:', content.launcher_type)
-                    print_test('       content.source_type_num:', content.source_type_num)
-                    print_test('       content.action_type:', content.action_type)
+                    print_test(
+                        '       content.live_launcher_type:',
+                        content.live_launcher_type
+                    )
+                    print_test(
+                        '       content.action_play_url:',
+                        content.action_play_url
+                    )
+                    print_test(
+                        '       content.service_id:',
+                        content.service_id
+                    )
+                    print_test(
+                        '       content.launcher_type:',
+                        content.launcher_type
+                    )
+                    print_test(
+                        '       content.source_type_num:',
+                        content.source_type_num
+                    )
+                    print_test(
+                        '       content.action_type:',
+                        content.action_type
+                    )
                     print_test('       content.app_id:', content.app_id)
-                    print_test('       content.display_from:', content.display_from)
-                    print_test('       content.display_until:', content.display_until)
-                    print_test('       content.mbr_source:', content.mbr_source)
+                    print_test(
+                        '       content.display_from:',
+                        content.display_from
+                    )
+                    print_test(
+                        '       content.display_until:',
+                        content.display_until
+                    )
+                    print_test(
+                        '       content.mbr_source:',
+                        content.mbr_source
+                    )
                     print_test('       content.id:', content.id)
-                    print_test('       content.is_playable:', content.is_playable)
+                    print_test(
+                        '       content.is_playable:',
+                        content.is_playable
+                    )
                     print_test('       content.subtitle:', content.subtitle)
                     print_test('       content.subtitle2:', content.subtitle2)
                     print_test('       content.subtitle3:', content.subtitle3)
@@ -923,11 +974,14 @@ def run_test(config):
                 print_test(app.name)
 
             try:
+                # noinspection PyCompatibility
                 answer = raw_input(
                     'Please enter one of the above application names:'
                 )
             except NameError:
-                answer = input('Please enter one of the above application names:')
+                answer = input(
+                    'Please enter one of the above application names:'
+                )
 
             answer = answer.lower()
             print()
@@ -941,9 +995,14 @@ def run_test(config):
                         sys.stdout.write('.')
                         time.sleep(1.0)
 
-                    print_test(app.name + ' is running: ' + str(app.is_running))
-                    print_test(app.name + ' is visible: ' + str(app.is_visible))
+                    print_test(
+                        app.name + ' is running: ' + str(app.is_running)
+                    )
+                    print_test(
+                        app.name + ' is visible: ' + str(app.is_visible)
+                    )
                     try:
+                        # noinspection PyCompatibility
                         answer = raw_input('Is the app running: (y/n)')
                     except NameError:
                         answer = input('Is the app running: (y/n)')
@@ -951,6 +1010,7 @@ def run_test(config):
                     print_test(answer.lower() == 'y')
                     print()
                     try:
+                        # noinspection PyCompatibility
                         answer = raw_input('Is the app visible: (y/n)')
                     except NameError:
                         answer = input('Is the app visible: (y/n)')
@@ -965,6 +1025,7 @@ def run_test(config):
                         time.sleep(1.0)
 
                     try:
+                        # noinspection PyCompatibility
                         answer = raw_input('Is the app closed?: (y/n)')
                     except NameError:
                         answer = input('Is the app closed?: (y/n)')
@@ -991,10 +1052,12 @@ def run_test(config):
                     #
                     #         try:
                     #             answer = raw_input(
-                    #                 'Please enter one of the above content items:')
+                    #                 'Please enter one of
+                    # the above content items:')
                     #         except NameError:
                     #             answer = input(
-                    #                 'Please enter one of the above content items:')
+                    #                 'Please enter one of
+                    # the above content items:')
                     #
                     #         answer = answer.lower()
                     #
@@ -1011,9 +1074,13 @@ def run_test(config):
                     #                 time.sleep(2)
                     #
                     #         try:
-                    #             answer = raw_input('Is the content playing?: (y/n)')
+                    #             answer = raw_input(
+                    # 'Is the content playing?: (y/n)'
+                    # )
                     #         except NameError:
-                    #             answer = input('Is the content playing?: (y/n)')
+                    #             answer = input(
+                    # 'Is the content playing?: (y/n)'
+                    # )
                     #
                     #         print_test(answer.lower() == 'y')
                     #
@@ -1090,7 +1157,10 @@ def run_test(config):
 
                 remote.art_mode.motion_sensitivity = new_motion_sensitivity
 
-                if remote.art_mode.motion_sensitivity == new_motion_sensitivity:
+                if (
+                    remote.art_mode.motion_sensitivity ==
+                    new_motion_sensitivity
+                ):
                     print_test('set art_mode.motion_sensitivity:  [pass]')
                     remote.art_mode.motion_sensitivity = motion_sensitivity
                 else:
@@ -1125,6 +1195,7 @@ def run_test(config):
     print_test(config)
     config.save()
 
+    # noinspection PyProtectedMember
     if remote.year > 2013 or remote._cec is not None:
 
         print_test('\nPOWER TESTS\n')
@@ -1190,6 +1261,7 @@ def run_test(config):
     print_test('CLOSING LOGS FOR TV ' + config.model)
     logging.close()
     return config.model, False
+
 
 tv_count = 0
 tests_ran = []

@@ -9,9 +9,10 @@ from .icon import Icon
 from .xmlns import strip_xmlns
 
 try:
+    # noinspection PyCompatibility
     from urlparse import urlparse
 except ImportError:
-    # noinspection PyUnresolvedReferences
+    # noinspection PyUnresolvedReferences,PyCompatibility
     from urllib.parse import urlparse
 
 import logging

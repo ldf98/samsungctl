@@ -14,6 +14,7 @@ try:
     from . import __doc__ as doc
     from . import __title__ as title
     from . import __version__ as version
+    # noinspection PyCompatibility
     from . import exceptions
     from . import Remote
     from . import key_mappings
@@ -368,6 +369,7 @@ def main():
                 for i, cfg in enumerate(configs):
                     print(i + 1, ':', cfg.model)
                 try:
+                    # noinspection PyCompatibility
                     answer = raw_input(
                         'Enter the number of the TV you want to pair with:'
                     )
@@ -389,9 +391,13 @@ def main():
         else:
             print('Unable to discover any TV\'s')
             exit_func(0)
+            # this never actually happens it is only here to make my IDE happy
+            raise RuntimeError
+    else:
+        cfg = config
 
     try:
-        with Remote(config) as remote:
+        with Remote(cfg) as remote:
             if args.interactive:
                 logging.getLogger().setLevel(logging.ERROR)
                 from . import interactive
@@ -402,7 +408,7 @@ def main():
             if (
                 args.key and
                 args.key[0] in ('KEY_POWER', 'KEY_POWERON') and
-                config.paired and
+                cfg.paired and
                 not remote.power
             ):
                 args.key.pop(0)
@@ -415,17 +421,17 @@ def main():
                     if state:
                         event.set()
 
-                auto_discover.register_callback(callback, config.uuid)
+                auto_discover.register_callback(callback, cfg.uuid)
                 remote.power = True
 
                 event.wait(10.0)
-                auto_discover.unregister_callback(callback, config.uuid)
+                auto_discover.unregister_callback(callback, cfg.uuid)
 
                 if not event.isSet():
                     print('Unable to send command TV is not powered on.')
                     exit_func(1)
 
-            if config.method == 'websocket' and args.start_app:
+            if cfg.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
                     app.run(args.app_metadata)
@@ -503,14 +509,14 @@ def main():
     except exceptions.AccessDenied:
         logging.error("Error: Access denied!")
     except exceptions.ConfigUnknownMethod:
-        logging.error("Error: Unknown method '{}'".format(config.method))
+        logging.error("Error: Unknown method '{}'".format(cfg.method))
     except socket.timeout:
         logging.error("Error: Timed out!")
     except OSError as e:
         logging.error("Error: %s", e.strerror)
 
     if args.config_file:
-        config.save()
+        cfg.save()
         exit_func(0)
 
 

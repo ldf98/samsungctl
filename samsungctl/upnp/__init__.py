@@ -13,6 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# noinspection PyBroadException,PyPep8
 try:
     from .. import cec_control
 except ImportError:
@@ -20,6 +21,7 @@ except ImportError:
 except:
     cec_control = None
 
+    # noinspection PyBroadException,PyPep8
     try:
         cec = __import__('cec')
         if cec.LIBCEC_VERSION_CURRENT != 262146:
@@ -98,9 +100,13 @@ class UPNPTV(UPNPObject):
                 config.cec.power_standby = cec_config.bShutdownOnStandby
                 config.cec.wake_avr = cec_config.bAutoWakeAVR
                 config.cec.keypress_combo = cec_config.comboKey
-                config.cec.keypress_combo_timeout = cec_config.iComboKeyTimeoutMs
+                config.cec.keypress_combo_timeout = (
+                    cec_config.iComboKeyTimeoutMs
+                )
                 config.cec.keypress_repeat = cec_config.iButtonRepeatRateMs
-                config.cec.keypress_release_delay = cec_config.iButtonReleaseDelayMs
+                config.cec.keypress_release_delay = (
+                    cec_config.iButtonReleaseDelayMs
+                )
                 config.cec.keypress_double_tap = cec_config.iDoubleTapTimeoutMs
                 config.cec.hdmi_port = cec_config.iHDMIPort
 
@@ -178,6 +184,7 @@ class UPNPTV(UPNPObject):
         if not self.is_connected:
             logger.debug('Connecting UPNP')
             logger.debug('UPNP locations: ' + str(self.config.upnp_locations))
+            # noinspection PyBroadException,PyPep8
             try:
                 self.build(self.config.host, self.config.upnp_locations)
                 self.is_connected = True
@@ -199,7 +206,11 @@ class UPNPTV(UPNPObject):
             try:
                 url = 'http://{0}:8001/api/v2/'.format(self.config.host)
                 response = requests.get(url)
-                logger.debug(self.__name__ + ' <-- ' + response.content.decode('utf-8'))
+                logger.debug(
+                    self.__name__ +
+                    ' <-- ' +
+                    response.content.decode('utf-8')
+                )
                 response = response.json()
 
                 result = {}
@@ -836,7 +847,9 @@ class UPNPTV(UPNPObject):
     @property
     def current_connection_ids(self):
         try:
-            connection_ids = self.ConnectionManager.GetCurrentConnectionIDs()[0]
+            connection_ids = (
+                self.ConnectionManager.GetCurrentConnectionIDs()[0]
+            )
             return connection_ids.split(',')
         except AttributeError:
             pass
@@ -1572,6 +1585,7 @@ class UPNPTV(UPNPObject):
                     )
 
                     active = active_id == source.id
+                    # noinspection PyProtectedMember
                     source._update(src, active)
                     sources += [source]
 

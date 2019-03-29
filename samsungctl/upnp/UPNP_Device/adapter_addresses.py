@@ -33,7 +33,7 @@ if platform.system() == "Darwin" or "BSD" in platform.system():
     # than either Linux or Windows.
     # I still keep it in `shared` since we can use
     # both structures equally.
-    # noinspection PyTypeChecker
+    # noinspection PyTypeChecker,PyPep8Naming
     class sockaddr(ctypes.Structure):
         _fields_ = [
             ('sa_len', UINT8),
@@ -41,8 +41,7 @@ if platform.system() == "Darwin" or "BSD" in platform.system():
             ('sa_data', CHAR * 14)
         ]
 
-
-    # noinspection PyTypeChecker
+    # noinspection PyTypeChecker,PyPep8Naming
     class sockaddr_in(ctypes.Structure):
         _fields_ = [
             ('sa_len', UINT8),
@@ -52,15 +51,14 @@ if platform.system() == "Darwin" or "BSD" in platform.system():
             ('sin_zero', CHAR * 8)
         ]
 else:
-    # noinspection PyTypeChecker
+    # noinspection PyTypeChecker,PyPep8Naming
     class sockaddr(ctypes.Structure):
         _fields_ = [
             ('sa_familiy', USHORT),
             ('sa_data', CHAR * 14)
         ]
 
-
-    # noinspection PyTypeChecker
+    # noinspection PyTypeChecker,PyPep8Naming
     class sockaddr_in(ctypes.Structure):
         _fields_ = [
             ('sin_familiy', SHORT),
@@ -108,7 +106,7 @@ if platform.system() == 'Windows':
     ERROR_BUFFER_OVERFLOW = 111
     AF_UNSPEC = 0
 
-
+    # noinspection PyTypeChecker,PyPep8Naming
     class SOCKET_ADDRESS(ctypes.Structure):
         _fields_ = [
             ('lpSockaddr', POINTER(sockaddr)),
@@ -116,6 +114,7 @@ if platform.system() == 'Windows':
         ]
 
 
+    # noinspection PyTypeChecker,PyPep8Naming
     class IP_ADAPTER_UNICAST_ADDRESS(ctypes.Structure):
         pass
 
@@ -133,7 +132,7 @@ if platform.system() == 'Windows':
         ('OnLinkPrefixLength', UINT8),
     ]
 
-
+    # noinspection PyTypeChecker,PyPep8Naming
     class IP_ADAPTER_ADDRESSES(ctypes.Structure):
         pass
 
@@ -210,6 +209,7 @@ else:
 
     libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
 
+    # noinspection PyTypeChecker,PyPep8Naming
     class ifaddrs(ctypes.Structure):
         pass
 

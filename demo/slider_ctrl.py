@@ -19,6 +19,7 @@
 # ------------------------- BEGIN SLIDER CODE  ---------------------
 
 import wx
+# noinspection PyCompatibility
 from cStringIO import StringIO
 from PIL import Image
 

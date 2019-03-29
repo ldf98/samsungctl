@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import six
+# noinspection PyCompatibility
 from . import exceptions
 from .remote_legacy import RemoteLegacy
 from .remote_websocket import RemoteWebsocket

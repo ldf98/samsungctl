@@ -126,6 +126,7 @@ class URL(object):
         return "{0}/ws/apps/CloudPINPage".format(self.full_url)
 
 
+# noinspection PyAbstractClass
 class RemoteEncrypted(websocket_base.WebSocketBase):
 
     @LogIt
