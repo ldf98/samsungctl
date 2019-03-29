@@ -253,15 +253,17 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         }
         """
         if value and not self.power:
-            if self.mac_address:
-                self._power_event.clear()
+            if self.open():
+                self._send_key('KEY_POWERON')
 
+            elif self.mac_address:
+                self._power_event.clear()
                 while not self._power_event.isSet():
                     wake_on_lan.send_wol(self.mac_address)
+                    self.open()
                     self._power_event.wait(2.0)
 
                 self._power_event.clear()
-
             else:
                 logging.error(
                     self.config.host +
@@ -269,11 +271,10 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 )
 
         elif not value and self.power:
-            if self._cec is not None:
-                self._cec.tv.power = False
-            else:
-                # self._send_key('KEY_POWER')
-                self._send_key('KEY_POWEROFF')
+            self._power_event.clear()
+            self._send_key('KEY_POWEROFF')
+            self._send_key('KEY_POWER')
+            self._power_event.wait(20)
 
     def _send_key(self, key, cmd='Click'):
         """

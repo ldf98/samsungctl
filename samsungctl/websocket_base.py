@@ -154,8 +154,7 @@ class WebSocketBase(UPNPTV):
         self.sock = None
         self._thread = None
         self.disconnect()
-        if not self._loop_event.isSet():
-            self.open()
+        self._power_event.set()
 
     @property
     @LogItWithReturn
@@ -182,8 +181,6 @@ class WebSocketBase(UPNPTV):
             if value and not self.power:
                 if self._cec is not None:
                     self._cec.tv.power = True
-                elif self.open():
-                    self._send_key('KEY_POWERON')
                 else:
                     self._set_power(value)
             elif not value and self.power:

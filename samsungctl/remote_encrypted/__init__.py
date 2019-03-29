@@ -257,7 +257,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
             time.sleep(0.35)
-            self._power_event.seet()
+            self._power_event.set()
 
             return True
 
@@ -467,6 +467,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
                 while not self._power_event.isSet():
                     wake_on_lan.send_wol(self.mac_address)
+                    self.open()
                     self._power_event.wait(2.0)
                 wake_on_lan.send_wol(self.mac_address)
 
@@ -478,10 +479,9 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 )
 
         elif not value and self.power:
-            if self._cec is not None:
-                self._cec.tv.power = False
-            else:
-                self._send_key('KEY_POWEROFF')
+            self._power_event.clear()
+            self._send_key('KEY_POWEROFF')
+            self._power_event.wait(20)
 
     def on_message(self, data):
         # noinspection PyPep8,PyBroadException
