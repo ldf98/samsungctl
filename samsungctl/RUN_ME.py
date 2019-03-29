@@ -154,7 +154,7 @@ class LogHandler(object):
                     self.file.write(msg + '\n')
                     self.file.flush()
                 except UnicodeEncodeError:
-                    self.file.write(msg.decode('utf-8') + '\n')
+                    self.file.write(msg.encode('utf-8') + '\n')
                     self.file.flush()
                 except (TypeError, ValueError):
                     self.file.write(str(msg) + '\n')
