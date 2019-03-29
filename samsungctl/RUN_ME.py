@@ -156,7 +156,8 @@ class LogHandler(object):
                     self.file.write(msg + '\n')
                     self.file.flush()
                 except UnicodeEncodeError:
-                    self.file.write(msg.encode('utf-8') + '\n')
+                    self.file.write(str(msg.encode('utf-8')))
+                    self.file.write('\n')
                     self.file.flush()
                 except (TypeError, ValueError):
                     self.file.write(str(msg) + '\n')
@@ -296,7 +297,12 @@ class STD:
             except:
                 pass
 
-            self._std.write(data)
+            try:
+                self._std.write(data)
+                self._std.flush()
+            except UnicodeEncodeError:
+                self._std.write(str(data.encode('utf-8')))
+                self._std.flush()
             self._std.flush()
 
     def __getattr__(self, item):
