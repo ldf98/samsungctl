@@ -1222,7 +1222,7 @@ def run_test(config):
                 break
 
         power_event.wait(10)
-        
+
         if remote.power:
             print_test('power off test: [fail]')
             print_test('power on test: [skip]')

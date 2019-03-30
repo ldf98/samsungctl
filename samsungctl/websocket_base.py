@@ -190,8 +190,10 @@ class WebSocketBase(UPNPTV):
                 else:
                     self._set_power(value)
             elif not value and self.sock is not None:
-                self._set_power(value)
-                self._close_connection()
+                if self._cec is not None:
+                    self._cec.tv.power = False
+                else:
+                    self._set_power(value)
 
     def _set_power(self, value):
         raise NotImplementedError
@@ -199,7 +201,6 @@ class WebSocketBase(UPNPTV):
     @LogItWithReturn
     def control(self, key, *args, **kwargs):
         with self._auth_lock:
-
             if key == 'KEY_POWERON':
                 if self.is_powering_on:
                     return True
@@ -254,7 +255,6 @@ class WebSocketBase(UPNPTV):
 
     def open(self):
         raise NotImplementedError
-
     def __enter__(self):
         # noinspection PyUnresolvedReferences
         """

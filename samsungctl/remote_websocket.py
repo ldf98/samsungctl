@@ -224,11 +224,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             return False
 
         with self._send_lock:
-            if self.is_powering_off:
-                self._send_key('KEY_POWERON')
-                self.is_powering_off = False
-            if self.is_powering_on:
-                return False
 
             payload = dict(
                 method=method,
@@ -260,7 +255,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             }
         }
         """
-        if value and not self.power:
+        if value and self.sock is None:
 
             def do(powering_off):
                 if powering_off and self.open():
@@ -290,7 +285,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             self.is_powering_on = True
             self._power_thread.start()
 
-        elif not value and self.power:
+        elif not value and self.sock is not None:
             def do():
                 if self.config.power_off_key is None:
                     logger.info(
@@ -318,7 +313,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                             break
 
                     if not self._power_event.isSet():
-
                         self._send_key('KEY_POWER')
                         while not self._power_event.isSet():
                             self._power_event.wait(12.0)
