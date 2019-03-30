@@ -40,6 +40,9 @@ class WebSocketBase(UPNPTV):
         self._registered_callbacks = []
         self._thread = None
         self._art_mode = None
+        self.is_powering_off = False
+        self.is_powering_on = False
+        self._power_thread = None
 
         UPNPTV.__init__(self, config)
 
@@ -56,6 +59,9 @@ class WebSocketBase(UPNPTV):
                 return
 
             if power:
+                if self.is_powering_off:
+                    return
+
                 if not self._thread:
                     self.config.copy(config)
                     self.open()
@@ -64,9 +70,10 @@ class WebSocketBase(UPNPTV):
                     self.connect()
 
             elif not power and self._thread:
+                if self.is_powering_on:
+                    return
+
                 self._close_connection()
-                if self._art_mode is not None:
-                    self._art_mode.close()
 
     def _send_key(self, *args, **kwargs):
         raise NotImplementedError
@@ -116,7 +123,6 @@ class WebSocketBase(UPNPTV):
         with self._auth_lock:
             self._close_connection()
             auto_discover.unregister_callback(self._connect, self.config.uuid)
-            self._power_event.clear()
 
     def loop(self):
         self._loop_event.clear()
@@ -154,7 +160,6 @@ class WebSocketBase(UPNPTV):
         self.sock = None
         self._thread = None
         self.disconnect()
-        self._power_event.set()
 
     @property
     @LogItWithReturn
@@ -178,16 +183,14 @@ class WebSocketBase(UPNPTV):
     @LogIt
     def power(self, value):
         with self._auth_lock:
-            if value and not self.power:
+            if value and self.sock is None:
                 if self._cec is not None:
                     self._cec.tv.power = True
                 else:
                     self._set_power(value)
-            elif not value and self.power:
+            elif not value and self.sock is not None:
                 self._set_power(value)
                 self._close_connection()
-                event = threading.Event()
-                event.wait(3.0)
 
     def _set_power(self, value):
         raise NotImplementedError
@@ -300,11 +303,6 @@ class AuxWebsocketBase(object):
 
             else:
                 if data:
-                    logger.debug(
-                        self.config.host +
-                        ' --> ' +
-                        data
-                    )
                     self.on_message(data)
                 else:
                     self._loop_event.wait(0.1)
@@ -317,8 +315,7 @@ class AuxWebsocketBase(object):
 
         self.sock = None
         self._thread = None
-        if not self._loop_event.isSet():
-            self.open()
+        self._loop_event.clear()
 
     def on_message(self, _):
         raise NotImplementedError
@@ -384,12 +381,12 @@ class AuxWebsocketBase(object):
 
         # noinspection PyPep8,PyBroadException
         try:
-            self.sock = websocket.create_connection(url, sslopt=sslopt)
+            sock = websocket.create_connection(url, sslopt=sslopt)
         except:
             self.close()
             return False
 
-        auth_event.wait(10.0)
+        auth_event.wait(20.0)
 
         self.unregister_receive_callback(
             auth_callback,
@@ -398,6 +395,7 @@ class AuxWebsocketBase(object):
         )
 
         if auth_event.isSet():
+            self.sock = sock
             return True
 
         self.close()
@@ -413,10 +411,6 @@ class AuxWebsocketBase(object):
     @LogIt
     def send(self, method, **params):
         if self.sock is None:
-            logger.info(
-                self.config.host +
-                ' -- is the TV on?!?'
-            )
             return False
 
         with self._send_lock:
@@ -434,5 +428,7 @@ class AuxWebsocketBase(object):
             try:
                 self.sock.send(json.dumps(payload))
                 self._send_event.wait(0.3)
+                return True
             except:
-                pass
+                self.close()
+                return False

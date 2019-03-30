@@ -198,6 +198,7 @@ class Config(object):
         model=None,
         app_id=None,
         cec=None,
+        power_off_key=None,
         **_
     ):
 
@@ -224,6 +225,7 @@ class Config(object):
         self.model = model
         self._mac = mac
         self._display_name = display_name
+        self.power_off_key = power_off_key
 
         if cec is not None:
             cec = CEC(**cec)
@@ -346,6 +348,7 @@ class Config(object):
                 model=None,
                 display_name=None,
                 cec=None,
+                power_off_key=None,
                 **_
             ):
                 if os.path.isdir(pth):
@@ -377,6 +380,7 @@ class Config(object):
                     model=model,
                     display_name=display_name,
                     cec=cec,
+                    power_off_key=power_off_key
                 )
                 self.path = cfg_path
 
@@ -431,6 +435,7 @@ class Config(object):
         yield 'app_id', self.app_id
         yield 'model', self.model
         yield 'display_name', self._display_name
+        yield 'power_off_key', self.power_off_key
         yield 'cec', self.cec
 
     def __str__(self):
@@ -470,6 +475,7 @@ model = {model}
 app_id = {app_id}
 uuid = {uuid}
 display_name = {display_name}
+power_off_key = {power_off_key}
 // ****** CEC MUST REMAIN AT THE END OF THE FILE ******'''
 
 CEC_NONE_TEMPLATE = '''

@@ -26,12 +26,16 @@ class ArtMode(AuxWebsocketBase):
     def on_message(self, message):
         response = json.loads(message)
 
-        print(json.dumps(response, indent=4))
+        logger.debug(
+            self.config.host,
+            ' <---- art_mode: ' +
+            json.dumps(response, indent=4)
+        )
 
         for callback, key, data in self._registered_callbacks[:]:
             if key in response and (data is None or response[key] == data):
-                callback(response)
                 self._registered_callbacks.remove([callback, key, data])
+                callback(response)
                 break
         else:
             if 'params' in response and 'event' in response['params']:
@@ -50,10 +54,10 @@ class ArtMode(AuxWebsocketBase):
 
                         for callback, key, _ in self._registered_callbacks[:]:
                             if key == data['event']:
-                                callback(data)
                                 self._registered_callbacks.remove(
                                     [callback, key, None]
                                 )
+                                callback(data)
                                 break
 
     def _build_art_app_request(self, request, value=None):
@@ -146,9 +150,10 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        self.send('ms.channel.emit', **params)
+        sent = self.send('ms.channel.emit', **params)
 
-        event.wait(2.0)
+        if sent:
+            event.wait(2.0)
 
         self.unregister_receive_callback(
             motion_timer_callback,
@@ -156,13 +161,14 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        if not event.isSet():
-            logging.debug(
-                self.config.host +
-                ' -- (get_motion_timer) timed out'
-            )
-        else:
-            return response[0]
+        if sent:
+            if not event.isSet():
+                logging.debug(
+                    self.config.host +
+                    ' -- (get_motion_timer) timed out'
+                )
+            else:
+                return response[0]
 
     @motion_timer.setter
     def motion_timer(self, value):
@@ -255,9 +261,10 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        self.send('ms.channel.emit', **params)
+        sent = self.send('ms.channel.emit', **params)
 
-        event.wait(2.0)
+        if sent:
+            event.wait(2.0)
 
         self.unregister_receive_callback(
             motion_sensitivity_callback,
@@ -265,13 +272,14 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        if not event.isSet():
-            logging.debug(
-                self.config.host +
-                ' -- (get_motion_sensitivity) timed out'
-            )
-        else:
-            return response[0]
+        if sent:
+            if not event.isSet():
+                logging.debug(
+                    self.config.host +
+                    ' -- (get_motion_sensitivity) timed out'
+                )
+            else:
+                return response[0]
 
     @motion_sensitivity.setter
     def motion_sensitivity(self, value):
@@ -361,9 +369,10 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        self.send('ms.channel.emit', **params)
+        sent = self.send('ms.channel.emit', **params)
 
-        event.wait(2.0)
+        if sent:
+            event.wait(2.0)
 
         self.unregister_receive_callback(
             color_temperature_callback,
@@ -371,13 +380,14 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        if not event.isSet():
-            logging.debug(
-                self.config.host +
-                ' -- (get_color_temperature) timed out'
-            )
-        else:
-            return response[0]
+        if sent:
+            if not event.isSet():
+                logging.debug(
+                    self.config.host +
+                    ' -- (get_color_temperature) timed out'
+                )
+            else:
+                return response[0]
 
     @color_temperature.setter
     def color_temperature(self, value):
@@ -467,9 +477,9 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        self.send('ms.channel.emit', **params)
-
-        event.wait(2.0)
+        sent = self.send('ms.channel.emit', **params)
+        if sent:
+            event.wait(2.0)
 
         self.unregister_receive_callback(
             brightness_callback,
@@ -477,10 +487,11 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        if not event.isSet():
-            logger.debug('get_brightness: timed out')
-        else:
-            return response[0]
+        if sent:
+            if not event.isSet():
+                logger.debug('get_brightness: timed out')
+            else:
+                return response[0]
 
     @brightness.setter
     def brightness(self, value):
@@ -566,9 +577,9 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        self.send('ms.channel.emit', **params)
-
-        event.wait(2.0)
+        sent = self.send('ms.channel.emit', **params)
+        if sent:
+            event.wait(2.0)
 
         self.unregister_receive_callback(
             brightness_sensor_callback,
@@ -576,13 +587,14 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        if not event.isSet():
-            logging.debug(
-                self.config.host +
-                ' -- (get_brightness_sensor_setting) timed out'
-            )
-        else:
-            return response[0]
+        if sent:
+            if not event.isSet():
+                logging.debug(
+                    self.config.host +
+                    ' -- (get_brightness_sensor_setting) timed out'
+                )
+            else:
+                return response[0]
 
     @brightness_sensor.setter
     def brightness_sensor(self, value):
@@ -666,9 +678,10 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        self.send('ms.channel.emit', **params)
+        sent = self.send('ms.channel.emit', **params)
 
-        event.wait(2.0)
+        if sent:
+            event.wait(3.0)
 
         self.unregister_receive_callback(
             artmode_callback,
@@ -676,13 +689,15 @@ class ArtMode(AuxWebsocketBase):
             None
         )
 
-        if not event.isSet():
-            logger.debug(
-                self.config.host +
-                ' -- (get_artmode_status) timed out'
-            )
-        else:
-            return response[0]
+        if sent:
+            if not event.isSet():
+                logger.debug(
+                    self.config.host +
+                    ' -- (get_artmode_status) timed out'
+                )
+            else:
+                return response[0]
+
 
     @artmode.setter
     def artmode(self, value):

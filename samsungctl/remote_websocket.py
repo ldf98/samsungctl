@@ -66,7 +66,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
     def open(self):
         with self._auth_lock:
             if self.sock is not None:
-                self._power_event.set()
                 return True
 
             if self.config.port == 8002:
@@ -151,8 +150,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             try:
                 self.sock = websocket.create_connection(url, sslopt=sslopt)
             except:
-                self._power_event.set()
                 if not self.config.paired:
+                    self._power_event.set()
                     raise RuntimeError('Unable to connect to the TV')
 
                 return False
@@ -175,6 +174,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             if auth_event.isSet() and not unauth_event.is_set():
                 # self._app_websocket = application.AppWebsocket(self.config)
+                self.is_powering_off = False
+                self.is_powering_on = False
+                self._power_event.set()
                 return True
 
             self._close_connection()
@@ -253,28 +255,129 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         }
         """
         if value and not self.power:
-            if self.open():
-                self._send_key('KEY_POWERON')
 
-            elif self.mac_address:
-                self._power_event.clear()
-                while not self._power_event.isSet():
-                    wake_on_lan.send_wol(self.mac_address)
-                    self.open()
-                    self._power_event.wait(2.0)
+            def do(powering_off):
+                if powering_off and self.open():
+                    self._send_key('KEY_POWERON')
+                elif self.mac_address:
+                    while not self._power_event.isSet():
+                        wake_on_lan.send_wol(self.mac_address)
+                        self._power_event.wait(2.0)
+                else:
+                    logging.error(
+                        self.config.host +
+                        ' -- unable to get TV\'s mac address'
+                    )
+                    self._powering_on = False
 
-                self._power_event.clear()
-            else:
-                logging.error(
-                    self.config.host +
-                    ' -- unable to get TV\'s mac address'
-                )
+                self._power_thread = None
+
+            if self._power_thread is not None:
+                self._power_event.set()
+                self._power_thread.join()
+
+            p_off = self.is_powering_off
+            self._power_event.clear()
+            self._power_thread = threading.Thread(target=do, args=(p_off,))
+            self._power_thread.daemon = True
+            self.is_powering_off = False
+            self.is_powering_on = True
+            self._power_thread.start()
 
         elif not value and self.power:
+            def do():
+                if self.config.power_off_key is None:
+                    logger.info(
+                        self.config.host +
+                        ' --- power off calibration needs to be run. ' +
+                        'if successful this will only run a single\n' +
+                        'time and subsequent calls to power off the\n' +
+                        'TV will be much faster.\n\n' +
+                        '   ****This may over 2 minutes to complete.****\n'
+                        'During this time you may see no activity taking place'
+                    )
+
+                    self._send_key('KEY_POWEROFF')
+
+                    count = 0
+                    while not self._power_event.isSet():
+                        self._power_event.wait(12.0)
+                        count += 1
+                        logger.info(
+                            self.config.host +
+                            ' --- power calibration is ' +
+                            '{0}% complete'.format(count * 10)
+                        )
+                        if count == 5:
+                            break
+
+                    if not self._power_event.isSet():
+
+                        self._send_key('KEY_POWER')
+                        while not self._power_event.isSet():
+                            self._power_event.wait(12.0)
+                            count += 1
+                            if count == 10:
+                                break
+                            logger.info(
+                                self.config.host +
+                                ' --- power calibration is ' +
+                                '{0}% complete'.format(count * 10)
+                            )
+
+                        if self._power_event.isSet():
+                            self.config.power_off_key = 'KEY_POWER'
+                    else:
+                        self.config.power_off_key = 'KEY_POWEROFF'
+
+                    logger.info(
+                        self.config.host +
+                        ' --- power calibration is 100% complete'
+                    )
+                    if self.config.power_off_key is None:
+                        logger.info(
+                            self.config.host +
+                            ' --- power off calibration failed'
+                        )
+                    else:
+                        logger.info(
+                            self.config.host +
+                            ' --- power off calibration success, {0}'.format(
+                                self.config.power_off_key
+                            )
+                        )
+
+                        if self.config.path:
+                            self.config.save()
+                else:
+                    self._send_key(self.config.power_off_key)
+                    self._power_event.wait(60.0)
+
+                if not self._power_event.isSet():
+                    logger.debug(
+                        self.config.host + ' --- Failed to power off the TV'
+                    )
+
+                    self.is_powering_off = False
+
+                self._power_thread = None
+
+            if self._power_thread is not None:
+                self._power_event.set()
+                self._power_thread.join()
+
             self._power_event.clear()
-            self._send_key('KEY_POWEROFF')
-            self._send_key('KEY_POWER')
-            self._power_event.wait(20)
+            self._power_thread = threading.Thread(target=do)
+            self._power_thread.daemon = True
+            self.is_powering_on = False
+            self.is_powering_off = True
+            self._power_thread.start()
+
+    def _close_connection(self):
+        if self._art_mode is not None:
+            self._art_mode.close()
+
+        websocket_base.WebSocketBase._close_connection(self)
 
     def _send_key(self, key, cmd='Click'):
         """
