@@ -151,6 +151,7 @@ class WebSocketBase(UPNPTV):
                     else:
                         self._loop_event.wait(0.1)
 
+        logger.debug(self.config.host + ' --- websocket loop closing')
         # noinspection PyPep8,PyBroadException
         try:
             self.sock.close()

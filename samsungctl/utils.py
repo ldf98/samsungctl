@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
+
 import warnings
 import logging
 import inspect
+import threading
 import traceback
 import sys
 import time
@@ -11,8 +14,107 @@ from functools import update_wrapper
 PY3 = sys.version_info[0] > 2
 logger = logging.getLogger('samsungctl')
 
+LOGGING_TEMPLATE = '''\
+[DEBUG][{thread_name}[{thread_id}]]
+src: {calling_obj} [{calling_filename}:{calling_line_no}]
+dst: {called_obj} [{called_filename}:{called_line_no}]
+{msg}\
+'''
 
-# noinspection PyPep8Naming
+DEPRECATED_TEMPLATE = '''{object_type}
+src: {calling_obj} [{calling_filename}:{calling_line_no}]
+dst: {called_obj}
+{msg}\
+'''
+
+
+def _get_line_and_file(stacklevel=2):
+    try:
+        caller = sys._getframe(stacklevel)
+    except ValueError:
+        glbs = sys.__dict__
+        line_no = 1
+    else:
+        glbs = caller.f_globals
+        line_no = caller.f_lineno
+    if '__name__' in glbs:
+        module = glbs['__name__']
+    else:
+        module = "<string>"
+    filename = glbs.get('__file__')
+    if filename:
+        fnl = filename.lower()
+        if fnl.endswith((".pyc", ".pyo")):
+            filename = filename[:-1]
+    else:
+        if module == "__main__":
+            try:
+                filename = sys.argv[0]
+            except AttributeError:
+                # embedded interpreters don't have sys.argv, see bug #839151
+                filename = '__main__'
+        if not filename:
+            filename = module
+
+    return filename, int(line_no)
+
+
+def _get_stack(frame):
+    frames = []
+    while frame:
+        frames.append(frame)
+        frame = frame.f_back
+    return frames
+
+
+def _caller_name(start=2):
+    stack = _get_stack(sys._getframe(1))
+
+    def get_name(s):
+        if len(stack) < s + 1:
+            return []
+        parent_frame = stack[s]
+
+        name = []
+        module = inspect.getmodule(parent_frame)
+        if module:
+            name.append(module.__name__)
+
+        codename = parent_frame.f_code.co_name
+        if codename not in ('<module>', '__main__'):  # top level usually
+            frame = parent_frame
+            if 'self' in frame.f_locals:
+                name.append(frame.f_locals['self'].__class__.__name__)
+                name.append(codename)  # function or a method
+            else:
+                name.append(codename)  # function or a method
+                frame = frame.f_back
+                while codename in frame.f_locals:
+                    codename = frame.f_code.co_name
+                    if codename in ('<module>', '__main__'):
+                        break
+                    name.append(codename)
+                    frame = frame.f_back
+
+        del parent_frame
+        return name
+
+    res = get_name(start)
+
+    if not res or 'pydev_run_in_console' in res:
+        res = get_name(start - 1)
+
+    if res == ['<module>'] or res == ['__main__']:
+        res = get_name(start - 1)
+        if 'log_it' in res:
+            res = get_name(start)
+
+    if 'wrapper' in res:
+        res = get_name(start + 1) + get_name(start - 1)[-1:]
+
+    return ".".join(res)
+
+
 def LogIt(func):
     if PY3:
         if func.__code__.co_flags & 0x20:
@@ -22,16 +124,47 @@ def LogIt(func):
             return func
 
     lgr = logging.getLogger(func.__module__)
+    func_name = _caller_name(1)
+    if func_name:
+        func_name += '.' + func.__name__
+    else:
+        func_name = func.__module__ + '.' + func.__name__
+
+    called_filename, called_line_no = _get_line_and_file(2)
+    called_line_no += 1
 
     def wrapper(*args, **kwargs):
-        func_name, arg_string = _func_arg_string(func, args, kwargs)
-        lgr.debug(func_name + arg_string)
+        if lgr.getEffectiveLevel() == logging.DEBUG:
+            calling_filename, calling_line_no = _get_line_and_file(2)
+            thread = threading.current_thread()
+            arg_string = _func_arg_string(func, args, kwargs)
+            calling_obj = _caller_name()
+            msg = LOGGING_TEMPLATE.format(
+                thread_name=thread.getName(),
+                thread_id=thread.ident,
+                calling_obj=calling_obj,
+                calling_filename=calling_filename,
+                calling_line_no=calling_line_no,
+                called_obj=func_name,
+                called_filename=called_filename,
+                called_line_no=called_line_no,
+                msg=func_name + arg_string
+            )
+
+            # calling_obj
+            # calling_filename
+            # calling_line_no
+            # called_obg
+            # called_filename
+            # called_line_no
+            # object_type
+            lgr.debug(msg)
+
         return func(*args, **kwargs)
 
     return update_wrapper(wrapper, func)
 
 
-# noinspection PyPep8Naming
 def LogItWithReturn(func):
     if PY3:
         if func.__code__.co_flags & 0x20:
@@ -41,20 +174,45 @@ def LogItWithReturn(func):
             return func
 
     lgr = logging.getLogger(func.__module__)
+    func_name = _caller_name(1)
+    if func_name:
+        func_name += '.' + func.__name__
+    else:
+        func_name = func.__module__ + '.' + func.__name__
+
+    called_filename, called_line_no = _get_line_and_file(2)
+    called_line_no += 1
 
     def wrapper(*args, **kwargs):
-        func_name, arg_string = _func_arg_string(func, args, kwargs)
-        lgr.debug(func_name + arg_string)
+        if lgr.getEffectiveLevel() == logging.DEBUG:
+            calling_filename, calling_line_no = _get_line_and_file(2)
+            thread = threading.current_thread()
+            arg_string = _func_arg_string(func, args, kwargs)
+            calling_obj = _caller_name()
+            msg = LOGGING_TEMPLATE.format(
+                thread_name=thread.getName(),
+                thread_id=thread.ident,
+                calling_obj=calling_obj,
+                calling_filename=calling_filename,
+                calling_line_no=calling_line_no,
+                called_obj=func_name,
+                called_filename=called_filename,
+                called_line_no=called_line_no,
+                msg=''
+            )
+            lgr.debug(msg + func_name + arg_string)
 
-        result = func(*args, **kwargs)
-        lgr.debug('{0} => {1}'.format(func_name, repr(result)))
+            result = func(*args, **kwargs)
+            if lgr.getEffectiveLevel() == logging.DEBUG:
+                lgr.debug(msg + '{0} => {1}'.format(func_name, repr(result)))
+        else:
+            result = func(*args, **kwargs)
 
         return result
 
     return update_wrapper(wrapper, func)
 
 
-# noinspection PyPep8Naming
 def LogItWithTimer(func):
 
     if PY3:
@@ -64,45 +222,71 @@ def LogItWithTimer(func):
         if func.func_code.co_flags & 0x20:
             return func
 
+    lgr = logging.getLogger(func.__module__)
+
+    func_name = _caller_name(1)
+    if func_name:
+        func_name += '.' + func.__name__
+    else:
+        func_name = func.__module__ + '.' + func.__name__
+
+    called_filename, called_line_no = _get_line_and_file(2)
+    called_line_no += 1
+
     def wrapper(*args, **kwargs):
-        lgr = logging.getLogger(func.__module__)
-
-        func_name, arg_string = _func_arg_string(func, args, kwargs)
-        lgr.debug(func_name + arg_string)
-
-        start = time.time()
-        result = func(*args, **kwargs)
-        stop = time.time()
-
-        resolutions = (
-            (1, 'sec'),
-            (1000, 'ms'),
-            (1000000, u'us'),
-            (1000000000, 'ns'),
-        )
-
-        for divider, suffix in resolutions:
-            duration = int(round((stop - start) / divider))
-            if duration > 0:
-                break
-        else:
-            duration = 'unknown'
-            suffix = ''
-
-        lgr.debug(
-            'duration: {0} {1} - {2} => {3}'.format(
-                duration,
-                suffix,
-                func_name,
-                repr(result)
+        if lgr.getEffectiveLevel() == logging.DEBUG:
+            calling_filename, calling_line_no = _get_line_and_file(2)
+            thread = threading.current_thread()
+            arg_string = _func_arg_string(func, args, kwargs)
+            calling_obj = _caller_name()
+            msg = LOGGING_TEMPLATE.format(
+                thread_name=thread.getName(),
+                thread_id=thread.ident,
+                calling_obj=calling_obj,
+                calling_filename=calling_filename,
+                calling_line_no=calling_line_no,
+                called_obj=func_name,
+                called_filename=called_filename,
+                called_line_no=called_line_no,
+                msg=''
             )
-        )
+            lgr.debug(msg + func_name + arg_string)
+
+            start = time.time()
+            result = func(*args, **kwargs)
+            stop = time.time()
+
+            resolutions = (
+                (1, 'sec'),
+                (1000, 'ms'),
+                (1000000, u'us'),
+                (1000000000, 'ns'),
+            )
+
+            for divider, suffix in resolutions:
+                duration = int(round((stop - start) / divider))
+                if duration > 0:
+                    break
+            else:
+                duration = 'unknown'
+                suffix = ''
+
+            lgr.debug(msg + 'duration: {0} {1} - {2} => {3}'.format(
+                    duration,
+                    suffix,
+                    func_name,
+                    repr(result)
+                )
+            )
+        else:
+            result = func(*args, **kwargs)
+
+        return result
 
     return update_wrapper(wrapper, func)
 
 
 def _func_arg_string(func, args, kwargs):
-    class_name = ""
 
     if PY3:
         # noinspection PyUnresolvedReferences
@@ -113,55 +297,10 @@ def _func_arg_string(func, args, kwargs):
     start = 0
     if arg_names:
         if arg_names[0] == "self":
-            class_name = args[0].__class__.__name__ + "."
             start = 1
 
     res = []
     append = res.append
-
-    stack = inspect.stack()
-
-    func_path = []
-
-    # iterate over the stack to check for functions being
-    # nested inside of functions or methods.
-
-    for item in stack:
-        # this is where we want to stop so we do not include any of the
-        # internal path information.
-
-        if PY3:
-            if item.function == '_func_arg_string':
-                break
-            if item.function == 'wrapper':
-                continue
-            # this is where the check gets done to see if a function
-            # is nested inside of a method. and if it is this is
-            # where we obtain the class name
-            if 'self' in item.frame.f_locals:
-                func_path.insert(
-                    0,
-                    item.frame.f_locals['self'].__class__.__name__
-                )
-
-            func_path.insert(0, item.function)
-        else:
-            if item[3] == '_func_arg_string':
-                break
-            if item[3] == 'wrapper':
-                continue
-            # this is where the check gets done to see if a function
-            # is nested inside of a method. and if it is this is
-            # where we obtain the class name
-            if 'self' in item[0].f_locals:
-                func_path.insert(
-                    0,
-                    item[0].f_locals['self'].__class__.__name__
-                )
-
-            func_path.insert(0, item[3])
-
-    func_path += [func.__name__]
 
     for key, value in list(zip(arg_names, args))[start:]:
         append(str(key) + "=" + repr(value).replace('.<locals>.', '.'))
@@ -169,41 +308,37 @@ def _func_arg_string(func, args, kwargs):
     for key, value in kwargs.items():
         append(str(key) + "=" + repr(value).replace('.<locals>.', '.'))
 
-    f_name = class_name + '.'.join(func_path)
-
-    return f_name, "(" + ", ".join(res) + ")"
+    return "(" + ", ".join(res) + ")"
 
 
-# noinspection PyPep8Naming
-def Deprecated(obj, msg=None):
+def Deprecated(obj, msg=''):
 
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted
     when the function is used."""
+
+    func_name = _caller_name(1)
 
     if isinstance(obj, property):
         class FSetWrapper(object):
 
             def __init__(self, fset_object):
                 self._fset_object = fset_object
+                if func_name:
+                    self._f_name = func_name + '.' + fset_object.__name__
+                else:
+                    self._f_name = (
+                        fset_object.__module__ + '.' + fset_object.__name__
+                    )
 
             def __call__(self, *args, **kwargs):
-
                 # turn off filter
                 warnings.simplefilter('always', DeprecationWarning)
-                f_name = _func_arg_string(self._fset_object, args, kwargs)[0]
 
-                if msg is None:
-                    message = "deprecated set property [{0}.{1}].".format(
-                        self._fset_object.__module__,
-                        f_name
-                    )
-                else:
-                    message = "deprecated set property [{0}.{1}].\n{2}".format(
-                        self._fset_object.__module__,
-                        f_name,
-                        msg
-                    )
+                message = "deprecated set property [{0}].\n{1}".format(
+                    self._f_name,
+                    msg
+                )
 
                 warnings.warn(
                     message,
@@ -220,24 +355,21 @@ def Deprecated(obj, msg=None):
 
             def __init__(self, fget_object):
                 self._fget_object = fget_object
+                if func_name:
+                    self._f_name = func_name + '.' + fget_object.__name__
+                else:
+                    self._f_name = (
+                        fget_object.__module__ + '.' + fget_object.__name__
+                    )
 
             def __call__(self, *args, **kwargs):
-
                 # turn off filter
                 warnings.simplefilter('always', DeprecationWarning)
-                f_name = _func_arg_string(self._fget_object, args, kwargs)[0]
 
-                if msg is None:
-                    message = "deprecated get property [{0}.{1}].".format(
-                        self._fget_object.__module__,
-                        f_name
-                    )
-                else:
-                    message = "deprecated get property [{0}.{1}].\n{2}".format(
-                        self._fget_object.__module__,
-                        f_name,
-                        msg
-                    )
+                message = "deprecated get property [{0}].\n{1}".format(
+                    self._f_name,
+                    msg
+                )
 
                 warnings.warn(
                     message,
@@ -249,7 +381,6 @@ def Deprecated(obj, msg=None):
                 warnings.simplefilter('default', DeprecationWarning)
                 return self._fget_object(*args, **kwargs)
 
-        # noinspection PyBroadException,PyPep8
         try:
             if obj.fset is not None:
                 fset = FSetWrapper(obj.fset)
@@ -260,6 +391,7 @@ def Deprecated(obj, msg=None):
                 fget = FGetWrapper(obj.fget)
                 fset = obj.fset
                 return property(fget, fset)
+
         except:
             traceback.print_exc()
             return obj
@@ -268,7 +400,10 @@ def Deprecated(obj, msg=None):
         def wrapper(*args, **kwargs):
             # turn off filter
             warnings.simplefilter('always', DeprecationWarning)
-            f_name = _func_arg_string(obj, args, kwargs)[0]
+            if func_name:
+                f_name = func_name + '.' + obj.__name__
+            else:
+                f_name = obj.__module__ + '.' + obj.__name__
 
             if PY3:
                 # noinspection PyUnresolvedReferences
@@ -281,19 +416,11 @@ def Deprecated(obj, msg=None):
             else:
                 call_type = 'function'
 
-            if msg is None:
-                message = "deprecated {0} [{1}.{2}].".format(
-                    call_type,
-                    obj.__module__,
-                    f_name
-                )
-            else:
-                message = "deprecated {0} [{1}.{2}].\n{3}".format(
-                    call_type,
-                    obj.__module__,
-                    f_name,
-                    msg
-                )
+            message = "deprecated {0} [{1}].\n{2}".format(
+                call_type,
+                f_name,
+                msg
+            )
 
             warnings.warn(
                 message,
@@ -312,17 +439,15 @@ def Deprecated(obj, msg=None):
             # turn off filter
             warnings.simplefilter('always', DeprecationWarning)
 
-            if msg is None:
-                message = "deprecated class [{0}.{1}].".format(
-                    obj.__module__,
-                    obj.__name__
-                )
+            if func_name:
+                class_name = func_name + '.' + obj.__name__
             else:
-                message = "deprecated class [{0}.{1}].\n{2}".format(
-                    obj.__module__,
-                    obj.__name__,
-                    msg
-                )
+                class_name = obj.__module__ + '.' + obj.__name__
+
+            message = "deprecated class [{0}].\n{1}".format(
+                class_name,
+                msg
+            )
 
             warnings.warn(
                 message,
@@ -336,7 +461,6 @@ def Deprecated(obj, msg=None):
 
         return update_wrapper(wrapper, obj)
     else:
-        # noinspection PyProtectedMember
         frame = sys._getframe().f_back
         source = inspect.findsource(frame)[0]
 
@@ -353,22 +477,18 @@ def Deprecated(obj, msg=None):
 
         symbol = source[line_no].split('=')[0].strip()
 
+        if func_name:
+            symbol_name = func_name + '.' + symbol
+        else:
+            symbol_name = symbol
+
         def wrapper(*_, **__):
             # turn off filter
             warnings.simplefilter('always', DeprecationWarning)
-            if msg is None:
-                message = "deprecated symbol [{0}.{1}.{2}].".format(
-                    frame.f_locals['__module__'],
-                    frame.f_locals['__qualname__'],
-                    symbol
-                )
-            else:
-                message = "deprecated symbol [{0}.{1}.{2}].\n{3}".format(
-                    frame.f_locals['__module__'],
-                    frame.f_locals['__qualname__'],
-                    symbol,
-                    msg
-                )
+            message = "deprecated symbol [{0}].\n{1}".format(
+                symbol_name,
+                msg
+            )
 
             warnings.warn(
                 message,
