@@ -1208,58 +1208,41 @@ def run_test(config):
         print_test(
             'This process may take a while to complete.\n'
             'If there is an issue the program will automatically\n'
-            'exit after 60 seconds.'
+            'exit after 3 minutes.'
         )
+
         power_event = threading.Event()
+        remote.power = False
+        count = 0
+        while remote.is_powering_off:
+            power_event.wait(12.0)
+            count += 1
+            print_test(count * 12, 'seconds have passed')
+            if count == 10:
+                break
 
-        def power_off():
-            remote.power = False
-            power_event.set()
-
-        t = threading.Thread(target=power_off)
-        t.daemon = True
-        t.start()
-
-        counter = 0
-
-        while not power_event.isSet():
-            power_event.wait(2.0)
-            if not power_event.isSet():
-                counter += 1
-                print_test(counter, 'seconds have passed')
-                if counter == 120:
-                    break
-
-        if remote.power is False:
-            print_test('POWER OFF TEST: [pass]')
-
-            def power_on():
-                remote.power = True
-                power_event.set()
-
-            t = threading.Thread(target=power_on)
-            t.daemon = True
-            t.start()
-
-            counter = 0
-
-            while not power_event.isSet():
-                power_event.wait(2.0)
-                if not power_event.isSet():
-                    counter += 1
-                    print_test(counter, 'seconds have passed')
-                    if counter == 120:
-                        break
-
-            if remote.power is False:
-                print_test('POWER ON TEST: [fail]')
-
-            else:
-                print_test('POWER ON TEST: [pass]')
+        if remote.power:
+            print_test('power off test: [fail]')
+            print_test('power on test: [skip]')
 
         else:
-            print_test('POWER OFF TEST: [fail]')
-            print_test('POWER ON TEST: [skipped]')
+            print_test('power off test: [pass]')
+
+            count = 0
+            remote.power = True
+
+            while remote.is_powering_on:
+                power_event.wait(12.0)
+                count += 1
+                print_test(count * 12, 'seconds have passed')
+                if count == 5:
+                    break
+
+            if remote.power:
+                print_test('power on test: [pass]')
+
+            else:
+                print_test('power on test: [fail]')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     print_test('CLOSING CONNECTION TO TV ' + config.model)

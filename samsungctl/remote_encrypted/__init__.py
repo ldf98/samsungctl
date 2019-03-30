@@ -246,7 +246,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             # noinspection PyPep8,PyBroadException
             try:
-                self.sock = websocket.create_connection(websocket_url)
+                sock = websocket.create_connection(websocket_url)
             except:
                 if not self.config.paired:
                     self._power_event.set()
@@ -259,6 +259,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             self.connect()
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
+            self.sock = sock
             time.sleep(0.35)
             self.is_powering_on = False
             self.is_powering_off = False

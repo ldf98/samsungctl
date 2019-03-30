@@ -48,7 +48,7 @@ class RemoteLegacy(upnp.UPNPTV):
         """Make a new connection."""
         self.sock = None
         self.config = config
-        self._auth_lock = threading.Lock()
+        self._auth_lock = threading.RLock()
         self._connect_lock = threading.Lock()
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
@@ -56,6 +56,8 @@ class RemoteLegacy(upnp.UPNPTV):
         self._power_event = threading.Event()
         self._registered_callbacks = []
         self._thread = None
+        self.is_powering_on = False
+        self.is_powering_off = False
         upnp.UPNPTV.__init__(self, config)
 
         auto_discover.register_callback(
@@ -114,26 +116,27 @@ class RemoteLegacy(upnp.UPNPTV):
     def power(self, value):
         with self._auth_lock:
             if value and not self.power:
-                if self._cec is not None:
-                    self._cec.tv.power = True
-                elif self.open():
+                if self.is_powering_off and self.open():
                     self._send_key('KEY_POWERON')
-                elif self.mac_address:
-                    wake_on_lan.send_wol(self.mac_address)
                 else:
-                    logging.error(
-                        self.config.host +
-                        ' -- unable to get TV\'s mac address'
-                    )
+                    self.is_powering_on = True
+                    if self._cec is not None:
+                        self._cec.tv.power = True
+                    elif self.mac_address:
+                        wake_on_lan.send_wol(self.mac_address)
+                    else:
+                        logging.error(
+                            self.config.host +
+                            ' -- unable to get TV\'s mac address'
+                        )
+                        self.is_powering_on = False
 
             elif not value and self.power:
+                self.is_powering_off = True
                 if self._cec is not None:
                     self._cec.tv.power = False
                 else:
                     self.control('KEY_POWEROFF')
-
-                self._close_connection()
-                self._power_event.wait(3.0)
 
     def loop(self):
         while self.sock is None and not self._loop_event.isSet():
@@ -195,10 +198,10 @@ class RemoteLegacy(upnp.UPNPTV):
         if self.sock is not None:
             self.sock.close()
             self.sock = None
-            logging.debug(self.config.host + ' -- socket connection closed')
 
         self._thread = None
         self._loop_event.clear()
+        self.is_powering_off = False
 
     @LogIt
     def open(self):
@@ -284,6 +287,8 @@ class RemoteLegacy(upnp.UPNPTV):
                         self._thread.start()
                         self.connect()
                         self.sock = sock
+                        self.is_powering_on = False
+                        self.is_powering_off = False
                         return True
 
                     elif response == RESULTS[1]:
