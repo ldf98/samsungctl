@@ -198,7 +198,16 @@ class WebSocketBase(UPNPTV):
     @LogItWithReturn
     def control(self, key, *args, **kwargs):
         with self._auth_lock:
+
             if key == 'KEY_POWERON':
+                if self.is_powering_on:
+                    return True
+
+                if self.is_powering_off:
+                    self._send_key(key)
+                    self.is_powering_off = False
+                    return True
+
                 if not self.power:
                     self.power = True
                     return True
@@ -206,6 +215,12 @@ class WebSocketBase(UPNPTV):
                 return False
 
             elif key == 'KEY_POWEROFF':
+                if self.is_powering_off:
+                    return True
+
+                if self.is_powering_on:
+                    return False
+
                 if self.power:
                     self.power = False
                     return True
@@ -213,6 +228,14 @@ class WebSocketBase(UPNPTV):
                 return False
 
             elif key == 'KEY_POWER':
+                if self.is_powering_off:
+                    self._send_key('KEY_POWERON')
+                    self.is_powering_off = False
+                    return True
+
+                if self.is_powering_on:
+                    return False
+
                 self.power = not self.power
                 return True
 
@@ -221,6 +244,9 @@ class WebSocketBase(UPNPTV):
                     self.config.model +
                     ' -- is the TV on?!?'
                 )
+                return False
+
+            if self.is_powering_on or self.is_powering_off:
                 return False
 
             return self._send_key(key, *args, **kwargs)

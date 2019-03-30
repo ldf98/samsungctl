@@ -224,6 +224,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             return False
 
         with self._send_lock:
+            if self.is_powering_off:
+                self._send_key('KEY_POWERON')
+                self.is_powering_off = False
+            if self.is_powering_on:
+                return False
+
             payload = dict(
                 method=method,
                 params=params
