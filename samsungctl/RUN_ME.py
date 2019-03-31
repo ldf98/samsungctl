@@ -1210,7 +1210,7 @@ def run_test(config):
             'exit after 3 minutes.'
         )
 
-        sys.stdout.write('power off test: ')
+        print_test('running power off tests please wait....')
         power_event = threading.Event()
         start_time = time.time()
         remote.power = False
@@ -1223,15 +1223,17 @@ def run_test(config):
                 break
 
         if remote.power:
-            sys.stdout.write('[fail]\n')
+            sys.stdout.write('power off test: [fail]\n')
             print_test('power on test: [skip]')
 
         else:
             stop_time = time.time()
             duration = (stop_time - start_time) * 1000
-            sys.stdout.write('[' + str(duration) + 'ms]\n')
+            print_test('power off test: [pass]')
+            print_test('power off test duration: ' + str(duration) + 'ms')
             power_event.wait(10)
-            sys.stdout.write('power on test: ')
+            print_test('running power on tests please wait....')
+
             start_time = time.time()
             count = 0
             remote.power = True
@@ -1246,9 +1248,10 @@ def run_test(config):
             if remote.power:
                 stop_time = time.time()
                 duration = (stop_time - start_time) * 1000
-                sys.stdout.write('[' + str(duration) + 'ms]\n')
+                print_test('power on test: [pass]')
+                print_test('power on test duration: ' + str(duration) + 'ms')
             else:
-                sys.stdout.write('[fail]\n')
+                print_test('power on test: [fail]\n')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     print_test('CLOSING CONNECTION TO TV ' + config.model)
