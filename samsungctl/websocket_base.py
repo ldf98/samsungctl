@@ -78,7 +78,8 @@ class WebSocketBase(UPNPTV):
                 if self.is_powering_on:
                     return
 
-                self._close_connection()
+                if self.config.method == 'websocket':
+                    self._close_connection()
 
     def _send_key(self, *args, **kwargs):
         raise NotImplementedError
