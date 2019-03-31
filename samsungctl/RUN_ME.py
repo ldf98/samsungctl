@@ -1215,10 +1215,10 @@ def run_test(config):
         remote.power = False
         count = 0
         while remote.is_powering_off:
-            power_event.wait(12.0)
+            power_event.wait(10.0)
             count += 1
-            print_test(count * 12, 'seconds have passed')
-            if count == 10:
+            print_test(count * 10, 'seconds have passed')
+            if count == 9:
                 break
 
         power_event.wait(10)
@@ -1234,10 +1234,10 @@ def run_test(config):
             remote.power = True
 
             while remote.is_powering_on:
-                power_event.wait(12.0)
+                power_event.wait(10.0)
                 count += 1
-                print_test(count * 12, 'seconds have passed')
-                if count == 5:
+                print_test(count * 10, 'seconds have passed')
+                if count == 9:
                     break
 
             if remote.power:
