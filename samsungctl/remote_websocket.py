@@ -115,7 +115,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     self.config.host +
                     ' -- access granted'
                 )
-                self._power_event.set()
                 auth_event.set()
                 self.connect()
                 if self._art_mode is not None:
@@ -210,6 +209,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                         ' old token: ' +
                         str(saved_token)
                     )
+                    return res
 
             self._power_event.set()
             raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
@@ -261,6 +261,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 if powering_off and self.open():
                     self._send_key('KEY_POWERON')
                 elif self.mac_address:
+                    self._power_event.clear()
                     while not self._power_event.isSet():
                         wake_on_lan.send_wol(self.mac_address)
                         self._power_event.wait(2.0)
@@ -294,7 +295,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                         'if successful this will only run a single\n' +
                         'time and subsequent calls to power off the\n' +
                         'TV will be much faster.\n\n' +
-                        '   ****This may over 2 minutes to complete.****\n'
+                        '   ****This may over 3 minutes to complete.****\n'
                         'During this time you may see no activity taking place'
                     )
 
@@ -302,7 +303,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                     count = 0
                     while not self._power_event.isSet():
-                        self._power_event.wait(12.0)
+                        self._power_event.wait(18.0)
                         count += 1
                         logger.info(
                             self.config.host +
@@ -315,7 +316,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     if not self._power_event.isSet():
                         self._send_key('KEY_POWER')
                         while not self._power_event.isSet():
-                            self._power_event.wait(12.0)
+                            self._power_event.wait(18.0)
                             count += 1
                             if count == 10:
                                 break

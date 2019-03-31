@@ -161,6 +161,8 @@ class WebSocketBase(UPNPTV):
         self.sock = None
         self._thread = None
         self.disconnect()
+        self._power_event.set()
+        self.is_powering_off = False
 
     @property
     @LogItWithReturn
@@ -255,6 +257,7 @@ class WebSocketBase(UPNPTV):
 
     def open(self):
         raise NotImplementedError
+
     def __enter__(self):
         # noinspection PyUnresolvedReferences
         """
