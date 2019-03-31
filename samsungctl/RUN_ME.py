@@ -1198,7 +1198,6 @@ def run_test(config):
                 print_test('get art_mode.motion_timer:  [fail]')
         else:
             print_test('ART Mode Tests:  [not supported]')
-    print_test(config)
     config.save()
 
     # noinspection PyProtectedMember
@@ -1211,7 +1210,9 @@ def run_test(config):
             'exit after 3 minutes.'
         )
 
+        sys.stdout.write('power off test: ')
         power_event = threading.Event()
+        start_time = time.time()
         remote.power = False
         count = 0
         while remote.is_powering_off:
@@ -1221,15 +1222,17 @@ def run_test(config):
             if count == 9:
                 break
 
-        power_event.wait(10)
-
         if remote.power:
-            print_test('power off test: [fail]')
+            sys.stdout.write('[fail]\n')
             print_test('power on test: [skip]')
 
         else:
-            print_test('power off test: [pass]')
-
+            stop_time = time.time()
+            duration = (stop_time - start_time) * 1000
+            sys.stdout.write('[' + str(duration) + 'ms]\n')
+            power_event.wait(10)
+            sys.stdout.write('power on test: ')
+            start_time = time.time()
             count = 0
             remote.power = True
 
@@ -1241,10 +1244,11 @@ def run_test(config):
                     break
 
             if remote.power:
-                print_test('power on test: [pass]')
-
+                stop_time = time.time()
+                duration = (stop_time - start_time) * 1000
+                sys.stdout.write('[' + str(duration) + 'ms]\n')
             else:
-                print_test('power on test: [fail]')
+                sys.stdout.write('[fail]\n')
 
     auto_discover.unregister_callback(power_callback, uuid=config.uuid)
     print_test('CLOSING CONNECTION TO TV ' + config.model)
