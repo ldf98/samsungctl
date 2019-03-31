@@ -461,62 +461,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         requests.delete(self.url.cloud_pin_page + '/run')
         return False
 
-    @LogIt
-    def _set_power(self, value):
-        if value and not self.power:
-            def do(powering_off):
-                if powering_off and self.open():
-                    self._send_key('KEY_POWERON')
-                elif self.mac_address:
-                    while not self._power_event.isSet():
-                        wake_on_lan.send_wol(self.mac_address)
-                        self._power_event.wait(2.0)
-                else:
-                    logging.error(
-                        self.config.host +
-                        ' -- unable to get TV\'s mac address'
-                    )
-                    self._powering_on = False
-
-                self._power_thread = None
-
-            if self._power_thread is not None:
-                self._power_event.set()
-                self._power_thread.join()
-
-            p_off = self.is_powering_off
-            self._power_event.clear()
-            self._power_thread = threading.Thread(target=do, args=(p_off,))
-            self._power_thread.daemon = True
-            self.is_powering_off = False
-            self.is_powering_on = True
-            self._power_thread.start()
-
-        elif not value and self.power:
-            def do():
-                self._send_key('KEY_POWEROFF')
-                self._power_event.wait(20.0)
-
-                if not self._power_event.isSet():
-                    logger.debug(
-                        self.config.host + ' --- Failed to power off the TV'
-                    )
-
-                    self.is_powering_off = False
-
-                self._power_thread = None
-
-            if self._power_thread is not None:
-                self._power_event.set()
-                self._power_thread.join()
-
-            self._power_event.clear()
-            self._power_thread = threading.Thread(target=do)
-            self._power_thread.daemon = True
-            self.is_powering_on = False
-            self.is_powering_off = True
-            self._power_thread.start()
-
     def on_message(self, data):
         # noinspection PyPep8,PyBroadException
         try:

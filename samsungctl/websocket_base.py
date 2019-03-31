@@ -15,6 +15,11 @@ from .upnp import UPNPTV
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger(__name__)
+CEC_POWER_STATUS_ON = 0
+CEC_POWER_STATUS_STANDBY = 1
+CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON = 2
+CEC_POWER_STATUS_IN_TRANSITION_ON_TO_STANDBY = 3
+CEC_POWER_STATUS_UNKNOWN = 153
 
 
 # noinspection PyAbstractClass
@@ -187,18 +192,140 @@ class WebSocketBase(UPNPTV):
     def power(self, value):
         with self._auth_lock:
             if value and self.sock is None:
-                if self._cec is not None:
-                    self._cec.tv.power = True
-                else:
-                    self._set_power(value)
-            elif not value and self.sock is not None:
-                if self._cec is not None:
-                    self._cec.tv.power = False
-                else:
-                    self._set_power(value)
+                def do(powering_off):
+                    if powering_off and self.open():
+                        self._send_key('KEY_POWERON')
 
-    def _set_power(self, value):
-        raise NotImplementedError
+                    elif self._cec is not None:
+                        if self._cec.tv.power not in (
+                            CEC_POWER_STATUS_ON,
+                            CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON
+                        ):
+                            self._cec.tv.power = True
+                            self._power_event.wait(20)
+                        else:
+                            self.open()
+
+                    elif self.mac_address:
+                        self._power_event.clear()
+                        while not self._power_event.isSet():
+                            wake_on_lan.send_wol(self.mac_address)
+                            self._power_event.wait(2.0)
+                    else:
+                        logging.error(
+                            self.config.host +
+                            ' -- unable to get TV\'s mac address'
+                        )
+                        self._powering_on = False
+
+                    self._power_thread = None
+
+                if self._power_thread is not None:
+                    self._power_event.set()
+                    self._power_thread.join()
+
+                p_off = self.is_powering_off
+                self._power_event.clear()
+                self._power_thread = threading.Thread(target=do, args=(p_off,))
+                self._power_thread.daemon = True
+                self.is_powering_off = False
+                self.is_powering_on = True
+                self._power_thread.start()
+
+            elif not value and self.sock is not None:
+                def do():
+                    if self._cec is not None:
+                        if self._cec.tv.power not in (
+                            CEC_POWER_STATUS_STANDBY,
+                            CEC_POWER_STATUS_IN_TRANSITION_ON_TO_STANDBY
+                        ):
+                            self._cec.tv.power = False
+
+                    elif self.config.power_off_key is None:
+                        logger.info(
+                            self.config.host +
+                            ' --- power off calibration needs to be run. ' +
+                            'if successful this will only run a single\n' +
+                            'time and subsequent calls to power off the\n' +
+                            'TV will be much faster.\n\n' +
+                            '   ****This may over 3 minutes to complete.****\n'
+                            'During this time you may see no activity taking place'
+                        )
+
+                        self._send_key('KEY_POWEROFF')
+
+                        count = 0
+                        while not self._power_event.isSet():
+                            self._power_event.wait(18.0)
+                            count += 1
+                            logger.info(
+                                self.config.host +
+                                ' --- power calibration is ' +
+                                '{0}% complete'.format(count * 10)
+                            )
+                            if count == 5:
+                                break
+
+                        if not self._power_event.isSet():
+                            self._send_key('KEY_POWER')
+                            while not self._power_event.isSet():
+                                self._power_event.wait(18.0)
+                                count += 1
+                                if count == 10:
+                                    break
+                                logger.info(
+                                    self.config.host +
+                                    ' --- power calibration is ' +
+                                    '{0}% complete'.format(count * 10)
+                                )
+
+                            if self._power_event.isSet():
+                                self.config.power_off_key = 'KEY_POWER'
+                        else:
+                            self.config.power_off_key = 'KEY_POWEROFF'
+
+                        logger.info(
+                            self.config.host +
+                            ' --- power calibration is 100% complete'
+                        )
+                        if self.config.power_off_key is None:
+                            logger.info(
+                                self.config.host +
+                                ' --- power off calibration failed'
+                            )
+                        else:
+                            logger.info(
+                                self.config.host +
+                                ' --- power off calibration success, {0}'.format(
+                                    self.config.power_off_key
+                                )
+                            )
+
+                            if self.config.path:
+                                self.config.save()
+                    else:
+                        self._send_key(self.config.power_off_key)
+                        self._power_event.wait(60.0)
+
+                    if not self._power_event.isSet():
+                        logger.debug(
+                            self.config.host + ' --- Failed to power off the TV'
+                        )
+
+                        self.is_powering_off = False
+
+                    self._power_thread = None
+
+                if self._power_thread is not None:
+                    self._power_event.set()
+                    self._power_thread.join()
+
+                self._power_event.clear()
+                self._power_thread = threading.Thread(target=do)
+                self._power_thread.daemon = True
+                self.is_powering_on = False
+                self.is_powering_off = True
+                self._power_thread.start()
 
     @LogItWithReturn
     def control(self, key, *args, **kwargs):
