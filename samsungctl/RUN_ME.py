@@ -1219,7 +1219,7 @@ def run_test(config):
             power_event.wait(10.0)
             count += 1
             print_test(count * 10, 'seconds have passed')
-            if count == 9:
+            if count == 18:
                 break
 
         if remote.power:
