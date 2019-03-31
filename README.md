@@ -1,3 +1,9 @@
+I have worked very hard to make this library one of the most complete
+Samsung TV interfaces (if not the most complete). I have spent over 100
+hours researching, developing and testing. Gratitude in monetary form
+are greatly accepted and appreciated.
+
+click this [![Donate](https://img.shields.io/badge/Donate-Paypal-blue.svg?style=popout&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=WDHNKUNC3XC9L) to donate
 
 \*\*\*\*\*\*\* ALL USERS PLEASE READ \*\*\*\*\*\*\*
 
