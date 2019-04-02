@@ -7,6 +7,7 @@ import json
 import ssl
 import uuid
 import base64
+import socket
 import websocket
 from .upnp.discover import auto_discover
 from .upnp.UPNP_Device.adapter_addresses import get_adapter_ips
@@ -148,6 +149,8 @@ class WebSocketBase(UPNPTV):
             except websocket.WebSocketTimeoutException:
                 pass
             except websocket.WebSocketConnectionClosedException:
+                break
+            except socket.error:
                 break
         logger.debug(self.config.host + ' --- websocket loop closing')
         # noinspection PyPep8,PyBroadException
@@ -387,19 +390,30 @@ class AuxWebsocketBase(object):
         while self.sock is None and not self._loop_event.isSet():
             self._loop_event.wait(0.1)
 
+        if self.sock is not None:
+            self.sock.timeout = 2.0
+
         while not self._loop_event.isSet():
             # noinspection PyPep8,PyBroadException
             try:
                 data = self.sock.recv()
-            except:
+                if not data:
+                    break
+
+                logger.debug(
+                    self.config.host +
+                    ' --> ' +
+                    data
+                )
+                self.on_message(data)
+            except websocket.WebSocketTimeoutException:
+                pass
+            except websocket.WebSocketConnectionClosedException:
                 break
-
-            else:
-                if data:
-                    self.on_message(data)
-                else:
-                    self._loop_event.wait(0.1)
-
+        logger.debug(
+            self.config.host +
+            ' --- {0} loop closing'.format(self.__class__.__name__)
+        )
         # noinspection PyPep8,PyBroadException
         try:
             self.sock.close()
@@ -408,7 +422,6 @@ class AuxWebsocketBase(object):
 
         self.sock = None
         self._thread = None
-        self._loop_event.clear()
 
     def on_message(self, _):
         raise NotImplementedError

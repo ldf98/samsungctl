@@ -15,7 +15,13 @@ from . import websocket_base
 from .utils import LogIt, LogItWithReturn
 
 logger = logging.getLogger(__name__)
-
+#
+#
+# URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.tv.display?name={}"
+# SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.tv.display?name={}"
+#
+# URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.tv.channel?name={}"
+# SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.tv.channel?name={}"
 
 URL_FORMAT = "ws://{}:{}/api/v2/channels/samsung.remote.control?name={}"
 SSL_URL_FORMAT = "wss://{}:{}/api/v2/channels/samsung.remote.control?name={}"
@@ -326,7 +332,17 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             'event',
             'ed.edenApp.get'
         )
+        self._app_websocket.register_receive_callback(
+            eden_app_get,
+            'event',
+            'ed.edenApp.get'
+        )
         self.register_receive_callback(
+            installed_app_get,
+            'event',
+            'ed.installedApp.get'
+        )
+        self._app_websocket.register_receive_callback(
             installed_app_get,
             'event',
             'ed.installedApp.get'
@@ -350,10 +366,20 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             'ed.edenApp.get'
         )
 
+        self._app_websocket.unregister_receive_callback(
+            eden_app_get,
+            'event',
+            'ed.edenApp.get'
+        )
         self.unregister_receive_callback(
             installed_app_get,
-            'data',
-            None
+            'event',
+            'ed.installedApp.get'
+        )
+        self._app_websocket.unregister_receive_callback(
+            installed_app_get,
+            'event',
+            'ed.installedApp.get'
         )
 
         if not eden_event.isSet():
