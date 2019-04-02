@@ -129,26 +129,21 @@ class WebSocketBase(UPNPTV):
         while self.sock is None and not self._loop_event.isSet():
             self._loop_event.wait(0.1)
 
-        while not self._loop_event.isSet():
-            # noinspection PyPep8,PyBroadException
-            try:
+        try:
+            while not self._loop_event.isSet():
+                # noinspection PyPep8,PyBroadException
                 data = self.sock.recv()
-            except:
-                break
+                if not data:
+                    break
 
-            else:
-                if data:
-                    logger.debug(
-                        self.config.host +
-                        ' --> ' +
-                        data
-                    )
-                    self.on_message(data)
-                else:
-                    if self.config.method == 'legacy':
-                        break
-                    else:
-                        self._loop_event.wait(0.1)
+                logger.debug(
+                    self.config.host +
+                    ' --> ' +
+                    data
+                )
+                self.on_message(data)
+        except:
+            pass
 
         logger.debug(self.config.host + ' --- websocket loop closing')
         # noinspection PyPep8,PyBroadException
