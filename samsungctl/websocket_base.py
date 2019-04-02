@@ -129,9 +129,12 @@ class WebSocketBase(UPNPTV):
         while self.sock is None and not self._loop_event.isSet():
             self._loop_event.wait(0.1)
 
-        try:
-            while not self._loop_event.isSet():
-                # noinspection PyPep8,PyBroadException
+        if self.sock is not None:
+            self.sock.timeout = 2.0
+
+        while not self._loop_event.isSet():
+            # noinspection PyPep8,PyBroadException
+            try:
                 data = self.sock.recv()
                 if not data:
                     break
@@ -142,9 +145,10 @@ class WebSocketBase(UPNPTV):
                     data
                 )
                 self.on_message(data)
-        except:
-            pass
-
+            except websocket.WebSocketTimeoutException:
+                pass
+            except websocket.WebSocketConnectionClosedException:
+                break
         logger.debug(self.config.host + ' --- websocket loop closing')
         # noinspection PyPep8,PyBroadException
         try:
