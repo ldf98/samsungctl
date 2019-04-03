@@ -18,7 +18,6 @@ import json
 from lxml import etree
 import logging
 import traceback
-from .. import wake_on_lan
 
 from . import crypto # NOQA
 from .aes import AES # NOQA
@@ -248,19 +247,12 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             try:
                 sock = websocket.create_connection(websocket_url)
             except:
-                if not self.config.paired:
-                    self._power_event.set()
-                    raise RuntimeError(
-                        'TV needs to be powered on to complete the pairing'
-                    )
-
                 return False
 
-            self.connect()
+            self.sock = sock
             self._thread = threading.Thread(target=self.loop)
             self._thread.start()
-            self.sock = sock
-            time.sleep(0.35)
+            self.connect()
             self.is_powering_on = False
             self.is_powering_off = False
             self._power_event.set()
@@ -500,7 +492,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 name="callCommon",
                 args=[
                     dict(
-                        Session_Id=self.current_session_id,
+                        Session_Id=str(self.current_session_id),
                         body=[int_array]
                     )
                 ]

@@ -410,6 +410,9 @@ class AuxWebsocketBase(object):
                 pass
             except websocket.WebSocketConnectionClosedException:
                 break
+            except socket.error:
+                break
+                
         logger.debug(
             self.config.host +
             ' --- {0} loop closing'.format(self.__class__.__name__)
