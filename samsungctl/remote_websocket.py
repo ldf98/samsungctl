@@ -69,11 +69,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def open(self):
-        with self._auth_lock:
-            if self.sock is not None:
-                return True
-
-            if self.config.port == 8002:
+        def do(port):
+            if port == 8002:
                 if self.config.token:
                     token = "&token=" + str(self.config.token)
                 else:
@@ -82,14 +79,14 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 sslopt = {"cert_reqs": ssl.CERT_NONE}
                 url = SSL_URL_FORMAT.format(
                     self.config.host,
-                    self.config.port,
+                    port,
                     self._serialize_string(self.config.name)
                 ) + token
             else:
                 sslopt = {}
                 url = URL_FORMAT.format(
                     self.config.host,
-                    self.config.port,
+                    port,
                     self._serialize_string(self.config.name)
                 )
 
@@ -185,19 +182,26 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             self._close_connection()
 
-            if self.config.port == 8001:
+            if port == 8001:
                 logger.debug(
                     self.config.host +
                     ' -- trying SSL connection.'
                 )
-                self.config.port = 8002
-                return self.open()
+
+                res = do(8002)
+
+                if res:
+                    self.config.port = 8002
+                    if self.config.path:
+                        self.config.save()
+
+                return res
 
             if self.config.token is not None:
                 saved_token = self.config.token
                 self.config.token = None
 
-                res = self.open()
+                res = do(self.config.port)
 
                 if not res:
                     self.config.token = saved_token
@@ -218,6 +222,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             self._power_event.set()
             raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
+
+        with self._auth_lock:
+            if self.sock is not None:
+                return True
+
+            do(self.config.port)
 
     @LogIt
     def send(self, method, **params):

@@ -15,6 +15,15 @@ from . import wake_on_lan
 from .upnp import UPNPTV
 from .utils import LogIt, LogItWithReturn
 
+# the following code needs to be done because some of the Samsung TV's use a
+# shutdown status that is not supposed to be used. the websocket-client
+# library has this status code stored but does not use it when checking to
+# see if it is a valid code or not. by doing the following it then will
+# accept that code and not throw a traceback. I could have simply caught the
+# traceback. the problem is the code is not stored in the exception and the
+# exception is used in all kinds of places. so without the ability to check
+# what caused the exception I had to make it so that the exception never got
+# generated
 from websocket import _abnf
 
 _abnf.VALID_CLOSE_STATUS = _abnf.VALID_CLOSE_STATUS + (_abnf.STATUS_STATUS_NOT_AVAILABLE,)
