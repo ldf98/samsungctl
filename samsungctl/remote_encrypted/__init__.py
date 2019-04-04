@@ -484,16 +484,16 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             command_bytes = self.aes.encrypt(json.dumps(command))
 
             if isinstance(command_bytes, str):
-                int_array = ','.join([str(ord(x)) for x in command_bytes])
+                int_array = list(str(ord(x)) for x in command_bytes)
             else:
-                int_array = ','.join((list(map(str, command_bytes))))
+                int_array = list(map(str, command_bytes))
 
             res = dict(
                 name="callCommon",
                 args=[
                     dict(
-                        Session_Id=str(self.current_session_id),
-                        body=[int_array]
+                        Session_Id=self.current_session_id,
+                        body='[' + (','.join(int_array)) + ']'
                     )
                 ]
             )

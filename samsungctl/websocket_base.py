@@ -174,7 +174,7 @@ class WebSocketBase(UPNPTV):
                     six.byte2int(last_code[1:2])
                 )
                 raise RuntimeError('ODD CLOSE OPPCODE: ' + str(code))
-            
+
             except socket.error:
                 break
         logger.debug(self.config.host + ' --- websocket loop closing')
