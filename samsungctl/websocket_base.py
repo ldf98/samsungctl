@@ -166,14 +166,7 @@ class WebSocketBase(UPNPTV):
             except websocket.WebSocketConnectionClosedException:
                 break
             except websocket.WebSocketProtocolException:
-                import six
-
-                code = (
-                    256 *
-                    six.byte2int(last_code[0:1]) +
-                    six.byte2int(last_code[1:2])
-                )
-                raise RuntimeError('ODD CLOSE OPPCODE: ' + str(code))
+                raise RuntimeError('ODD CLOSE OPPCODE: ' + str(last_code))
 
             except socket.error:
                 break
