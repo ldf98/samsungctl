@@ -15,6 +15,21 @@ from . import wake_on_lan
 from .upnp import UPNPTV
 from .utils import LogIt, LogItWithReturn
 
+from websocket._abnf import ABNF
+
+last_code = None
+
+_original_is_valid_close_status = ABNF._is_valid_close_status
+
+def is_valid_close_status(code):
+    global last_code
+
+    last_code = code
+    return _original_is_valid_close_status(code)
+
+ABNF._is_valid_close_status = is_valid_close_status
+
+
 logger = logging.getLogger(__name__)
 CEC_POWER_STATUS_ON = 0
 CEC_POWER_STATUS_STANDBY = 1
@@ -150,6 +165,16 @@ class WebSocketBase(UPNPTV):
                 pass
             except websocket.WebSocketConnectionClosedException:
                 break
+            except websocket.WebSocketProtocolException:
+                import six
+
+                code = (
+                    256 *
+                    six.byte2int(last_code[0:1]) +
+                    six.byte2int(last_code[1:2])
+                )
+                raise RuntimeError('ODD CLOSE OPPCODE: ' + str(code))
+            
             except socket.error:
                 break
         logger.debug(self.config.host + ' --- websocket loop closing')
@@ -410,9 +435,11 @@ class AuxWebsocketBase(object):
                 pass
             except websocket.WebSocketConnectionClosedException:
                 break
+            except websocket.WebSocketProtocolException:
+                break
             except socket.error:
                 break
-                
+
         logger.debug(
             self.config.host +
             ' --- {0} loop closing'.format(self.__class__.__name__)
