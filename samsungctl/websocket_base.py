@@ -21,7 +21,7 @@ last_code = None
 
 _original_is_valid_close_status = ABNF._is_valid_close_status
 
-def is_valid_close_status(code):
+def is_valid_close_status(_, code):
     global last_code
 
     last_code = code
