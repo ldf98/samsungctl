@@ -69,8 +69,8 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
     @LogIt
     def open(self):
-        def do(port):
-            if port == 8002:
+        def do():
+            if self.config.port == 8002:
                 if self.config.token:
                     token = "&token=" + str(self.config.token)
                 else:
@@ -79,14 +79,14 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 sslopt = {"cert_reqs": ssl.CERT_NONE}
                 url = SSL_URL_FORMAT.format(
                     self.config.host,
-                    port,
+                    self.config.port,
                     self._serialize_string(self.config.name)
                 ) + token
             else:
                 sslopt = {}
                 url = URL_FORMAT.format(
                     self.config.host,
-                    port,
+                    self.config.port,
                     self._serialize_string(self.config.name)
                 )
 
@@ -118,9 +118,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     ' -- access granted'
                 )
                 auth_event.set()
-                self.connect()
-                if self._art_mode is not None:
-                    self._art_mode.open()
 
             del self._registered_callbacks[:]
 
@@ -175,6 +172,12 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             if auth_event.isSet() and not unauth_event.is_set():
                 self._app_websocket = application.AppWebsocket(self.config)
+
+                if self._art_mode is not None:
+                    self._art_mode.open()
+
+                self.connect()
+
                 self.is_powering_off = False
                 self.is_powering_on = False
                 self._power_event.set()
@@ -182,18 +185,17 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
             self._close_connection()
 
-            if port == 8001:
+            if self.config.port == 8001:
                 logger.debug(
                     self.config.host +
                     ' -- trying SSL connection.'
                 )
+                self.config.port = 8002
 
-                res = do(8002)
+                res = do()
 
-                if res:
-                    self.config.port = 8002
-                    if self.config.path:
-                        self.config.save()
+                if not res:
+                    self.config.port = 8001
 
                 return res
 
@@ -201,7 +203,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 saved_token = self.config.token
                 self.config.token = None
 
-                res = do(self.config.port)
+                res = do()
 
                 if not res:
                     self.config.token = saved_token
@@ -227,7 +229,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             if self.sock is not None:
                 return True
 
-            do(self.config.port)
+            do()
 
     @LogIt
     def send(self, method, **params):
