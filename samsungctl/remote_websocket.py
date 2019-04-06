@@ -36,9 +36,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         self.receive_lock = threading.Lock()
         self.send_event = threading.Event()
         self._cec = None
-        websocket_base.WebSocketBase.__init__(self, config)
         self._art_mode = None
         self._app_websocket = None
+        websocket_base.WebSocketBase.__init__(self, config)
 
     @property
     @LogItWithReturn

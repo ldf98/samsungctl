@@ -503,7 +503,7 @@ class AuxWebsocketBase(object):
 
         # noinspection PyPep8,PyBroadException
         try:
-            sock = websocket.create_connection(url, sslopt=sslopt)
+            self.sock = websocket.create_connection(url, sslopt=sslopt)
         except:
             self.close()
             return False
@@ -517,7 +517,6 @@ class AuxWebsocketBase(object):
         )
 
         if auth_event.isSet():
-            self.sock = sock
             return True
 
         self.close()

@@ -799,9 +799,27 @@ def run_test(config):
 
     run_method('run_browser', [], 'github.com/kdschlosser/samsungctl')
     time.sleep(10)
+
+    try:
+        # noinspection PyCompatibility
+        answer = raw_input('Is the browser running?: (y/n)')
+    except NameError:
+        answer = input('Is the browser running?: (y/n)')
+
+    print_test(answer.lower() == 'y')
+    print()
+
     get_property('browser_mode', [])
     get_property('browser_url', [])
     run_method('stop_browser', [])
+    try:
+        # noinspection PyCompatibility
+        answer = raw_input('Did the browser close?: (y/n)')
+    except NameError:
+        answer = input('Did the browser close?: (y/n)')
+
+    print_test(answer.lower() == 'y')
+    print()
 
     if remote.year <= 2015:
         print_test('\nSOURCE TESTS\n')
@@ -1097,117 +1115,112 @@ def run_test(config):
                     #
                     #         print_test('\n\n')
 
-        if remote.art_mode.is_supported:
-            print_test('ART Mode Tests:  [running]')
-            art_mode = remote.art_mode.artmode
-            if art_mode is not None:
-                print_test('get art_mode.artmode:  [pass]')
-                remote.art_mode.artmode = not art_mode
+        print_test('ART Mode Tests:  [running]')
+        art_mode = remote.art_mode.artmode
+        if art_mode is not None:
+            print_test('get art_mode.artmode:  [pass]')
+            remote.art_mode.artmode = not art_mode
 
-                if remote.art_mode.artmode != art_mode:
-                    print_test('set art_mode.artmode  [pass]')
-                    remote.art_mode.artmode = art_mode
-                else:
-                    print_test('set art_mode.artmode:  [fail]')
+            if remote.art_mode.artmode != art_mode:
+                print_test('set art_mode.artmode  [pass]')
+                remote.art_mode.artmode = art_mode
             else:
-                print_test('get art_mode.artmode:  [fail]')
-
-            brightness_sensor = remote.art_mode.brightness_sensor
-            if brightness_sensor is not None:
-                print_test('get art_mode.brightness_sensor:  [pass]')
-                remote.art_mode.brightness_sensor = not brightness_sensor
-
-                if remote.art_mode.brightness_sensor != brightness_sensor:
-                    print_test('set art_mode.brightness_sensor:  [pass]')
-                    remote.art_mode.brightness_sensor = brightness_sensor
-                else:
-                    print_test('set art_mode.brightness_sensor:  [fail]')
-            else:
-                print_test('get art_mode.brightness_sensor:  [fail]')
-
-            brightness = remote.art_mode.brightness
-            if brightness is not None:
-                print_test('get art_mode.brightness:  [pass]')
-                new_brightness = brightness + 1
-                if new_brightness > 3:
-                    new_brightness = 1
-
-                remote.art_mode.brightness = new_brightness
-
-                if remote.art_mode.brightness == new_brightness:
-                    print_test('set art_mode.brightness:  [pass]')
-                    remote.art_mode.brightness = brightness
-                else:
-                    print_test('set art_mode.brightness:  [fail]')
-            else:
-                print_test('get art_mode.brightness:  [fail]')
-
-            color_temperature = remote.art_mode.color_temperature
-            if color_temperature is not None:
-                print_test('get art_mode.color_temperature:  [pass]')
-                new_color_temperature = color_temperature + 1
-                if new_color_temperature > 3:
-                    new_color_temperature = 1
-
-                remote.art_mode.color_temperature = new_color_temperature
-
-                if remote.art_mode.color_temperature == new_color_temperature:
-                    print_test('set art_mode.color_temperature:  [pass]')
-                    remote.art_mode.color_temperature = color_temperature
-                else:
-                    print_test('set art_mode.color_temperature:  [fail]')
-            else:
-                print_test('get art_mode.color_temperature:  [fail]')
-
-            motion_sensitivity = remote.art_mode.motion_sensitivity
-            if motion_sensitivity is not None:
-                print_test('get art_mode.motion_sensitivity:  [pass]')
-                new_motion_sensitivity = motion_sensitivity + 1
-                if new_motion_sensitivity > 3:
-                    new_motion_sensitivity = 1
-
-                remote.art_mode.motion_sensitivity = new_motion_sensitivity
-
-                if (
-                    remote.art_mode.motion_sensitivity ==
-                    new_motion_sensitivity
-                ):
-                    print_test('set art_mode.motion_sensitivity:  [pass]')
-                    remote.art_mode.motion_sensitivity = motion_sensitivity
-                else:
-                    print_test('set art_mode.motion_sensitivity:  [fail]')
-            else:
-                print_test('get art_mode.motion_sensitivity:  [fail]')
-
-            motion_timer = remote.art_mode.motion_timer
-            if motion_timer is not None:
-                print_test('get art_mode.motion_timer:  [pass]')
-                motion_timer_choices = motion_timer['valid_values']
-                motion_timer = motion_timer['value']
-
-                motion_timer_index = motion_timer_choices.index(motion_timer)
-                motion_timer_index += 1
-
-                if motion_timer_index == len(motion_timer_choices):
-                    motion_timer_index = 0
-
-                new_motion_timer = motion_timer_choices[motion_timer_index]
-                remote.art_mode.motion_timer = new_motion_timer
-
-                if remote.art_mode.motion_timer == new_motion_timer:
-                    print_test('set art_mode.motion_timer:  [pass]')
-                    remote.art_mode.motion_timer = motion_timer
-                else:
-                    print_test('set art_mode.motion_timer:  [fail]')
-            else:
-                print_test('get art_mode.motion_timer:  [fail]')
+                print_test('set art_mode.artmode:  [fail]')
         else:
-            print_test('ART Mode Tests:  [not supported]')
-    config.save()
+            print_test('get art_mode.artmode:  [skip]')
+
+        brightness_sensor = remote.art_mode.brightness_sensor
+        if brightness_sensor is not None:
+            print_test('get art_mode.brightness_sensor:  [pass]')
+            remote.art_mode.brightness_sensor = not brightness_sensor
+
+            if remote.art_mode.brightness_sensor != brightness_sensor:
+                print_test('set art_mode.brightness_sensor:  [pass]')
+                remote.art_mode.brightness_sensor = brightness_sensor
+            else:
+                print_test('set art_mode.brightness_sensor:  [fail]')
+        else:
+            print_test('get art_mode.brightness_sensor:  [skip]')
+
+        brightness = remote.art_mode.brightness
+        if brightness is not None:
+            print_test('get art_mode.brightness:  [pass]')
+            new_brightness = brightness + 1
+            if new_brightness > 3:
+                new_brightness = 1
+
+            remote.art_mode.brightness = new_brightness
+
+            if remote.art_mode.brightness == new_brightness:
+                print_test('set art_mode.brightness:  [pass]')
+                remote.art_mode.brightness = brightness
+            else:
+                print_test('set art_mode.brightness:  [fail]')
+        else:
+            print_test('get art_mode.brightness:  [skip]')
+
+        color_temperature = remote.art_mode.color_temperature
+        if color_temperature is not None:
+            print_test('get art_mode.color_temperature:  [pass]')
+            new_color_temperature = color_temperature + 1
+            if new_color_temperature > 3:
+                new_color_temperature = 1
+
+            remote.art_mode.color_temperature = new_color_temperature
+
+            if remote.art_mode.color_temperature == new_color_temperature:
+                print_test('set art_mode.color_temperature:  [pass]')
+                remote.art_mode.color_temperature = color_temperature
+            else:
+                print_test('set art_mode.color_temperature:  [fail]')
+        else:
+            print_test('get art_mode.color_temperature:  [skip]')
+
+        motion_sensitivity = remote.art_mode.motion_sensitivity
+        if motion_sensitivity is not None:
+            print_test('get art_mode.motion_sensitivity:  [pass]')
+            new_motion_sensitivity = motion_sensitivity + 1
+            if new_motion_sensitivity > 3:
+                new_motion_sensitivity = 1
+
+            remote.art_mode.motion_sensitivity = new_motion_sensitivity
+
+            if (
+                remote.art_mode.motion_sensitivity ==
+                new_motion_sensitivity
+            ):
+                print_test('set art_mode.motion_sensitivity:  [pass]')
+                remote.art_mode.motion_sensitivity = motion_sensitivity
+            else:
+                print_test('set art_mode.motion_sensitivity:  [fail]')
+        else:
+            print_test('get art_mode.motion_sensitivity:  [skip]')
+
+        motion_timer = remote.art_mode.motion_timer
+        if motion_timer is not None:
+            print_test('get art_mode.motion_timer:  [pass]')
+            motion_timer_choices = motion_timer['valid_values']
+            motion_timer = motion_timer['value']
+
+            motion_timer_index = motion_timer_choices.index(motion_timer)
+            motion_timer_index += 1
+
+            if motion_timer_index == len(motion_timer_choices):
+                motion_timer_index = 0
+
+            new_motion_timer = motion_timer_choices[motion_timer_index]
+            remote.art_mode.motion_timer = new_motion_timer
+
+            if remote.art_mode.motion_timer == new_motion_timer:
+                print_test('set art_mode.motion_timer:  [pass]')
+                remote.art_mode.motion_timer = motion_timer
+            else:
+                print_test('set art_mode.motion_timer:  [fail]')
+        else:
+            print_test('get art_mode.motion_timer:  [skip]')
 
     # noinspection PyProtectedMember
     if remote.year > 2013 or remote._cec is not None:
-
         print_test('\nPOWER TESTS\n')
         print_test(
             'This process may take a while to complete.\n'
