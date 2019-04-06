@@ -4,6 +4,7 @@ import os
 import types
 import keyword
 import re
+import json
 from wx.stc import *
 
 
@@ -44,7 +45,7 @@ class FilePanel(wx.Panel):
 
     def __init__(self, parent):
 
-        wx.Panel.__init__(self, parent, -1, style=wx.BORDER_NONE, size=(750, 175))
+        wx.Panel.__init__(self, parent, -1, style=wx.BORDER_NONE, size=(750, 350))
 
         self.line_ctrl = wx.StaticText(self, -1, 'Line: 0000')
         self.file_ctrl = wx.StaticText(self, -1, 'File: filename.py')
@@ -94,7 +95,7 @@ class FilePanel(wx.Panel):
 class Frame(wx.Frame):
 
     def __init__(self):
-        wx.Frame.__init__(self, None, -1, size=(800, 1000))
+        wx.Frame.__init__(self, None, -1, size=(1600, 1000))
 
         global records
         global record_number
@@ -119,14 +120,14 @@ class Frame(wx.Frame):
             -1,
             '\n' * 5,
             style=wx.TE_MULTILINE | wx.TE_READONLY,
-            size=(750, 175)
+            size=(750, 350)
         )
         in_ctrl = wx.TextCtrl(
             self,
             -1,
             '\n' * 5,
             style=wx.TE_MULTILINE | wx.TE_READONLY,
-            size=(750, 175)
+            size=(750, 350)
         )
 
         thread_name_label = wx.StaticText(self, -1, 'Thread Name:')
@@ -153,11 +154,23 @@ class Frame(wx.Frame):
         top_sizer.Add(left_sizer)
         top_sizer.Add(right_sizer)
 
+        left_sizer = wx.BoxSizer(wx.VERTICAL)
+        right_sizer = wx.BoxSizer(wx.VERTICAL)
+
         src_box = BoxedGroup(self, 'Source File', src_ctrl)
         dst_box = BoxedGroup(self, 'Destination File', dst_ctrl)
         out_box = BoxedGroup(self, 'Outgoing Data', out_ctrl)
         in_box = BoxedGroup(self, 'Incoming Data', in_ctrl)
 
+        left_sizer.Add(src_box)
+        left_sizer.Add(dst_box)
+        right_sizer.Add(out_box)
+        right_sizer.Add(in_box)
+
+        middle_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        middle_sizer.Add(left_sizer)
+        middle_sizer.Add(right_sizer)
         bottom_sizer = wx.BoxSizer(wx.HORIZONTAL)
         bottom_sizer.AddStretchSpacer(1)
         bottom_sizer.Add(prev_button)
@@ -168,13 +181,11 @@ class Frame(wx.Frame):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         sizer.Add(top_sizer)
-        sizer.Add(src_box)
-        sizer.Add(dst_box)
-        sizer.Add(out_box)
-        sizer.Add(in_box)
+        sizer.Add(middle_sizer)
         sizer.Add(bottom_sizer)
 
         self.SetSizer(sizer)
+        self.SendSizeEvent()
 
         def change_record(increment):
             global record_number
@@ -227,11 +238,30 @@ class Frame(wx.Frame):
                 except ValueError:
                     msg, url = msg.split(': ', 1)
 
-                msg = msg.replace('\\\\', '\\')
+                try:
+                    msg = json.dumps(
+                        json.loads(msg),
+                        indent=4
+                    )
+                except ValueError:
+                    msg = msg.replace('\\\\', '\\')
 
                 if returned_data is not None:
+                    if isinstance(returned_data, tuple):
+                        returned_data = returned_data[0]
+
                     returned_data = returned_data.split(')', 1)[-1].strip()
-                    returned_data = returned_data.replace('\\\\', '\\')
+
+                    try:
+                        returned_data = json.dumps(
+                            json.loads(returned_data),
+                            indent=4
+                        )
+                    except ValueError:
+                        returned_data = returned_data.replace('\\\\', '\\')
+
+                        if '<' in returned_data and '>' in returned_data:
+                            returned_data = returned_data.replace('\\n', '\n').replace("'", '').replace('\\r', '')
 
                 else:
                     returned_data = ''
@@ -252,8 +282,24 @@ class Frame(wx.Frame):
                     url = ip
                     msg = msg.replace("\\n'", "")
 
-                msg = msg.replace('\\\\', '\\')
-                returned_data = ''
+                try:
+                    msg = json.dumps(
+                        json.loads(msg),
+                        indent=4
+                    )
+                except ValueError:
+                    msg = msg.replace('\\\\', '\\')
+
+                if returned_data is None:
+                    returned_data = ''
+                else:
+                    try:
+                        returned_data = json.dumps(
+                            json.loads(returned_data),
+                            indent=4
+                        )
+                    except ValueError:
+                        returned_data = returned_data.replace('\\\\', '\\')
 
                 out_ctrl.SetValue(
                     'URL: ' + url + '\n' +
@@ -268,68 +314,115 @@ class Frame(wx.Frame):
                 in_ctrl.SetValue('')
 
             else:
-                called_func, called_args = msg.split('(', 1)
-                called_args = called_args.rsplit(')', 1)[0]
-
-                args = []
-                found_arg = ''
-
-                for arg in called_args.split(', '):
-                    if not arg.strip():
-                        continue
-
-                    if '=' not in arg:
-                        found_arg += arg
+                try:
+                    msg = json.dumps(
+                        json.loads(msg),
+                        indent=4
+                    )
+                    out_ctrl.SetValue('INFO:\n' + msg)
+                except ValueError:
+                    try:
+                        called_func, called_args = msg.split('(', 1)
+                    except ValueError:
+                        msg = eval(msg)
+                        out_ctrl.SetValue('INFO:\n' + msg)
                     else:
-                        if found_arg:
-                            args[len(args) - 1] += found_arg
-                            found_arg = ''
-                        args += [arg]
+                        called_args = called_args.rsplit(')', 1)[0]
 
-                called_args = ',\n'.join(args) + '\n'
-
-                if returned_data is None:
-                    returned_data = ''
-                else:
-                    result = []
-                    returned_data = returned_data.split('=>')[-1].strip()
-
-                    if (
-                        returned_data.startswith('(') and
-                        returned_data.endswith(')')
-                    ):
-                        brace_count = 0
+                        args = []
                         found_arg = ''
-                        for arg in returned_data[1:-1].split(', '):
+
+                        for arg in called_args.split(', '):
                             if not arg.strip():
                                 continue
-                            brace_count += arg.count('(')
-                            brace_count += arg.count('{')
-                            brace_count += arg.count('[')
-                            brace_count += arg.count('<')
 
-                            brace_count -= arg.count(')')
-                            brace_count -= arg.count('}')
-                            brace_count -= arg.count(']')
-                            brace_count -= arg.count('>')
-
-                            if brace_count != 0:
+                            if '=' not in arg:
                                 found_arg += arg
-
                             else:
                                 if found_arg:
-                                    result += [found_arg + arg]
+                                    args[len(args) - 1] += found_arg
                                     found_arg = ''
-                                else:
-                                    result += [arg]
+                                args += [arg]
 
-                        returned_data = ',\n'.join(result) + '\n'
+                        for i, arg in enumerate(args):
+                            param_name, data = arg.split('=', 1)
+                            try:
+                                data = json.dumps(
+                                    eval(data.replace('\\n', '')[1:-1]),
+                                    indent=4
+                                )
+                            except NameError:
+                                try:
+                                    data = "'" + json.dumps(
+                                        json.loads(data[1:-1].replace('\\n', '')),
+                                        indent=4
+                                    ) + "'"
+                                except ValueError:
+                                    continue
+                            except:
+                                continue
 
-                out_ctrl.SetValue(
-                    'Called Function: ' + called_func + '\n' +
-                    'Parameters: \n' + called_args
-                )
-                in_ctrl.SetValue(returned_data)
+                            args[i] = param_name + '=' + data
+
+                        called_args = ',\n'.join(args) + '\n'
+
+                        out_ctrl.SetValue(
+                            'Called Function: ' + called_func + '\n' +
+                            'Parameters: \n' + called_args
+                        )
+
+            if returned_data is None:
+                returned_data = ''
+            else:
+                if isinstance(returned_data, tuple):
+                    returned_data = returned_data[0]
+
+                returned_data = returned_data.split('=>')[-1].strip()
+
+                if (
+                    returned_data.startswith('(') and
+                    returned_data.endswith(')')
+                ):
+                    result = []
+                    brace_count = 0
+                    found_arg = ''
+                    for arg in returned_data[1:-1].split(', '):
+                        if not arg.strip():
+                            continue
+
+                        brace_count += arg.count('(')
+                        brace_count += arg.count('{')
+                        brace_count += arg.count('[')
+                        brace_count += arg.count('<')
+
+                        brace_count -= arg.count(')')
+                        brace_count -= arg.count('}')
+                        brace_count -= arg.count(']')
+                        brace_count -= arg.count('>')
+
+                        if brace_count != 0:
+                            found_arg += arg
+
+                        else:
+                            if found_arg:
+                                result += [found_arg + arg]
+                                found_arg = ''
+                            else:
+                                result += [arg]
+
+                    for i, res in enumerate(result):
+                        try:
+                            res = json.dumps(
+                                eval(res.rstrip('\\n')),
+                                indent=4
+                            )
+                            result[i] = res
+                        except:
+                            continue
+
+                    returned_data = ',\n'.join(result) + '\n'
+
+            in_ctrl.SetValue(returned_data)
 
         def on_next(evt):
             wx.CallAfter(change_record, 1)
