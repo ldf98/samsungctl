@@ -917,12 +917,17 @@ def run_test(config):
             else:
                 print_test('manual channel change: [fail]')
 
-            _channel.activate()
-            time.sleep(4)
-            chnl = get_property('channel', [])
-            if chnl == _channel:
-                print_test('channel change from list: [pass]')
-            else:
+
+            try:
+                _channel.activate()
+                time.sleep(4)
+                chnl = get_property('channel', [])
+                if chnl == _channel:
+                    print_test('channel change from list: [pass]')
+                else:
+                    print_test('channel change from list: [fail]')
+            except:
+                traceback.print_exc()
                 print_test('channel change from list: [fail]')
 
     if remote.year >= 2016:
