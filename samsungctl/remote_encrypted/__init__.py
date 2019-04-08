@@ -140,6 +140,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     def open(self):
         with self._auth_lock:
             if self.sock is not None:
+                self.is_powering_on = False
                 return True
 
             del self._registered_callbacks[:]
@@ -164,7 +165,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                                 self.config.host +
                                 '-- pin retry limit reached.'
                             )
-                            self._power_event.set()
+                            self.is_powering_on = False
                             return False
 
                         if tv_pin is None:
@@ -230,7 +231,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                     self.close_pin_page()
 
             if self.config.token is None:
-                self._power_event.set()
+                self.is_powering_on = False
                 raise RuntimeError('Unknown Authentication Error')
 
             aes_key, current_session_id = self.config.token.rsplit(':', 1)
@@ -241,12 +242,14 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             websocket_url = self.url.websocket
             if websocket_url is None:
+                self.is_powering_on = False
                 return False
 
             # noinspection PyPep8,PyBroadException
             try:
                 sock = websocket.create_connection(websocket_url)
             except:
+                self.is_powering_on = False
                 return False
 
             self.sock = sock
@@ -254,8 +257,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             self._thread.start()
             self.connect()
             self.is_powering_on = False
-            self.is_powering_off = False
-            self._power_event.set()
             return True
 
     @LogIt
@@ -424,6 +425,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         )
 
         if "secure-mode" in response.content.decode('utf-8'):
+            self.is_powering_on = False
             raise RuntimeError(
                 "TODO: Implement handling of encryption flag!!!!"
             )
@@ -433,6 +435,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             client_ack = auth_data['ClientAckMsg']
             session_id = auth_data['session_id']
         except (ValueError, KeyError):
+            self.is_powering_on = False
             raise RuntimeError(
                 "Unable to get session_id and/or ClientAckMsg!!!"
             )
@@ -444,6 +447,7 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         )
 
         if not crypto.parse_client_acknowledge(client_ack, sk_prime):
+            self.is_powering_on = False
             raise RuntimeError("Parse client ack message failed.")
 
         return session_id
@@ -465,6 +469,19 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             ' --> ' +
             repr(data)
         )
+
+        if data.startswith('5::/com.samsung.companion'):
+            data = data.replace('5::/com.samsung.companion:', '')
+            data = json.loads(data)
+            if data['name'] == 'receiveCommon':
+                args = eval(data['args'])
+                args = ''.join(chr(arg) for arg in args)
+                args = self.aes.decrypt(args)
+                logger.debug(
+                    self.config.host +
+                    ' --> ' +
+                    repr(args)
+                )
 
     def _send_key(self, command):
         with self._send_lock:

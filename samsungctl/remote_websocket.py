@@ -102,8 +102,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             def auth_callback(data):
                 if 'data' in data and 'token' in data["data"]:
                     self.config.token = data['data']["token"]
-                    if self.config.path:
-                        self.config.save()
 
                     logger.debug(
                         self.config.host +
@@ -112,6 +110,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                     )
 
                 self.config.paired = True
+
+                if self.config.path:
+                    self.config.save()
 
                 logger.debug(
                     self.config.host +
@@ -149,15 +150,11 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 self.sock = websocket.create_connection(url, sslopt=sslopt)
             except:
                 if not self.config.paired:
-                    self._power_event.set()
                     raise RuntimeError('Unable to connect to the TV')
 
                 return False
 
-            if self.config.paired:
-                auth_event.wait(5.0)
-            else:
-                auth_event.wait(30.0)
+            auth_event.wait(30.0)
 
             self.unregister_receive_callback(
                 unauthorized_callback,
@@ -178,9 +175,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 self.connect()
 
-                self.is_powering_off = False
                 self.is_powering_on = False
-                self._power_event.set()
                 return True
 
             self._close_connection()
@@ -207,7 +202,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 if not res:
                     self.config.token = saved_token
-                    self._power_event.set()
+                    self.is_powering_on = False
                     raise RuntimeError(
                         'Auth Error: invalid token - '
                         'create a new pairing to the TV.'
@@ -220,13 +215,15 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                         ' old token: ' +
                         str(saved_token)
                     )
+                    self.is_powering_on = False
                     return res
 
-            self._power_event.set()
+            self.is_powering_on = False
             raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
 
         with self._auth_lock:
             if self.sock is not None:
+                self.is_powering_on = False
                 return True
 
             do()

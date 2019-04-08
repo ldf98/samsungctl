@@ -9,6 +9,7 @@ import uuid
 import base64
 import socket
 import websocket
+import time
 from .upnp.discover import auto_discover
 from .upnp.UPNP_Device.adapter_addresses import get_adapter_ips
 from . import wake_on_lan
@@ -36,6 +37,105 @@ CEC_POWER_STATUS_IN_TRANSITION_ON_TO_STANDBY = 3
 CEC_POWER_STATUS_UNKNOWN = 153
 
 
+class PowerHandler(object):
+    def __init__(self, parent):
+        self._parent = parent
+        self._event = threading.Event()
+        self._thread = None
+        self._power_on = False
+        self._power_off = False
+        self._is_powering_off = False
+        self._is_powering_on = False
+
+    @property
+    def is_powering_off(self):
+        return self._is_powering_off
+
+    @is_powering_off.setter
+    def is_powering_off(self, value):
+        self._is_powering_off = value
+        self._event.set()
+
+    @property
+    def is_powering_on(self):
+        return self._is_powering_on
+
+    @is_powering_on.setter
+    def is_powering_on(self, value):
+        self._is_powering_on = value
+        self._event.set()
+
+
+    def __on(self):
+        self.is_powering_on = True
+        if self._parent._cec is not None:
+            if self._parent._cec.tv.power not in (
+                CEC_POWER_STATUS_ON,
+                CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON
+            ):
+                self._parent._cec.tv.power = True
+                self._event.wait(120.0)
+            else:
+                self._parent.open()
+
+        elif self._parent.mac_address:
+            count = 0
+            while not self._event.isSet():
+                if count == 60:
+                    break
+
+                wake_on_lan.send_wol(self._parent.mac_address)
+                self._event.wait(2.0)
+                count += 1
+
+        self.is_powering_on = False
+        self._power_on = False
+
+        if self._power_off:
+            self.__off()
+
+    def __off(self):
+        self.is_powering_off = True
+
+        if self._parent._cec is not None:
+            if self._parent._cec.tv.power not in (
+                CEC_POWER_STATUS_STANDBY,
+                CEC_POWER_STATUS_IN_TRANSITION_ON_TO_STANDBY
+            ):
+                self._parent._cec.tv.power = False
+
+        else:
+            if self._parent.config.method == 'encrypted':
+                power_key = 'KEY_POWEROFF'
+            else:
+                power_key = 'KEY_POWER'
+
+            self._parent._send_key(power_key)
+
+        self._event.wait(15.0)
+        self.is_powering_off = False
+        self._power_off = False
+
+        if self._power_on:
+            self.__on()
+
+    def power_off(self):
+        if self.is_powering_on:
+            self._power_off = True
+        elif not self.is_powering_off:
+            self._thread = threading.Thread(target=self.__off)
+            self._thread.daemon = True
+            self._thread.start()
+
+    def power_on(self):
+        if self.is_powering_off:
+            self._power_on = True
+        elif not self.is_powering_on:
+            self._thread = threading.Thread(target=self.__on)
+            self._thread.daemon = True
+            self._thread.start()
+
+
 # noinspection PyAbstractClass
 class WebSocketBase(UPNPTV):
     """Base class for TV's with websocket connection."""
@@ -51,7 +151,6 @@ class WebSocketBase(UPNPTV):
         """
         self.config = config
         self.sock = None
-        self._power_event = threading.Event()
         self._loop_event = threading.Event()
         self._auth_lock = threading.RLock()
         self._connect_lock = threading.Lock()
@@ -59,10 +158,7 @@ class WebSocketBase(UPNPTV):
         self._registered_callbacks = []
         self._thread = None
         self._art_mode = None
-        self.is_powering_off = False
-        self.is_powering_on = False
-        self._power_thread = None
-
+        self._power_handler = PowerHandler(self)
         UPNPTV.__init__(self, config)
 
         auto_discover.register_callback(
@@ -70,7 +166,21 @@ class WebSocketBase(UPNPTV):
             config.uuid
         )
 
-        self.open()
+    @property
+    def is_powering_off(self):
+        return self._power_handler.is_powering_off
+
+    @is_powering_off.setter
+    def is_powering_off(self, value):
+        self._power_handler.is_powering_off = value
+
+    @property
+    def is_powering_on(self):
+        return self._power_handler.is_powering_on
+
+    @is_powering_on.setter
+    def is_powering_on(self, value):
+        self._power_handler.is_powering_on = value
 
     def _connect(self, config, power):
         with self._connect_lock:
@@ -81,11 +191,15 @@ class WebSocketBase(UPNPTV):
                 if self.is_powering_off:
                     return
 
+                if self.is_powering_on:
+                    if self._thread:
+                        self._close_connection()
+
                 if not self._thread:
                     self.config.copy(config)
                     self.open()
 
-                elif not self.is_connected:
+                elif self._thread and not self.is_connected:
                     self.connect()
 
     def _send_key(self, *args, **kwargs):
@@ -172,17 +286,17 @@ class WebSocketBase(UPNPTV):
         except:
             pass
 
+        self.disconnect()
+        self.is_powering_off = False
         self.sock = None
         self._thread = None
-        self.disconnect()
-        self._power_event.set()
-        self.is_powering_off = False
 
     @property
     @LogItWithReturn
     def power(self):
         with self._auth_lock:
             return self.sock is not None
+
         # try:
         #     requests.get(
         #         'http://{0}:8001/api/v2/'.format(self.config.host),
@@ -201,83 +315,9 @@ class WebSocketBase(UPNPTV):
     def power(self, value):
         with self._auth_lock:
             if value and self.sock is None:
-                def do(powering_off):
-                    if powering_off and self.open():
-                        self._send_key('KEY_POWERON')
-
-                    elif self._cec is not None:
-                        if self._cec.tv.power not in (
-                            CEC_POWER_STATUS_ON,
-                            CEC_POWER_STATUS_IN_TRANSITION_STANDBY_TO_ON
-                        ):
-                            self._cec.tv.power = True
-                            self._power_event.wait(20)
-                        else:
-                            self.open()
-
-                    elif self.mac_address:
-                        self._power_event.clear()
-                        while not self._power_event.isSet():
-                            wake_on_lan.send_wol(self.mac_address)
-                            self._power_event.wait(2.0)
-                    else:
-                        logging.error(
-                            self.config.host +
-                            ' -- unable to get TV\'s mac address'
-                        )
-                        self._powering_on = False
-
-                    self._power_thread = None
-
-                if self._power_thread is not None:
-                    self._power_event.set()
-                    self._power_thread.join()
-
-                p_off = self.is_powering_off
-                self._power_event.clear()
-                self._power_thread = threading.Thread(target=do, args=(p_off,))
-                self._power_thread.daemon = True
-                self.is_powering_off = False
-                self.is_powering_on = True
-                self._power_thread.start()
-
+                self._power_handler.power_on()
             elif not value and self.sock is not None:
-                def do():
-                    if self._cec is not None:
-                        if self._cec.tv.power not in (
-                            CEC_POWER_STATUS_STANDBY,
-                            CEC_POWER_STATUS_IN_TRANSITION_ON_TO_STANDBY
-                        ):
-                            self._cec.tv.power = False
-                    else:
-                        if self.year < 2016:
-                            power_key = 'KEY_POWEROFF'
-                        else:
-                            power_key = 'KEY_POWER'
-
-                        self._send_key(power_key)
-                        self._power_event.wait(120.0)
-
-                    if not self._power_event.isSet():
-                        logger.debug(
-                            self.config.host +
-                            ' --- Failed to power off the TV'
-                        )
-
-                        self.is_powering_off = False
-
-                    self._power_thread = None
-
-                if self._power_thread is not None:
-                    self._power_event.set()
-                    self._power_thread.join()
-
-                self._power_event.clear()
-                self._power_thread = threading.Thread(target=do)
-                self._power_thread.daemon = True
-                self.is_powering_on = False
-                self.is_powering_off = True
-                self._power_thread.start()
+                self._power_handler.power_off()
 
     @LogItWithReturn
     def control(self, key, *args, **kwargs):
@@ -286,12 +326,7 @@ class WebSocketBase(UPNPTV):
                 if self.is_powering_on:
                     return True
 
-                if self.is_powering_off:
-                    self._send_key(key)
-                    self.is_powering_off = False
-                    return True
-
-                if not self.power:
+                if self.is_powering_off or not self.power:
                     self.power = True
                     return True
 
@@ -301,26 +336,22 @@ class WebSocketBase(UPNPTV):
                 if self.is_powering_off:
                     return True
 
-                if self.is_powering_on:
-                    return False
-
-                if self.power:
+                if self.is_powering_on or self.power:
                     self.power = False
                     return True
 
                 return False
 
             elif key == 'KEY_POWER':
-                if self.is_powering_off:
-                    self._send_key('KEY_POWERON')
-                    self.is_powering_off = False
+                if self.is_powering_off or not self.power:
+                    self.power = True
                     return True
 
-                if self.is_powering_on:
-                    return False
+                if self.is_powering_on or self.power:
+                    self.power = False
+                    return True
 
-                self.power = not self.power
-                return True
+                return False
 
             elif self.sock is None:
                 logger.info(
