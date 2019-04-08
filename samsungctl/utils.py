@@ -88,7 +88,7 @@ class DebugLogger(object):
                 msg = repr(msg)
 
         if args:
-            msg %= tuple(repr(arg for arg in args))
+            msg %= tuple(repr(arg) for arg in args)
 
         if not msg.startswith('DEBUG*;*'):
             msg = repr(msg)

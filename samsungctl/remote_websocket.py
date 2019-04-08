@@ -253,8 +253,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             try:
                 self.sock.send(json.dumps(payload))
                 self.send_event.wait(0.3)
+                return True
             except:
-                pass
+                return False
 
     def _close_connection(self):
         if self._art_mode is not None:
@@ -266,8 +267,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         """
         Send a control command.
         cmd can be one of the following
-
-
         {
             "method":"ms.remote.control",
             "params":{
