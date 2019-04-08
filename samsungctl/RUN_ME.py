@@ -1238,7 +1238,7 @@ def run_test(config):
         start_time = time.time()
         remote.power = False
         count = 0
-        while remote.is_powering_off:
+        while remote.power:
             power_event.wait(12.0)
             count += 1
             print_test(count * 12, 'seconds have passed')
@@ -1260,7 +1260,7 @@ def run_test(config):
             count = 0
             remote.power = True
 
-            while remote.is_powering_on:
+            while not remote.power:
                 power_event.wait(12.0)
                 count += 1
                 print_test(count * 12, 'seconds have passed')
