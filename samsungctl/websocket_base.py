@@ -365,6 +365,15 @@ class WebSocketBase(UPNPTV):
 
             return self._send_key(key, *args, **kwargs)
 
+    @LogIt
+    def register_receive_callback(self, callback, key, data):
+        self._registered_callbacks += [[callback, key, data]]
+
+    @LogIt
+    def unregister_receive_callback(self, callback, key, data):
+        if [callback, key, data] in self._registered_callbacks:
+            self._registered_callbacks.remove([callback, key, data])
+
     def open(self):
         raise NotImplementedError
 

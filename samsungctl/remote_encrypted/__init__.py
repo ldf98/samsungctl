@@ -457,31 +457,45 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
         requests.delete(self.url.cloud_pin_page + '/run')
         return False
 
-    def on_message(self, data):
+    def on_message(self, response):
         # noinspection PyPep8,PyBroadException
         try:
-            data = self.aes.decrypt(data)
+            response = self.aes.decrypt(response)
         except:
             pass
 
         logger.debug(
             self.config.host +
             ' --> ' +
-            repr(data)
+            repr(response)
         )
 
-        if data.startswith('5::/com.samsung.companion'):
-            data = data.replace('5::/com.samsung.companion:', '')
-            data = json.loads(data)
-            if data['name'] == 'receiveCommon':
-                args = eval(data['args'])
-                args = ''.join(chr(arg) for arg in args)
-                args = self.aes.decrypt(args)
-                logger.debug(
-                    self.config.host +
-                    ' --> ' +
-                    repr(args)
+        for callback, key, data in self._registered_callbacks[:]:
+            if key == response:
+                self._registered_callbacks.remove(
+                    [callback, key, data]
                 )
+                callback(response)
+                break
+
+        if response.startswith('5::/com.samsung.companion'):
+            response = response.replace('5::/com.samsung.companion:', '')
+            response = json.loads(response)
+            if response['name'] == 'receiveCommon':
+                args = eval(response['args'])
+                args = ''.join(hex(itm)[2:].zfill(2) for itm in args)
+                response = json.loads(self.aes.decrypt(args))
+
+                for callback, key, data in self._registered_callbacks[:]:
+                    if (
+                        key in response and
+                        (data is None or response[key] == data)
+                    ):
+                        self._registered_callbacks.remove(
+                            [callback, key, data]
+                        )
+                        callback(response)
+                        break
 
     def _send_key(self, command):
         with self._send_lock:
@@ -523,8 +537,26 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
             )
             # noinspection PyPep8,PyBroadException
             try:
+                event = threading.Event()
+
+                def callback(_):
+                    event.set()
+
+                self.register_receive_callback(callback, '1::', None)
+
                 self.sock.send('1::/com.samsung.companion')
-                time.sleep(0.35)
+                event.wait(2.0)
+
+                self.unregister_receive_callback(callback, '1::', None)
+
+                if not event.isSet():
+                    logger.debug(
+                        self.config.host +
+                        ' -- remote key send failure 1::/com.samsung.companion'
+                    )
+                    return
+
+                event.clear()
 
                 logger.debug(
                     self.config.host +
@@ -532,10 +564,36 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                     repr(packet)
                 )
 
+                result = []
+
+                def callback(response):
+                    if (
+                        'api' in response and
+                        response['api'] == 'SendRemoteKey'
+                    ):
+                        result.append(response['result'])
+                        event.set()
+
+                self.register_receive_callback(
+                    callback,
+                    'plugin',
+                    'RemoteControl'
+                )
+
                 self.sock.send(packet)
 
-                time.sleep(0.35)
-                return True
+                event.wait(2.0)
+
+                self.unregister_receive_callback(
+                    callback,
+                    'plugin',
+                    'RemoteControl'
+                )
+
+                if event.isSet() and result[0] in (1, '1'):
+                    return True
+
+                return False
 
             except:
                 traceback.print_exc()

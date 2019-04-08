@@ -432,15 +432,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
         return self._art_mode
 
     @LogIt
-    def register_receive_callback(self, callback, key, data):
-        self._registered_callbacks += [[callback, key, data]]
-
-    @LogIt
-    def unregister_receive_callback(self, callback, key, data):
-        if [callback, key, data] in self._registered_callbacks:
-            self._registered_callbacks.remove([callback, key, data])
-
-    @LogIt
     def on_message(self, message):
         response = json.loads(message)
 
