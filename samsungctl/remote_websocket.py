@@ -168,7 +168,7 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             )
 
             if auth_event.isSet() and not unauth_event.is_set():
-                self._app_websocket = application.AppWebsocket(self.config)
+                # self._app_websocket = application.AppWebsocket(self.config)
 
                 if self._art_mode is not None:
                     self._art_mode.open()
@@ -341,21 +341,21 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             'event',
             'ed.edenApp.get'
         )
-        self._app_websocket.register_receive_callback(
-            eden_app_get,
-            'event',
-            'ed.edenApp.get'
-        )
+        # self._app_websocket.register_receive_callback(
+        #     eden_app_get,
+        #     'event',
+        #     'ed.edenApp.get'
+        # )
         self.register_receive_callback(
             installed_app_get,
             'event',
             'ed.installedApp.get'
         )
-        self._app_websocket.register_receive_callback(
-            installed_app_get,
-            'event',
-            'ed.installedApp.get'
-        )
+        # self._app_websocket.register_receive_callback(
+        #     installed_app_get,
+        #     'event',
+        #     'ed.installedApp.get'
+        # )
 
         for event in ['ed.edenApp.get', 'ed.installedApp.get']:
             params = dict(
@@ -375,21 +375,21 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
             'ed.edenApp.get'
         )
 
-        self._app_websocket.unregister_receive_callback(
-            eden_app_get,
-            'event',
-            'ed.edenApp.get'
-        )
+        # self._app_websocket.unregister_receive_callback(
+        #     eden_app_get,
+        #     'event',
+        #     'ed.edenApp.get'
+        # )
         self.unregister_receive_callback(
             installed_app_get,
             'event',
             'ed.installedApp.get'
         )
-        self._app_websocket.unregister_receive_callback(
-            installed_app_get,
-            'event',
-            'ed.installedApp.get'
-        )
+        # self._app_websocket.unregister_receive_callback(
+        #     installed_app_get,
+        #     'event',
+        #     'ed.installedApp.get'
+        # )
 
         if not eden_event.isSet():
             logger.debug(
