@@ -425,7 +425,7 @@ def run_test(config):
                 print_test(conf)
                 print_test('state =', state)
 
-    auto_discover.register_callback(power_callback, uuid=config.uuid)
+    # auto_discover.register_callback(power_callback, uuid=config.uuid)
     print_test('SETTING UP REMOTE CONNECTION')
     if config.paired:
         print_test('USING STORED CONFIG FILE')
