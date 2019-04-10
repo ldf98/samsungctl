@@ -542,12 +542,12 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 def callback(_):
                     event.set()
 
-                self.register_receive_callback(callback, '1::', None)
+                self.register_receive_callback(callback, '1::/com.samsung.companion', None)
 
                 self.sock.send('1::/com.samsung.companion')
                 event.wait(2.0)
 
-                self.unregister_receive_callback(callback, '1::', None)
+                self.unregister_receive_callback(callback, '1::/com.samsung.companion', None)
 
                 if not event.isSet():
                     logger.debug(
