@@ -543,6 +543,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                     '1::/com.samsung.companion',
                     None
                 )
+                self.register_receive_callback(
+                    callback,
+                    '1::',
+                    None
+                )
 
                 self.sock.send(
                     '1::/com.samsung.companion'
@@ -552,6 +557,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 self.unregister_receive_callback(
                     callback,
                     '1::/com.samsung.companion',
+                    None
+                )
+                self.unregister_receive_callback(
+                    callback,
+                    '1::',
                     None
                 )
 
