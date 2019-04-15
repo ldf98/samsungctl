@@ -6,6 +6,7 @@ import socket
 import threading
 import sys
 # noinspection PyCompatibility
+from . import power_handler
 from . import exceptions
 from . import upnp
 from . import wake_on_lan
@@ -53,32 +54,51 @@ class RemoteLegacy(upnp.UPNPTV):
         self._loop_event = threading.Event()
         self._receive_lock = threading.Lock()
         self._receive_event = threading.Event()
-        self._power_event = threading.Event()
         self._registered_callbacks = []
         self._thread = None
-        self.is_powering_on = False
-        self.is_powering_off = False
+        self._power_handler = power_handler.PowerHandler(self)
+
         upnp.UPNPTV.__init__(self, config)
+
+        self._thread = threading.Thread(target=self.loop)
+        self._thread.start()
 
         auto_discover.register_callback(
             self._connect,
             config.uuid
         )
 
-    @LogIt
+    @property
+    def is_powering_off(self):
+        return self._power_handler.is_powering_off
+
+    @is_powering_off.setter
+    def is_powering_off(self, value):
+        self._power_handler.is_powering_off = value
+
+    @property
+    def is_powering_on(self):
+        return self._power_handler.is_powering_on
+
+    @is_powering_on.setter
+    def is_powering_on(self, value):
+        self._power_handler.is_powering_on = value
+
     def _connect(self, config, power):
         with self._connect_lock:
             if config is None:
                 return
-            if power:
-                if not self._thread:
-                    self.config.copy(config)
-                    self.open()
-                elif not self.is_connected:
-                    self.connect()
 
-            elif not power:
-                self._close_connection()
+            if power:
+                if config.host != self.config.host:
+                    self.config.copy(config)
+                    return
+                if self.sock is None:
+                    return
+                if self.is_powering_on:
+                    return
+                if not self.is_connected:
+                    self.connect()
 
     @property
     @LogItWithReturn
@@ -115,97 +135,93 @@ class RemoteLegacy(upnp.UPNPTV):
     @LogIt
     def power(self, value):
         with self._auth_lock:
-            if value and not self.power:
-                if self.is_powering_off and self.open():
-                    self._send_key('KEY_POWERON')
-                else:
-                    self.is_powering_on = True
-                    if self._cec is not None:
-                        self._cec.tv.power = True
-                    elif self.mac_address:
-                        wake_on_lan.send_wol(self.mac_address)
-                    else:
-                        logging.error(
-                            self.config.host +
-                            ' -- unable to get TV\'s mac address'
-                        )
-                        self.is_powering_on = False
-
-            elif not value and self.power:
-                self.is_powering_off = True
-                if self._cec is not None:
-                    self._cec.tv.power = False
-                else:
-                    self.control('KEY_POWEROFF')
+            if value and self.sock is None:
+                self._power_handler.power_on()
+            elif not value and self.sock is not None:
+                self._power_handler.power_off()
 
     def loop(self):
-        while self.sock is None and not self._loop_event.isSet():
-            self._loop_event.wait(0.1)
+        self._loop_event.clear()
 
         while not self._loop_event.isSet():
-            try:
-                header = self.sock.recv(3)
-                logger.debug(
-                    self.config.host +
-                    ' --> (header) ' +
-                    repr(header)
-                )
+            if self.sock is None:
+                if self.open():
+                    self.connect()
+                    self.is_powering_on = False
+                else:
+                    self._loop_event.wait(1.0)
 
-                tv_name_len = ord(header[1:2].decode('utf-8'))
-                logger.debug(
-                    self.config.host +
-                    ' --> (tv_name_len) ' +
-                    repr(tv_name_len)
-                )
+            else:
+                try:
+                    header = self.sock.recv(3)
+                    logger.debug(
+                        self.config.host +
+                        ' --> (header) ' +
+                        repr(header)
+                    )
 
-                tv_name = self.sock.recv(tv_name_len)
-                logger.debug(
-                    self.config.host +
-                    ' --> (tv_name) ' +
-                    repr(tv_name)
-                )
+                    tv_name_len = ord(header[1:2].decode('utf-8'))
+                    logger.debug(
+                        self.config.host +
+                        ' --> (tv_name_len) ' +
+                        repr(tv_name_len)
+                    )
 
-                response_len = self.sock.recv(2)
-                logger.debug(
-                    self.config.host +
-                    ' --> (response_len(hex)) ' +
-                    repr(response_len)
-                )
+                    tv_name = self.sock.recv(tv_name_len)
+                    logger.debug(
+                        self.config.host +
+                        ' --> (tv_name) ' +
+                        repr(tv_name)
+                    )
 
-                response_len = ord(response_len[:1].decode('utf-8'))
-                logger.debug(
-                    self.config.host +
-                    ' --> (response_len(int)) ' +
-                    repr(response_len)
-                )
+                    response_len = self.sock.recv(2)
+                    logger.debug(
+                        self.config.host +
+                        ' --> (response_len(hex)) ' +
+                        repr(response_len)
+                    )
 
-                response = self.sock.recv(response_len)
-                logger.debug(
-                    self.config.host +
-                    ' --> (response) ' +
-                    repr(response)
-                )
+                    response_len = ord(response_len[:1].decode('utf-8'))
+                    logger.debug(
+                        self.config.host +
+                        ' --> (response_len(int)) ' +
+                        repr(response_len)
+                    )
 
-                if len(response) == 0:
-                    continue
+                    response = self.sock.recv(response_len)
+                    logger.debug(
+                        self.config.host +
+                        ' --> (response) ' +
+                        repr(response)
+                    )
 
-                if response == RESULTS[4]:
-                    if self._registered_callbacks:
-                        self._registered_callbacks[0]()
-            except (socket.error, TypeError):
-                break
+                    if len(response) == 0:
+                        continue
+
+                    if response == RESULTS[4]:
+                        if self._registered_callbacks:
+                            self._registered_callbacks[0]()
+
+                except (socket.error, TypeError):
+                    self.sock = None
+                    self.is_powering_off = False
+                    self.disconnect()
 
         if self.sock is not None:
             self.sock.close()
             self.sock = None
 
-        self._thread = None
-        self._loop_event.clear()
         self.is_powering_off = False
+        self.disconnect()
+        self._thread = None
 
     @LogIt
     def open(self):
         with self._auth_lock:
+            if self._thread is None:
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
+
             if self.sock is not None:
                 return True
 
@@ -277,16 +293,12 @@ class RemoteLegacy(upnp.UPNPTV):
 
                     if response == RESULTS[0]:
                         logger.debug(self.config.host + ' -- access granted')
+
                         self.config.paired = True
                         if self.config.path:
                             self.config.save()
-
-                        self._thread = threading.Thread(target=self.loop)
-                        self._thread.start()
-                        self.connect()
                         self.sock = sock
-                        self.is_powering_on = False
-                        self.is_powering_off = False
+
                         return True
 
                     elif response == RESULTS[1]:
@@ -317,8 +329,10 @@ class RemoteLegacy(upnp.UPNPTV):
                     self.sock = None
                     return False
 
-    def _close_connection(self):
-        if self._thread is not None:
+    @LogIt
+    def close(self):
+        """Close the connection."""
+        with self._auth_lock:
             self._loop_event.set()
             try:
                 self.sock.shutdown(socket.SHUT_RDWR)
@@ -329,40 +343,78 @@ class RemoteLegacy(upnp.UPNPTV):
             if self._thread is not None:
                 self._thread.join(2.0)
 
-    @LogIt
-    def close(self):
-        """Close the connection."""
-        with self._auth_lock:
-            self._close_connection()
             auto_discover.unregister_callback(self._connect, self.config.uuid)
+
+    def _send_key(self, key):
+        with self._receive_lock:
+            payload = PACKET_HEADER + self._serialize_string(key)
+            packet = PACKET_HEADER + self._serialize_string(payload, True)
+
+            logger.info(
+                self.config.host +
+                ' <--' +
+                repr(packet)
+
+            )
+
+            def callback():
+                self._receive_event.set()
+
+            self._registered_callbacks += [callback]
+            self._receive_event.clear()
+
+            self.sock.send(packet)
+            self._receive_event.wait(self._key_interval)
+            self._registered_callbacks.remove(callback)
+            return True
 
     @LogIt
     def control(self, key):
         """Send a control command."""
+
         with self._auth_lock:
-            if self.sock is None:
+            if key == 'KEY_POWERON':
+                if self.is_powering_on:
+                    return True
+
+                if self.is_powering_off or not self.power:
+                    self.power = True
+                    return True
+
                 return False
 
-            with self._receive_lock:
-                payload = PACKET_HEADER + self._serialize_string(key)
-                packet = PACKET_HEADER + self._serialize_string(payload, True)
+            elif key == 'KEY_POWEROFF':
+                if self.is_powering_off:
+                    return True
 
+                if self.is_powering_on or self.power:
+                    self.power = False
+                    return True
+
+                return False
+
+            elif key == 'KEY_POWER':
+                if self.is_powering_off or not self.power:
+                    self.power = True
+                    return True
+
+                if self.is_powering_on or self.power:
+                    self.power = False
+                    return True
+
+                return False
+
+            elif self.sock is None:
                 logger.info(
-                    self.config.host +
-                    ' <--' +
-                    repr(packet)
-
+                    self.config.model +
+                    ' -- is the TV on?!?'
                 )
+                return False
 
-                def callback():
-                    self._receive_event.set()
+            if self.is_powering_on or self.is_powering_off:
+                return False
 
-                self._registered_callbacks += [callback]
-                self._receive_event.clear()
-
-                self.sock.send(packet)
-                self._receive_event.wait(self._key_interval)
-                self._registered_callbacks.remove(callback)
+            return self._send_key(key)
 
     _key_interval = 0.3
 

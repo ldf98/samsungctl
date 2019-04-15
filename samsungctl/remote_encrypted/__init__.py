@@ -139,8 +139,11 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
     @LogItWithReturn
     def open(self):
         with self._auth_lock:
+            if self._thread is None:
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
+
             if self.sock is not None:
-                self.is_powering_on = False
                 return True
 
             del self._registered_callbacks[:]
@@ -231,7 +234,6 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                     self.close_pin_page()
 
             if self.config.token is None:
-                self.is_powering_on = False
                 raise RuntimeError('Unknown Authentication Error')
 
             aes_key, current_session_id = self.config.token.rsplit(':', 1)
@@ -242,21 +244,15 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             websocket_url = self.url.websocket
             if websocket_url is None:
-                self.is_powering_on = False
                 return False
 
             # noinspection PyPep8,PyBroadException
+
             try:
-                sock = websocket.create_connection(websocket_url)
+                self.sock = websocket.create_connection(websocket_url)
             except:
-                self.is_powering_on = False
                 return False
 
-            self.sock = sock
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
-            self.connect()
-            self.is_powering_on = False
             return True
 
     @LogIt
@@ -542,12 +538,22 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
                 def callback(_):
                     event.set()
 
-                self.register_receive_callback(callback, '1::/com.samsung.companion', None)
+                self.register_receive_callback(
+                    callback,
+                    '1::/com.samsung.companion',
+                    None
+                )
 
-                self.sock.send('1::/com.samsung.companion')
+                self.sock.send(
+                    '1::/com.samsung.companion'
+                )
                 event.wait(2.0)
 
-                self.unregister_receive_callback(callback, '1::/com.samsung.companion', None)
+                self.unregister_receive_callback(
+                    callback,
+                    '1::/com.samsung.companion',
+                    None
+                )
 
                 if not event.isSet():
                     logger.debug(

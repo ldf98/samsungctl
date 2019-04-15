@@ -305,7 +305,6 @@ class Application(object):
             response = response.json()
         except ValueError:
             return None
-
         if 'running' not in response:
             return None
 

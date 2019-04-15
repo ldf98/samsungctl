@@ -142,8 +142,9 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 str(sslopt)
             )
 
-            self._thread = threading.Thread(target=self.loop)
-            self._thread.start()
+            if self._thread is None:
+                self._thread = threading.Thread(target=self.loop)
+                self._thread.start()
 
             # noinspection PyPep8,PyBroadException
             try:
@@ -173,9 +174,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 if self._art_mode is not None:
                     self._art_mode.open()
 
-                self.connect()
-
-                self.is_powering_on = False
                 return True
 
             self._close_connection()
@@ -202,7 +200,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 if not res:
                     self.config.token = saved_token
-                    self.is_powering_on = False
                     raise RuntimeError(
                         'Auth Error: invalid token - '
                         'create a new pairing to the TV.'
@@ -215,18 +212,15 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                         ' old token: ' +
                         str(saved_token)
                     )
-                    self.is_powering_on = False
                     return res
 
-            self.is_powering_on = False
             raise RuntimeError('Unknown Auth Failure: \n' + str(self.config))
 
         with self._auth_lock:
             if self.sock is not None:
-                self.is_powering_on = False
                 return True
 
-            do()
+            return do()
 
     @LogIt
     def send(self, method, **params):
