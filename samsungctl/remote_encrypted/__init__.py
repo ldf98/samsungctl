@@ -613,5 +613,4 @@ class RemoteEncrypted(websocket_base.WebSocketBase):
 
             except:
                 traceback.print_exc()
-                self._close_connection()
                 return False

@@ -176,8 +176,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
 
                 return True
 
-            self._close_connection()
-
             if self.config.port == 8001:
                 logger.debug(
                     self.config.host +
@@ -250,12 +248,6 @@ class RemoteWebsocket(websocket_base.WebSocketBase):
                 return True
             except:
                 return False
-
-    def _close_connection(self):
-        if self._art_mode is not None:
-            self._art_mode.close()
-
-        websocket_base.WebSocketBase._close_connection(self)
 
     def _send_key(self, key, cmd='Click'):
         """

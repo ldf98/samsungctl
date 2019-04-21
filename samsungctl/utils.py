@@ -18,7 +18,7 @@ PY3 = sys.version_info[0] > 2
 
 DEBUG_LOGGING_TEMPLATE = '''\
 DEBUG*;*\
-%x  %X*;*\
+{{0}}*;*\
 {thread_name}*;*\
 {thread_id}*;*\
 src: {calling_obj} [{calling_filename}:{calling_line_no}]*;*\
@@ -38,7 +38,7 @@ dst: {called_obj} [{called_filename}:{called_line_no}]*;*\
 
 LOGGING_TEMPLATE = '''\
 DEBUG*;*\
-%x  %X*;*\
+{{0}}*;*\
 {thread_name}*;*\
 {thread_id}*;*\
 src: {calling_obj} [{calling_filename}:{calling_line_no}]*;*\
@@ -88,7 +88,10 @@ class DebugLogger(object):
                 msg = repr(msg)
 
         if args:
-            msg %= tuple(repr(arg) for arg in args)
+            try:
+                msg %= tuple(repr(arg) for arg in args)
+            except TypeError:
+                msg += ' ' + repr(args)
 
         if not msg.startswith('DEBUG*;*'):
             msg = repr(msg)
@@ -106,7 +109,7 @@ class DebugLogger(object):
             )
 
         if msg.startswith('DEBUG*;*'):
-            msg = time.strftime(msg, time.localtime(time.time()))
+            msg = time.strftime(msg.format('%%x  %%X'), time.localtime(time.time()))
 
         self._original_debug(msg)
 
