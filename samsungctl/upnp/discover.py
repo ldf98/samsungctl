@@ -589,10 +589,10 @@ class Discover(object):
 auto_discover = Discover()
 
 
-def discover(host=None, timeout=6):
+def discover(host=None, timeout=8):
 
-    if timeout < 6:
-        timeout = 6
+    if timeout < 8:
+        timeout = 8
     event = threading.Event()
 
     def discover_callback(config):
@@ -607,7 +607,6 @@ def discover(host=None, timeout=6):
         for config in configs:
             if config.host == host:
                 return [config]
-
         return []
 
     return configs

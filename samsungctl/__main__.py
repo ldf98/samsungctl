@@ -2,8 +2,6 @@
 
 from __future__ import print_function
 import argparse
-import collections
-import json
 import logging
 import os
 import socket
@@ -37,48 +35,7 @@ except ValueError:
     from samsungctl import key_mappings
     from samsungctl.config import Config
 
-
-def _read_config():
-    config = collections.defaultdict(
-        lambda: None,
-        dict(
-            name="samsungctl",
-            description="PC",
-            id="",
-            method="legacy",
-            timeout=0,
-        )
-    )
-
-    if sys.platform.startswith('win'):
-        return config
-
-    directories = []
-
-    xdg_config = os.getenv("XDG_CONFIG_HOME")
-    if xdg_config:
-        directories.append(xdg_config)
-
-    directories.append(os.path.join(os.getenv("HOME"), ".config"))
-    directories.append("/etc")
-
-    for directory in directories:
-        pth = os.path.join(directory, "samsungctl.conf")
-
-        if os.path.isfile(pth):
-            config_file = open(pth, 'r')
-            break
-    else:
-        return config
-
-    with config_file:
-        try:
-            config_json = json.load(config_file)
-            config.update(config_json)
-        except ValueError as e:
-            logging.warning("Could not parse the configuration file.\n  %s", e)
-
-    return config
+logger = logging.getLogger('samsungctl')
 
 
 def keys_help(keys):
@@ -124,15 +81,8 @@ def get_key(key):
         logging.warning("Warning: Key {0} not found.".format(key))
 
 
-def exit_func(code):
-    auto_discover.stop()
-    sys.exit(code)
-
-
 # noinspection PyTypeChecker
 def main():
-    auto_discover.start()
-
     epilog = "E.g. %(prog)s --host 192.168.0.10 --name myremote KEY_VOLDOWN"
     parser = argparse.ArgumentParser(
         prog=title,
@@ -151,12 +101,6 @@ def main():
         help="increase output verbosity"
     )
     parser.add_argument(
-        "-q",
-        "--quiet",
-        action="store_true",
-        help="suppress non-fatal output"
-    )
-    parser.add_argument(
         "-i",
         "--interactive",
         action="store_true",
@@ -167,20 +111,6 @@ def main():
         help="TV hostname or IP address"
     )
     parser.add_argument(
-        "--token",
-        default=None,
-        help="token for TV's >= 2014"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        help="TV port number (TCP)"
-    )
-    parser.add_argument(
-        "--method",
-        help="Connection method (legacy or websocket)"
-    )
-    parser.add_argument(
         "--name",
         help="remote control name"
     )
@@ -188,10 +118,6 @@ def main():
         "--description",
         metavar="DESC",
         help="remote control description"
-    )
-    parser.add_argument(
-        "--id",
-        help="remote control id"
     )
     parser.add_argument(
         "--volume",
@@ -249,7 +175,6 @@ def main():
             "state displays if the art mode is on or off"
         )
     )
-
     parser.add_argument(
         "--source",
         type=str,
@@ -264,25 +189,6 @@ def main():
             "name it will print out the currently "
             "active source label and name."
         )
-    )
-
-    parser.add_argument(
-        "--source-label",
-        type=str,
-        default=None,
-        help=(
-            "changes the label for a source. "
-            "If you do not use --source to specify the source to change the "
-            "label on. It will automatically default to the currently "
-            "active source. If you set the label to 'state' it will print out "
-            "the current label for a source if specified using --source or "
-            "the currently active source"
-        )
-    )
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        help="socket timeout in seconds (0 = no timeout)"
     )
     parser.add_argument(
         "--config-file",
@@ -320,51 +226,31 @@ def main():
 
     args = parser.parse_args()
 
-    if args.quiet:
-        log_level = logging.ERROR
-    elif not args.verbose:
-        log_level = logging.WARNING
-    elif args.verbose == 1:
-        log_level = logging.INFO
-    else:
-        log_level = logging.DEBUG
+    log_levels = [
+        logging.NOTSET,
+        logging.INFO,
+        logging.WARNING,
+        logging.ERROR,
+        logging.DEBUG
+    ]
+
+    logger.setLevel(log_levels[args.verbose])
 
     if args.key_help:
         keys_help(args.key)
 
-    try:
+    if args.config_file is None:
+        config = Config
+    else:
+        config = Config.load(args.config_file)
 
-        if args.config_file is None:
-            config = _read_config()
-            config.update(
-                {
-                    k: v for k, v in vars(args).items()
-                    if v is not None
-                }
-            )
-            config = Config(**config)
-        else:
-            config = {
-                k: v for k, v in vars(args).items()
-                if v is not None
-            }
-            config = Config.load(args.config_file)(**config)
+    config = config(
+        host=args.host
+    )
 
-    except exceptions.ConfigError:
-        import traceback
-        traceback.print_exc()
-
-        return
-
-    config.log_level = log_level
-
-    if config.upnp_locations is None:
-        config.upnp_locations = []
-
-    if not config.host or not config.uuid:
-        configs = discover(config.host)
+    if not config.uuid:
+        configs = discover(args.host)
         if len(configs) > 1:
-
             while True:
                 for i, cfg in enumerate(configs):
                     print(i + 1, ':', cfg.model)
@@ -380,58 +266,54 @@ def main():
 
                 try:
                     answer = int(answer) - 1
-                    cfg = configs[answer]
+                    config = configs[answer]
                     break
                 except (TypeError, ValueError, IndexError):
                     pass
 
         elif configs:
-            cfg = configs[0]
-
+            config = configs[0]
         else:
             print('Unable to discover any TV\'s')
-            exit_func(0)
-            # this never actually happens it is only here to make my IDE happy
-            raise RuntimeError
-    else:
-        cfg = config
+            sys.exit(1)
+
+    config.log_level = log_levels[args.verbose]
+
+    if not config.uuid:
+        print('No UUID for TV located')
+        sys.exit(1)
+
+    if config.upnp_locations is None:
+        config.upnp_locations = []
 
     try:
-        with Remote(cfg) as remote:
+        with Remote(config) as remote:
             if args.interactive:
                 logging.getLogger().setLevel(logging.ERROR)
                 from . import interactive
                 inter = interactive.Interactive(remote)
                 inter.run()
-                exit_func(0)
+                sys.exit(1)
 
             if (
                 args.key and
                 args.key[0] in ('KEY_POWER', 'KEY_POWERON') and
-                cfg.paired and
+                config.paired and
                 not remote.power
             ):
                 args.key.pop(0)
-
-                import threading
-
-                event = threading.Event()
-
-                def callback(_, state):
-                    if state:
-                        event.set()
-
-                auto_discover.register_callback(callback, cfg.uuid)
                 remote.power = True
 
-                event.wait(10.0)
-                auto_discover.unregister_callback(callback, cfg.uuid)
+                import time
 
-                if not event.isSet():
-                    print('Unable to send command TV is not powered on.')
-                    exit_func(1)
+                while remote.is_powering_on:
+                    time.sleep(0.25)
 
-            if cfg.method == 'websocket' and args.start_app:
+                if not remote.power:
+                    print('Unable to power on the TV')
+                    sys.exit(1)
+
+            if config.method == 'websocket' and args.start_app:
                 app = remote.get_application(args.start_app)
                 if args.app_metadata:
                     app.run(args.app_metadata)
@@ -479,22 +361,7 @@ def main():
                 else:
                     remote.sharpness = args.sharpness
 
-            if args.source_label is not None:
-                if args.source is None:
-                    if args.source_label == 'state':
-                        print('Source Label:', remote.source.label)
-                    else:
-                        remote.source.label = args.remote_label
-                else:
-                    for source in remote.sources:
-                        if args.source in (source.label, source.name):
-                            if args.source_label == 'state':
-                                print('Source Label:', source.label)
-                            else:
-                                source.label = args.source_label
-                            break
-
-            elif args.source is not None:
+            if args.source is not None:
                 if args.source == 'state':
                     source = remote.source
                     print(
@@ -509,19 +376,19 @@ def main():
     except exceptions.AccessDenied:
         logging.error("Error: Access denied!")
     except exceptions.ConfigUnknownMethod:
-        logging.error("Error: Unknown method '{}'".format(cfg.method))
+        logging.error("Error: Unknown method '{}'".format(config.method))
     except socket.timeout:
         logging.error("Error: Timed out!")
     except OSError as e:
         logging.error("Error: %s", e.strerror)
 
     if args.config_file:
-        cfg.save()
-        exit_func(0)
+        config.save()
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        exit_func(2)
+        print('Interrupted by user')
+        sys.exit(1)

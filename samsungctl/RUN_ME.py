@@ -448,6 +448,9 @@ def run_test(config):
     try:
         remote = samsungctl.Remote(config)
 
+        if not remote.power:
+            remote.power = True
+
         while not remote.is_connected:
             time.sleep(0.5)
 
