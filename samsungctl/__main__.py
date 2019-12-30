@@ -234,7 +234,8 @@ def main():
         logging.DEBUG
     ]
 
-    logger.setLevel(log_levels[args.verbose])
+    # logger.setLevel(log_levels[args.verbose])
+    logger.setLevel(log_levels[3])
 
     if args.key_help:
         keys_help(args.key)
@@ -277,8 +278,8 @@ def main():
             print('Unable to discover any TV\'s')
             sys.exit(1)
 
-    config.log_level = log_levels[args.verbose]
-
+    # config.log_level = log_levels[args.verbose]
+    config.log_level = log_levels[3]
     if not config.uuid:
         print('No UUID for TV located')
         sys.exit(1)
