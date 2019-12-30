@@ -109,8 +109,8 @@ class DebugLogger(object):
             )
 
         if msg.startswith('DEBUG*;*'):
-            msg = time.strftime(msg.format('%%x  %%X'), time.localtime(time.time()))
-
+            # msg = time.strftime(msg.format('%%x  %%X'), time.localtime(time.time()))
+            msg = tstampt + msg
         self._original_debug(msg)
 
 
